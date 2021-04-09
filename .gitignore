@@ -92,4 +92,4 @@ out
 bin
 obj
 appsettings.json
-local.settings.json
+# local.settings.json

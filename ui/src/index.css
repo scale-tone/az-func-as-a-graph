@@ -1,13 +1,46 @@
-.counter-div {
-    white-space: nowrap;
+body {
+  margin: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  font-family: 'Arial', 'Lucida Grande', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.counter-div button {
-    margin: 5px;
-    display: inline-block;
+.title-typography {
+    min-width: 320px !important;
 }
 
-.counter-div h3 {
-    margin: 5px;
-    display: inline-block;
+.zoom-slider {
+    min-width: 100px !important;
+    margin-right: 50px !important;
+}
+
+.filter-button {
+    min-width: 200px !important;
+    margin-right: 130px !important;
+}
+
+.github-link {
+    position: absolute;
+    right: 0px;
+    top: 0px;
+}
+
+.diagram-div {
+    padding-top: 30px;
+}
+
+.diagram-div > svg {
+    display: block;
+    margin: auto;
+}
+
+.error-typography {
+    padding: 30px !important;
+}
+
+.bottom-toolbar {
+    padding-top: 30px;
+    padding-bottom: 30px;
 }

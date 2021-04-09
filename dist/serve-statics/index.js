@@ -30,21 +30,13 @@ function default_1(context) {
                 fileName: `${wwwroot}/static/js/${p3}`,
                 contentType: 'application/javascript; charset=UTF-8'
             },
-            'static/media': {
-                fileName: `${wwwroot}/static/media/${p3}`,
+            'static/icons': {
+                fileName: `${wwwroot}/static/icons/${p3}`,
                 contentType: 'image/svg+xml; charset=UTF-8'
             },
             'favicon.ico/undefined': {
                 fileName: `${wwwroot}/favicon.ico`,
                 contentType: 'image/x-icon'
-            },
-            'logo192.png/undefined': {
-                fileName: `${wwwroot}/logo192.png`,
-                contentType: 'image/png'
-            },
-            'logo512.png/undefined': {
-                fileName: `${wwwroot}/logo512.png`,
-                contentType: 'image/png'
             }
         };
         const mapEntry = fileMap[`${p1}/${p2}`];

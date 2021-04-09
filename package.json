@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "build": "(node generate-entity-boilerplate.js) & tsc & (cd .\\ui & npm install & npm run build)",
+    "build": "tsc & (cd .\\ui & npm install & npm run build)",
     "watch": "tsc -w",
     "prestart": "npm run build",
     "start": "func start",
@@ -11,12 +11,12 @@
   },
   "dependencies": {
     "durable-functions": "^1.4.6",
-    "rfc6902": "^4.0.1"
+    "rimraf": "^3.0.2"
   },
   "devDependencies": {
     "@azure/functions": "^1.2.2",
     "@types/jest": "^26.0.20",
-    "@types/node": "^14.6.2",
+    "@types/node": "^14.14.31",
     "jest": "26.6.0",
     "ts-jest": "^26.5.3",
     "typescript": "^3.6.4"

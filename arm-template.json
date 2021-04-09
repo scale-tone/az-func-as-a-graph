@@ -4,7 +4,7 @@
     "parameters": {
         "deploymentName": {
             "type": "string",
-            "defaultValue": "[concat('durmvc', uniqueString(resourceGroup().id))]",
+            "defaultValue": "[concat('azfaag', uniqueString(resourceGroup().id))]",
             "metadata": {
                 "description": "A unique random base name for this demo setup. Lower letters only."
             }
@@ -12,7 +12,6 @@
     },
     "variables": {
         "storageAccountName": "[concat(parameters('deploymentName'), 'st')]",
-        "signalRServiceName": "[concat(parameters('deploymentName'), '-signalr')]",
         "hostingPlanName": "[concat(parameters('deploymentName'), '-plan')]",
         "functionAppName": "[concat(parameters('deploymentName'), '-function')]"
     },
@@ -28,29 +27,6 @@
             "properties": {
                 "supportsHttpsTrafficOnly": true,
                 "minimumTlsVersion": "TLS1_2"
-            }
-        },
-
-
-        {
-            "type": "Microsoft.SignalRService/signalR",
-            "apiVersion": "2020-07-01-preview",
-            "name": "[variables('signalRServiceName')]",
-            "location": "[resourceGroup().location]",
-            "sku": {
-                "name": "Standard_S1"
-            },
-            "kind": "SignalR",
-            "properties": {
-                "features": [
-                    {
-                        "flag": "ServiceMode",
-                        "value": "Serverless"
-                    }
-                ],
-                "cors": {
-                    "allowedOrigins": ["*"]
-                }
             }
         },
         {
@@ -90,7 +66,7 @@
                         "[resourceId('Microsoft.Web/sites/', variables('functionAppName'))]"
                     ],
                     "properties": {
-                        "RepoUrl": "https://github.com/scale-tone/durable-mvc-starter",
+                        "RepoUrl": "https://github.com/scale-tone/az-func-as-a-graph",
                         "branch": "main",
                         "IsManualIntegration": true
                     }
@@ -100,10 +76,6 @@
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
                 "siteConfig": {
                     "appSettings": [
-                        {
-                            "name": "AzureSignalRHubName",
-                            "value": "DurableMvcTestHub"
-                        },
                         {
                             "name": "AzureSignalRConnectionString",
                             "value": "[listKeys(resourceId('Microsoft.SignalRService/signalR', variables('signalRServiceName')), '2020-05-01').primaryConnectionString]"

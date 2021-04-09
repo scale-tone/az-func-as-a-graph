@@ -1,44 +1,108 @@
 import React from 'react';
 import { observer } from 'mobx-react';
 
-import { DurableEntitySet } from './common/DurableEntitySet';
-import { CounterState } from './shared/CounterState';
+import { AppBar, Box, Button, LinearProgress, TextField, Toolbar, Typography } from '@material-ui/core';
 
-// Optional setup
-DurableEntitySet.setup({
+import FileCopyIcon from '@material-ui/icons/FileCopy';
+import SaveIcon from '@material-ui/icons/Save';
 
-    // Setup with some fake user name. This is for testing purposes only.
-    // When deployed to Azure with EasyAuth configured, this name will be replaced with your real user name.
-    fakeUserNamePromise: Promise.resolve('test-anonymous-user'),
+import { AppState } from './AppState';
 
-    logger: { log: (l, msg: string) => console.log(msg) }
-});
+@observer
+export default class App extends React.Component<{ state: AppState }> {
 
-const entityName = 'CounterEntity';
-const entityKey = 'my-counter';
+    render(): JSX.Element {
+        const state = this.props.state;
 
-// Creating a single CounterEntity and binding to its state
-const counterState = DurableEntitySet.createEntity(entityName, entityKey, new CounterState());
+        return (<>
+            <AppBar position="static" color="default">
+                <Toolbar>
 
-// Rendering that entity state
-export const App = observer(
-    class App extends React.Component {
-        render(): JSX.Element {
-            return (<>
-                <div className="counter-div">
-                    <h3> Title: '{counterState.title}', count: {counterState.countContainer?.count}</h3>
-                    <button onClick={() => DurableEntitySet.signalEntity(entityName, entityKey, 'add', 1)}>
-                        Increment
-                    </button>
-                    <button onClick={() => DurableEntitySet.signalEntity(entityName, entityKey, 'substract', 1)}>
-                        Decrement
-                    </button>
-                </div>
-                <h4>{counterState.history.length ? 'History (last 10 values):' : ''}</h4>
-                <ul>
-                    {counterState.history.map(n => (<li>{n}</li>))}
-                </ul>
-            </>);
+                    <Typography variant="h5" color="inherit" className="title-typography">
+                        Azure Functions as a Graph
+                    </Typography>
+
+                    <TextField
+                        fullWidth
+                        className="filter-textfield"
+                        margin="dense"
+                        label="GitHub link or local path to Functions project"
+                        InputLabelProps={{ shrink: true }}
+                        placeholder="e.g. 'https://github.com/scale-tone/repka-durable-func'"
+                        disabled={state.inProgress}
+                        value={state.pathText}
+                        onChange={(evt) => state.pathText = evt.target.value as string}
+                        onKeyPress={(evt: React.KeyboardEvent<HTMLInputElement>) => this.handleKeyPress(evt)}
+                    />
+
+                    <Box width={30} />
+
+                    <Button
+                        className="filter-button"
+                        variant="outlined"
+                        color="secondary"
+                        size="large"
+                        disabled={state.inProgress || !state.pathText}
+                        onClick={() => state.load()}
+                    >
+                        Visualize
+                    </Button>
+                </Toolbar>
+            </AppBar>
+
+            {!!state.inProgress && (<LinearProgress />)}
+
+            {!!state.error && (<Typography className="error-typography" color="error" variant="h5" >{state.error}</Typography>)}
+
+            {!!state.diagramSvg && (<>
+                <div className="diagram-div"
+                    dangerouslySetInnerHTML={{ __html: state.diagramSvg }}
+                />
+
+                <Toolbar variant="dense" className="bottom-toolbar">
+
+                    <Button
+                        variant="outlined"
+                        color="default"
+                        disabled={state.inProgress}
+                        onClick={() => window.navigator.clipboard.writeText(state.diagramCode)}
+                    >
+                        <FileCopyIcon />
+                        <Box width={10} />
+                        <Typography color="inherit">Copy diagram code to Clipboard</Typography>
+                    </Button>
+
+                    <Box width={20} />
+
+                    <Button
+                        variant="outlined"
+                        color="default"
+                        disabled={state.inProgress}
+                        href={URL.createObjectURL(new Blob([state.diagramSvg], { type: 'image/svg+xml' }))}
+                        download={'functions.svg'}
+                    >
+                        <SaveIcon />
+                        <Box width={20} />
+                        <Typography color="inherit">Save as .SVG</Typography>
+                    </Button>
+
+                    <Box width={20} />
+                </Toolbar>
+            </>)}
+
+            <a className="github-link" href="https://github.com/scale-tone/az-func-as-a-graph" target="_blank" rel="noreferrer">
+                <img loading="lazy" width="149" height="149" src="https://github.blog/wp-content/uploads/2008/12/forkme_right_white_ffffff.png?resize=149%2C149" alt="Fork me on GitHub" data-recalc-dims="1" />
+            </a>
+
+        </>);
+    }
+
+    private handleKeyPress(event: React.KeyboardEvent<HTMLInputElement>) {
+        if (event.key === 'Enter') {
+            // Otherwise the event will bubble up and the form will be submitted
+            event.preventDefault();
+
+            this.props.state.load();
         }
     }
-);
+}
