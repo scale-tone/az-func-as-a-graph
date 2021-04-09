@@ -1,0 +1,140 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "deploymentName": {
+            "type": "string",
+            "defaultValue": "[concat('durmvc', uniqueString(resourceGroup().id))]",
+            "metadata": {
+                "description": "A unique random base name for this demo setup. Lower letters only."
+            }
+        }
+    },
+    "variables": {
+        "storageAccountName": "[concat(parameters('deploymentName'), 'st')]",
+        "signalRServiceName": "[concat(parameters('deploymentName'), '-signalr')]",
+        "hostingPlanName": "[concat(parameters('deploymentName'), '-plan')]",
+        "functionAppName": "[concat(parameters('deploymentName'), '-function')]"
+    },
+    "resources": [
+        {
+            "apiVersion": "2019-06-01",
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[variables('storageAccountName')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "properties": {
+                "supportsHttpsTrafficOnly": true,
+                "minimumTlsVersion": "TLS1_2"
+            }
+        },
+
+
+        {
+            "type": "Microsoft.SignalRService/signalR",
+            "apiVersion": "2020-07-01-preview",
+            "name": "[variables('signalRServiceName')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_S1"
+            },
+            "kind": "SignalR",
+            "properties": {
+                "features": [
+                    {
+                        "flag": "ServiceMode",
+                        "value": "Serverless"
+                    }
+                ],
+                "cors": {
+                    "allowedOrigins": ["*"]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2016-09-01",
+            "name": "[variables('hostingPlanName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "name": "[variables('hostingPlanName')]",
+                "workerSize": "4",
+                "workerSizeId": "4",
+                "numberOfWorkers": "1",
+                "reserved": false
+            },
+            "sku": {
+                "Tier": "PremiumV2",
+                "Name": "P2v2"
+            }
+        },
+        {
+            "apiVersion": "2018-11-01",
+            "type": "Microsoft.Web/sites",
+            "name": "[variables('functionAppName')]",
+            "location": "[resourceGroup().location]",
+            "kind": "functionapp",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                "[resourceId('Microsoft.SignalRService/signalR', variables('signalRServiceName'))]"
+            ],
+            "resources": [
+                {
+                    "apiVersion": "2015-08-01",
+                    "name": "web",
+                    "type": "sourcecontrols",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Web/sites/', variables('functionAppName'))]"
+                    ],
+                    "properties": {
+                        "RepoUrl": "https://github.com/scale-tone/durable-mvc-starter",
+                        "branch": "main",
+                        "IsManualIntegration": true
+                    }
+                }
+            ],
+            "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "AzureSignalRHubName",
+                            "value": "DurableMvcTestHub"
+                        },
+                        {
+                            "name": "AzureSignalRConnectionString",
+                            "value": "[listKeys(resourceId('Microsoft.SignalRService/signalR', variables('signalRServiceName')), '2020-05-01').primaryConnectionString]"
+                        },
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value,';EndpointSuffix=','core.windows.net')]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value,';EndpointSuffix=','core.windows.net')]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTSHARE",
+                            "value": "[variables('functionAppName')]"
+                        },
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~3"
+                        },
+                        {
+                            "name": "FUNCTIONS_WORKER_RUNTIME",
+                            "value": "node"
+                        },
+                        {
+                            "name": "WEBSITE_NODE_DEFAULT_VERSION",
+                            "value": "~12"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

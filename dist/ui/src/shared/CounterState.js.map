@@ -1,0 +1,1 @@
+{"version":3,"file":"CounterState.js","sourceRoot":"","sources":["../../../../ui/src/shared/CounterState.ts"],"names":[],"mappings":";;;AACA,sBAAsB;AACtB,MAAa,YAAY;IAAzB;QAEI,UAAK,GAAW,EAAE,CAAC;QAEnB,mBAAc,GAAG;YACb,KAAK,EAAE,CAAC;SACX,CAAA;QAED,YAAO,GAAa,EAAE,CAAC;IAC3B,CAAC;CAAA;AATD,oCASC"}

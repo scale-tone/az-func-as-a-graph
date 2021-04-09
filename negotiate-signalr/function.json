@@ -1,0 +1,28 @@
+{
+    "bindings": [
+        {
+            "authLevel": "anonymous",
+            "type": "httpTrigger",
+            "route": "a/p/i/negotiate",
+            "direction": "in",
+            "name": "req",
+            "methods": [
+                "get",
+                "post"
+            ]
+        },
+        {
+            "type": "signalRConnectionInfo",
+            "name": "connectionInfo",
+            "hubName": "%AzureSignalRHubName%",
+            "userId": "{headers.x-ms-client-principal-name}",
+            "direction": "in"
+        },
+        {
+            "type": "http",
+            "direction": "out",
+            "name": "res"
+        }
+    ],
+    "scriptFile": "../dist/negotiate-signalr/index.js"
+}

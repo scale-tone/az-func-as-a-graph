@@ -1,0 +1,13 @@
+.counter-div {
+    white-space: nowrap;
+}
+
+.counter-div button {
+    margin: 5px;
+    display: inline-block;
+}
+
+.counter-div h3 {
+    margin: 5px;
+    display: inline-block;
+}

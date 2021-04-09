@@ -1,0 +1,18 @@
+{
+    "bindings": [
+        {
+            "name": "context",
+            "type": "entityTrigger",
+            "direction": "in"
+        },
+        {
+            "type": "signalR",
+            "name": "signalRMessages",
+            "hubName": "%AzureSignalRHubName%",
+            "connectionStringSetting": "AzureSignalRConnectionString",
+            "direction": "out"
+        }
+    ],
+    "disabled": false,
+    "scriptFile": "../dist/CounterEntity/index.js"
+}
