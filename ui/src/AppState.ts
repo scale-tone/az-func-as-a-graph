@@ -42,6 +42,7 @@ export class AppState {
         this._diagramSvg = '';
 
         const projectPath = this.pathText;
+        window.history.replaceState(null, null, `?path=${encodeURIComponent(projectPath)}`);
         this.pathText = '';
 
         axios.post(`a/p/i/traverse-func`, projectPath).then(response => {

@@ -21,7 +21,7 @@ function findFileRecursively(folder, fileName, pattern) {
     for (const name of fs.readdirSync(folder)) {
         var fullPath = path.join(folder, name);
         if (fs.lstatSync(fullPath).isDirectory()) {
-            if (ExcludedFolders.includes(name)) {
+            if (ExcludedFolders.includes(name.toLowerCase())) {
                 continue;
             }
             fullPath = findFileRecursively(fullPath, fileName, pattern);
@@ -73,8 +73,10 @@ function mapActivitiesToOrchestrators(functions, projectFolder, hostJsonFolder) 
     return functions;
 }
 function isDotNetProject(projectFolder) {
-    return fs.readdirSync(projectFolder).some(fn => (fn.endsWith('.sln')) ||
-        (fn.endsWith('.csproj') && fn !== 'extensions.csproj'));
+    return fs.readdirSync(projectFolder).some(fn => {
+        fn = fn.toLowerCase();
+        return (fn.endsWith('.sln')) || (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+    });
 }
 // Main function
 function default_1(context, req) {
@@ -83,11 +85,11 @@ function default_1(context, req) {
         try {
             var projectFolder = req.body;
             // If it is a git repo, cloning it
-            if (projectFolder.startsWith('http')) {
+            if (projectFolder.toLowerCase().startsWith('http')) {
                 var projectPath = [];
                 // Trying to infer project path
-                if (!projectFolder.endsWith('.git')) {
-                    const match = /(https:\/\/github.com\/.*?)\/([^\/]+)\/tree\/[^\/]+\/(.*)/.exec(projectFolder);
+                if (!projectFolder.toLowerCase().endsWith('.git')) {
+                    const match = /(https:\/\/github.com\/.*?)\/([^\/]+)\/tree\/[^\/]+\/(.*)/i.exec(projectFolder);
                     if (!match || match.length < 4) {
                         projectFolder += '.git';
                     }
@@ -98,7 +100,7 @@ function default_1(context, req) {
                     }
                 }
                 gitTempFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'git-clone-'));
-                console.log(`>>> Cloning ${projectFolder} to ${gitTempFolder}...`);
+                context.log(`>>> Cloning ${projectFolder} to ${gitTempFolder}...`);
                 child_process_1.execSync(`git clone ${projectFolder}`, { cwd: gitTempFolder });
                 projectFolder = path.join(gitTempFolder, ...projectPath);
             }
@@ -106,12 +108,12 @@ function default_1(context, req) {
             if (!hostJsonPath) {
                 throw new Error('host.json file not found under the provided project path');
             }
-            console.log(`>>> Found host.json at ${hostJsonPath}`);
+            context.log(`>>> Found host.json at ${hostJsonPath}`);
             var hostJsonFolder = path.dirname(hostJsonPath);
             // If it is a C# function, we'll need to dotnet publish first
             if (isDotNetProject(hostJsonFolder)) {
                 publishTempFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'dotnet-publish-'));
-                console.log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
+                context.log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
                 child_process_1.execSync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
                 hostJsonFolder = publishTempFolder;
             }

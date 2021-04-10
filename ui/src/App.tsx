@@ -11,6 +11,16 @@ import { AppState } from './AppState';
 @observer
 export default class App extends React.Component<{ state: AppState }> {
 
+    componentDidMount() {
+
+        if (window.location.search.startsWith('?path=')) {
+         
+            const state = this.props.state;
+            state.pathText = decodeURIComponent(window.location.search.substr(6));
+            state.load();
+        }
+    }
+
     render(): JSX.Element {
         const state = this.props.state;
 
