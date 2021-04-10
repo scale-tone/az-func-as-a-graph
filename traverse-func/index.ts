@@ -43,43 +43,83 @@ function findFileRecursively(folder: string, fileName: string, pattern?: string)
 }
 
 // Tries to match orchestrations and their activities by parsing source code
-function mapActivitiesToOrchestrators(functions: {}, projectFolder: string, hostJsonFolder: string) {
+function remapOrchestratorsAndActivities(functions: {}, projectFolder: string, hostJsonFolder: string) {
 
     const isDotNet = isDotNetProject(projectFolder);
     
     const activityNames = Object.keys(functions).filter(name => functions[name].bindings.some(b => b.type === 'activityTrigger'));
-    const orchNames = Object.keys(functions).filter(name => functions[name].bindings.some(b => b.type === 'orchestrationTrigger'));
 
-    for (const orchName of orchNames) {
-        
-        var orchFileName = ''
-        if (isDotNet) {
-            orchFileName = findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${orchName}["'\`\\)]{1}`);
-        } else {
-            orchFileName = findFileRecursively(path.join(hostJsonFolder, orchName), 'index\.ts|index\.js|__init__\.py');
-        }
-        if (!orchFileName) {
-            continue;
-        }
-        
-        const orchCode = fs.readFileSync(orchFileName, { encoding: 'utf8' });
+    const orchestrators = Object.keys(functions)
+        .filter(name => functions[name].bindings.some(b => b.type === 'orchestrationTrigger'))
+        .map(name => {
 
-        for (const activityName of activityNames) {
+            var orchFileName = ''
+            if (isDotNet) {
+                orchFileName = findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`);
+            } else {
+                orchFileName = findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$');
+            }
 
-            // If this orchestrator seems to be calling this activity
-            const regex = new RegExp(`\\(\s*["'\`]?${activityName}["'\`\\)]{1}`);
-            if (!!regex.exec(orchCode)) {
-                
-                if (!functions[orchName].activities) {
-                    functions[orchName].activities = {};
+            if (!orchFileName) {
+                return;
+            }
+
+            return { name, code: fs.readFileSync(orchFileName, { encoding: 'utf8' }) }
+        })
+        .filter(orch => !!orch);
+    
+    for (const orch of orchestrators) {
+        for (const subOrch of orchestrators) {
+            if (orch.name === subOrch.name) {
+                continue;
+            }
+
+            // If this orchestrator seems to be calling that suporchestrator
+            const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry)(Async)?\\s*\\(\\s*(["'\`]|nameof\\s*\\()${subOrch.name}["'\\)]{1}`, 'i');
+            if (!!regex.exec(orch.code)) {
+
+                // Mapping activities to that suborchestrator
+                mapActivitiesToOrchestrator(functions, subOrch, activityNames);
+
+                // Now mapping that suborchestrator to this orchestrator
+                if (!functions[orch.name].subOrchestrators) {
+                    functions[orch.name].subOrchestrators = {};
                 }
-                functions[orchName].activities[activityName] = functions[activityName];
-                delete functions[activityName];
-            }            
+                functions[orch.name].subOrchestrators[subOrch.name] = functions[subOrch.name];
+                delete functions[subOrch.name];
+            }
         }
     }
 
+    // Now mapping activities to the remaining orchestrators
+    for (const orch of orchestrators) {
+
+        if (!functions[orch.name]) {
+            continue;
+        }
+
+        mapActivitiesToOrchestrator(functions, orch, activityNames);
+    }
+
     return functions;
+}
+
+function mapActivitiesToOrchestrator(functions: any, orch: any, activityNames: any): void {
+
+    for (const activityName of activityNames) {
+
+        // If this orchestrator seems to be calling this activity
+        const regex = new RegExp(`\\(\s*["'\`]?${activityName}["'\`\\)]{1}`);
+        if (!!regex.exec(orch.code)) {
+
+            // Then mapping this activity to this orchestrator
+            if (!functions[orch.name].activities) {
+                functions[orch.name].activities = {};
+            }
+            functions[orch.name].activities[activityName] = functions[activityName];
+            delete functions[activityName];
+        }
+    }
 }
 
 function isDotNetProject(projectFolder): boolean {
@@ -165,7 +205,7 @@ export default async function (context: Context, req: HttpRequest): Promise<void
         }
 
         context.res = {
-            body: mapActivitiesToOrchestrators(result, projectFolder, hostJsonFolder)
+            body: remapOrchestratorsAndActivities(result, projectFolder, hostJsonFolder)
         };
 
     } catch (err) {

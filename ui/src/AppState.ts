@@ -74,7 +74,7 @@ export class AppState {
                     }
                 }
 
-                functions.push({ name, nodeCode, triggerBinding, inputBindings, outputBindings, activities: func.activities });
+                functions.push({ name, nodeCode, triggerBinding, inputBindings, outputBindings, activities: func.activities, subOrchestrators: func.subOrchestrators });
             }
 
             functions.sort((f1, f2) => {
@@ -100,6 +100,22 @@ export class AppState {
 
                 for (const outputBinding of func.outputBindings) {
                     code += `${func.name} -.-> ${func.name}.${outputBinding.type}(["#32;${this.getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
+                }
+
+                if (!!func.subOrchestrators) {
+
+                    for (const subOrchName in func.subOrchestrators) {
+
+                        code += `${func.name} --> ${func.name}.${subOrchName}[["#32;${subOrchName}"]]:::orchestrator\n`;
+
+                        const subOrch = func.subOrchestrators[subOrchName];
+                        if (!!subOrch.activities) {
+                            
+                            for (const activityName in subOrch.activities) {
+                                code += `${func.name}.${subOrchName} --> ${func.name}.${subOrchName}.${activityName}[/"#32;${activityName}"/]:::activity\n`;
+                            }
+                        }
+                    }
                 }
 
                 if (!!func.activities) {
