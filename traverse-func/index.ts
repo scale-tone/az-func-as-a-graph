@@ -54,7 +54,7 @@ function mapActivitiesToOrchestrators(functions: {}, projectFolder: string, host
         
         var orchFileName = ''
         if (isDotNet) {
-            orchFileName = findFileRecursively(projectFolder, '.+\.cs$', `\\(\s*["'\`]?${orchName}["'\`\\)]{1}`);
+            orchFileName = findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${orchName}["'\`\\)]{1}`);
         } else {
             orchFileName = findFileRecursively(path.join(hostJsonFolder, orchName), 'index\.ts|index\.js|__init__\.py');
         }
@@ -83,7 +83,10 @@ function mapActivitiesToOrchestrators(functions: {}, projectFolder: string, host
 }
 
 function isDotNetProject(projectFolder): boolean {
-    return fs.readdirSync(projectFolder).some(fn => fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+    return fs.readdirSync(projectFolder).some(fn =>
+        (fn.endsWith('.sln')) ||
+        (fn.endsWith('.csproj') && fn !== 'extensions.csproj')
+    );
 }
 
 // Main function

@@ -49,7 +49,7 @@ function mapActivitiesToOrchestrators(functions, projectFolder, hostJsonFolder) 
     for (const orchName of orchNames) {
         var orchFileName = '';
         if (isDotNet) {
-            orchFileName = findFileRecursively(projectFolder, '.+\.cs$', `\\(\s*["'\`]?${orchName}["'\`\\)]{1}`);
+            orchFileName = findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${orchName}["'\`\\)]{1}`);
         }
         else {
             orchFileName = findFileRecursively(path.join(hostJsonFolder, orchName), 'index\.ts|index\.js|__init__\.py');
@@ -73,7 +73,8 @@ function mapActivitiesToOrchestrators(functions, projectFolder, hostJsonFolder) 
     return functions;
 }
 function isDotNetProject(projectFolder) {
-    return fs.readdirSync(projectFolder).some(fn => fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+    return fs.readdirSync(projectFolder).some(fn => (fn.endsWith('.sln')) ||
+        (fn.endsWith('.csproj') && fn !== 'extensions.csproj'));
 }
 // Main function
 function default_1(context, req) {
