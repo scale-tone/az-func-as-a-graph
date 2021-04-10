@@ -47,93 +47,92 @@ export class AppState {
 
         axios.post(`a/p/i/traverse-func`, projectPath).then(response => {
 
-            const functions = [];
+            try {
+                const functions = [];
 
-            for (const name in response.data) {
-                const func = response.data[name];
+                for (const name in response.data) {
+                    const func = response.data[name];
 
-                var triggerBinding = undefined, inputBindings = [], outputBindings = [];
-                var nodeCode = `${name}{{"#32;${name}"}}:::function`;
+                    var triggerBinding = undefined, inputBindings = [], outputBindings = [];
+                    var nodeCode = `${name}{{"#32;${name}"}}:::function`;
 
-                for (const binding of func.bindings) {
+                    for (const binding of func.bindings) {
 
-                    if (binding.type === 'orchestrationTrigger') {
-                        nodeCode = `${name}[["#32;${name}"]]:::orchestrator`;
-                    } else if (binding.type === 'activityTrigger') {
-                        nodeCode = `${name}[/"#32;${name}"/]:::activity`;
-                    } else if (binding.type === 'entityTrigger') {
-                        nodeCode = `${name}[("#32;${name}")]:::entity`;
+                        if (binding.type === 'orchestrationTrigger') {
+                            nodeCode = `${name}[["#32;${name}"]]:::orchestrator`;
+                        } else if (binding.type === 'activityTrigger') {
+                            nodeCode = `${name}[/"#32;${name}"/]:::activity`;
+                        } else if (binding.type === 'entityTrigger') {
+                            nodeCode = `${name}[("#32;${name}")]:::entity`;
+                        }
+                        
+                        if (binding.type.endsWith('Trigger')) {
+                            triggerBinding = binding;
+                        } else if (binding.direction === 'in') {
+                            inputBindings.push(binding);
+                        } else {
+                            outputBindings.push(binding);
+                        }
                     }
-                    
-                    if (binding.type.endsWith('Trigger')) {
-                        triggerBinding = binding;
-                    } else if (binding.direction === 'in') {
-                        inputBindings.push(binding);
-                    } else {
-                        outputBindings.push(binding);
+
+                    functions.push({ name, nodeCode, triggerBinding, inputBindings, outputBindings, activities: func.activities, subOrchestrators: func.subOrchestrators });
+                }
+
+                functions.sort((f1, f2) => {
+
+                    const s1 = (f1.triggerBinding?.type ?? '') + '~' + f1.name;
+                    const s2 = (f2.triggerBinding?.type ?? '') + '~' + f2.name;
+
+                    return (s1 > s2) ? 1 : ((s2 > s1) ? -1 : 0);
+                });
+
+                var code = '';
+                for (const func of functions) {
+
+                    code += `${func.nodeCode}\n`;
+
+                    if (!!func.triggerBinding) {
+                        code += `${func.name}.${func.triggerBinding.type}>"#32;${this.getTriggerBindingText(func.triggerBinding)}"]:::${func.triggerBinding.type} --> ${func.name}\n`;
                     }
-                }
 
-                functions.push({ name, nodeCode, triggerBinding, inputBindings, outputBindings, activities: func.activities, subOrchestrators: func.subOrchestrators });
-            }
+                    for (const inputBinding of func.inputBindings) {
+                        code += `${func.name}.${inputBinding.type}(["#32;${inputBinding.type}"]):::${this.getBindingText(inputBinding)} -.-> ${func.name}\n`;
+                    }
 
-            functions.sort((f1, f2) => {
+                    for (const outputBinding of func.outputBindings) {
+                        code += `${func.name} -.-> ${func.name}.${outputBinding.type}(["#32;${this.getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
+                    }
 
-                const s1 = (f1.triggerBinding?.type ?? '') + '~' + f1.name;
-                const s2 = (f2.triggerBinding?.type ?? '') + '~' + f2.name;
+                    if (!!func.subOrchestrators) {
 
-                return (s1 > s2) ? 1 : ((s2 > s1) ? -1 : 0);
-            });
+                        for (const subOrchName in func.subOrchestrators) {
 
-            var code = '';
-            for (const func of functions) {
+                            code += `${func.name} --> ${func.name}.${subOrchName}[["#32;${subOrchName}"]]:::orchestrator\n`;
 
-                code += `${func.nodeCode}\n`;
-
-                if (!!func.triggerBinding) {
-                    code += `${func.name}.${func.triggerBinding.type}>"#32;${this.getTriggerBindingText(func.triggerBinding)}"]:::${func.triggerBinding.type} --> ${func.name}\n`;
-                }
-
-                for (const inputBinding of func.inputBindings) {
-                    code += `${func.name}.${inputBinding.type}(["#32;${inputBinding.type}"]):::${this.getBindingText(inputBinding)} -.-> ${func.name}\n`;
-                }
-
-                for (const outputBinding of func.outputBindings) {
-                    code += `${func.name} -.-> ${func.name}.${outputBinding.type}(["#32;${this.getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
-                }
-
-                if (!!func.subOrchestrators) {
-
-                    for (const subOrchName in func.subOrchestrators) {
-
-                        code += `${func.name} --> ${func.name}.${subOrchName}[["#32;${subOrchName}"]]:::orchestrator\n`;
-
-                        const subOrch = func.subOrchestrators[subOrchName];
-                        if (!!subOrch.activities) {
-                            
-                            for (const activityName in subOrch.activities) {
-                                code += `${func.name}.${subOrchName} --> ${func.name}.${subOrchName}.${activityName}[/"#32;${activityName}"/]:::activity\n`;
+                            const subOrch = func.subOrchestrators[subOrchName];
+                            if (!!subOrch.activities) {
+                                
+                                for (const activityName in subOrch.activities) {
+                                    code += `${func.name}.${subOrchName} --> ${func.name}.${subOrchName}.${activityName}[/"#32;${activityName}"/]:::activity\n`;
+                                }
                             }
+                        }
+                    }
+
+                    if (!!func.activities) {
+                        
+                        for (const activityName in func.activities) {
+                            code += `${func.name} --> ${func.name}.${activityName}[/"#32;${activityName}"/]:::activity\n`;
                         }
                     }
                 }
 
-                if (!!func.activities) {
-                    
-                    for (const activityName in func.activities) {
-                        code += `${func.name} --> ${func.name}.${activityName}[/"#32;${activityName}"/]:::activity\n`;
-                    }
+                if (!code) {
+                    this._inProgress = false;
+                    return;
                 }
-            }
 
-            if (!code) {
-                this._inProgress = false;
-                return;
-            }
-
-            this._diagramCode = `graph LR\n${code}`;
-
-            try {
+                this._diagramCode = `graph LR\n${code}`;
 
                 mermaid.render('mermaidSvgId', this._diagramCode, (svg) => {
 
@@ -157,7 +156,7 @@ export class AppState {
 
         switch (binding.type) {
             case 'httpTrigger':
-                return `http:[${binding.methods.join(',')}]${!binding.route ? '' : ':' + binding.route}`;
+                return `http${!binding.methods ? '' : ':[' + binding.methods.join(',') + ']'}${!binding.route ? '' : ':' + binding.route}`;
             case 'blobTrigger':
                 return `blob:${binding.path}`;
             case 'cosmosDBTrigger':
