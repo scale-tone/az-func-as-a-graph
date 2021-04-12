@@ -75,7 +75,7 @@ function remapOrchestratorsAndActivities(functions: {}, projectFolder: string, h
             }
 
             // If this orchestrator seems to be calling that suporchestrator
-            const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry)(Async)?\\s*\\(\\s*(["'\`]|nameof\\s*\\()${subOrch.name}["'\\)]{1}`, 'i');
+            const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry)(Async)?(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\()${subOrch.name}["'\\)]{1}`, 'i');
             if (!!regex.exec(orch.code)) {
 
                 // Mapping activities to that suborchestrator
@@ -109,7 +109,7 @@ function mapActivitiesToOrchestrator(functions: any, orch: any, activityNames: a
     for (const activityName of activityNames) {
 
         // If this orchestrator seems to be calling this activity
-        const regex = new RegExp(`\\(\s*["'\`]?${activityName}["'\`\\)]{1}`);
+        const regex = new RegExp(`\\([\\s\\w\.-]*["'\`]?${activityName}["'\`\\)]{1}`);
         if (!!regex.exec(orch.code)) {
 
             // Then mapping this activity to this orchestrator
