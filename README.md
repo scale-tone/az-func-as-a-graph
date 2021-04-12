@@ -15,7 +15,7 @@ npm run build
 func start
 ```
 
-Then navigate to `http://localhost:7071` with your browser.
+Then navigate to `http://localhost:7071` with your browser, specify either local path or link to a github repo and press 'Visualize'.
 
 ## How to deploy to Azure
 
