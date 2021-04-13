@@ -7,7 +7,8 @@ import { execSync } from 'child_process';
 
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 
-// fileName can be a regex, pattern should be a regex (which will be searched for in the matching files)
+// fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
+// If pattern provided, returns file content. Otherwise returns full path to the file.
 function findFileRecursively(folder: string, fileName: string, pattern?: string): string {
 
     const nameRegex = new RegExp(fileName, 'i');
@@ -21,9 +22,9 @@ function findFileRecursively(folder: string, fileName: string, pattern?: string)
                 continue;
             }
 
-            fullPath = findFileRecursively(fullPath, fileName, pattern);
-            if (!!fullPath) {
-                return fullPath;
+            const result = findFileRecursively(fullPath, fileName, pattern);
+            if (!!result) {
+                return result;
             }
 
         } else if (!!nameRegex.exec(name)) {
@@ -34,7 +35,7 @@ function findFileRecursively(folder: string, fileName: string, pattern?: string)
 
             const code = fs.readFileSync(fullPath, { encoding: 'utf8' });
             if (!!new RegExp(pattern).exec(code)) {
-                return fullPath;
+                return code;
             }
         }
     }
@@ -53,18 +54,15 @@ function remapOrchestratorsAndActivities(functions: {}, projectFolder: string, h
         .filter(name => functions[name].bindings.some(b => b.type === 'orchestrationTrigger'))
         .map(name => {
 
-            var orchFileName = ''
-            if (isDotNet) {
-                orchFileName = findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`);
-            } else {
-                orchFileName = findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$');
-            }
+            const code = isDotNet ?
+                findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`) :
+                findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$');
 
-            if (!orchFileName) {
+            if (!code) {
                 return;
             }
 
-            return { name, code: fs.readFileSync(orchFileName, { encoding: 'utf8' }) }
+            return { name, code }
         })
         .filter(orch => !!orch);
     
