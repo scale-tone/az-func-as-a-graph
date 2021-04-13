@@ -107,7 +107,7 @@ export class AppState {
                     }
 
                     for (const inputBinding of func.inputBindings) {
-                        code += `${func.name}.${inputBinding.type}(["#32;${inputBinding.type}"]):::${this.getBindingText(inputBinding)} -.-> ${func.name}\n`;
+                        code += `${func.name}.${inputBinding.type}(["#32;${this.getBindingText(inputBinding)}"]):::${inputBinding.type} -.-> ${func.name}\n`;
                     }
 
                     for (const outputBinding of func.outputBindings) {
