@@ -58,11 +58,7 @@ function remapOrchestratorsAndActivities(functions: {}, projectFolder: string, h
                 findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`) :
                 findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$');
 
-            if (!code) {
-                return;
-            }
-
-            return { name, code }
+            return !code ? undefined : { name, code };
         })
         .filter(orch => !!orch);
     
@@ -80,11 +76,9 @@ function remapOrchestratorsAndActivities(functions: {}, projectFolder: string, h
                 mapActivitiesToOrchestrator(functions, subOrch, activityNames);
 
                 // Now mapping that suborchestrator to this orchestrator
-                if (!functions[orch.name].subOrchestrators) {
-                    functions[orch.name].subOrchestrators = {};
+                if (!functions[subOrch.name].isCalledBy) {
+                    functions[subOrch.name].isCalledBy = orch.name;
                 }
-                functions[orch.name].subOrchestrators[subOrch.name] = functions[subOrch.name];
-                delete functions[subOrch.name];
             }
         }
     }
@@ -102,20 +96,20 @@ function remapOrchestratorsAndActivities(functions: {}, projectFolder: string, h
     return functions;
 }
 
-function mapActivitiesToOrchestrator(functions: any, orch: any, activityNames: any): void {
+function mapActivitiesToOrchestrator(functions: any, orch: {name: string, code: string}, activityNames: string[]): void {
 
     for (const activityName of activityNames) {
+
+        if (!!functions[activityName].isCalledBy) {
+            continue;
+        }
 
         // If this orchestrator seems to be calling this activity
         const regex = new RegExp(`\\([\\s\\w\.-]*["'\`]?${activityName}["'\`\\)]{1}`);
         if (!!regex.exec(orch.code)) {
 
             // Then mapping this activity to this orchestrator
-            if (!functions[orch.name].activities) {
-                functions[orch.name].activities = {};
-            }
-            functions[orch.name].activities[activityName] = functions[activityName];
-            delete functions[activityName];
+            functions[activityName].isCalledBy = orch.name;
         }
     }
 }

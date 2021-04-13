@@ -50,6 +50,7 @@ export class AppState {
             try {
                 const functions = [];
 
+                // Determine what kind of function this one is
                 for (const name in response.data) {
                     const func = response.data[name];
 
@@ -75,23 +76,33 @@ export class AppState {
                         }
                     }
 
-                    functions.push({ name, nodeCode, triggerBinding, inputBindings, outputBindings, activities: func.activities, subOrchestrators: func.subOrchestrators });
+                    functions.push({ name, nodeCode, triggerBinding, inputBindings, outputBindings, ...func });
                 }
 
+                // Sorting by trigger type, then by name
                 functions.sort((f1, f2) => {
 
-                    const s1 = (f1.triggerBinding?.type ?? '') + '~' + f1.name;
-                    const s2 = (f2.triggerBinding?.type ?? '') + '~' + f2.name;
+                    var s1 = (!!f1.isCalledBy || !f1.triggerBinding || !f1.triggerBinding.type) ? '' : f1.triggerBinding.type;
+                    s1 += '~' + f1.name;
+
+                    var s2 = (!!f2.isCalledBy || !f2.triggerBinding || !f2.triggerBinding.type) ? '' : f2.triggerBinding.type;
+                    s2 += '~' + f2.name;
 
                     return (s1 > s2) ? 1 : ((s2 > s1) ? -1 : 0);
                 });
 
+                // Rendering
                 var code = '';
                 for (const func of functions) {
 
                     code += `${func.nodeCode}\n`;
 
-                    if (!!func.triggerBinding) {
+                    if (!!func.isCalledBy) {
+                        
+                        code += `${func.isCalledBy} --> ${func.name}\n`;
+
+                    } else if (!!func.triggerBinding) {
+
                         code += `${func.name}.${func.triggerBinding.type}>"#32;${this.getTriggerBindingText(func.triggerBinding)}"]:::${func.triggerBinding.type} --> ${func.name}\n`;
                     }
 
@@ -101,29 +112,6 @@ export class AppState {
 
                     for (const outputBinding of func.outputBindings) {
                         code += `${func.name} -.-> ${func.name}.${outputBinding.type}(["#32;${this.getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
-                    }
-
-                    if (!!func.subOrchestrators) {
-
-                        for (const subOrchName in func.subOrchestrators) {
-
-                            code += `${func.name} --> ${func.name}.${subOrchName}[["#32;${subOrchName}"]]:::orchestrator\n`;
-
-                            const subOrch = func.subOrchestrators[subOrchName];
-                            if (!!subOrch.activities) {
-                                
-                                for (const activityName in subOrch.activities) {
-                                    code += `${func.name}.${subOrchName} --> ${func.name}.${subOrchName}.${activityName}[/"#32;${activityName}"/]:::activity\n`;
-                                }
-                            }
-                        }
-                    }
-
-                    if (!!func.activities) {
-                        
-                        for (const activityName in func.activities) {
-                            code += `${func.name} --> ${func.name}.${activityName}[/"#32;${activityName}"/]:::activity\n`;
-                        }
                     }
                 }
 

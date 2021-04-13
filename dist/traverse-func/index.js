@@ -49,17 +49,10 @@ function remapOrchestratorsAndActivities(functions, projectFolder, hostJsonFolde
     const orchestrators = Object.keys(functions)
         .filter(name => functions[name].bindings.some(b => b.type === 'orchestrationTrigger'))
         .map(name => {
-        var code = '';
-        if (isDotNet) {
-            code = findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`);
-        }
-        else {
-            code = findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$');
-        }
-        if (!code) {
-            return;
-        }
-        return { name, code };
+        const code = isDotNet ?
+            findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`) :
+            findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$');
+        return !code ? undefined : { name, code };
     })
         .filter(orch => !!orch);
     for (const orch of orchestrators) {
@@ -73,11 +66,9 @@ function remapOrchestratorsAndActivities(functions, projectFolder, hostJsonFolde
                 // Mapping activities to that suborchestrator
                 mapActivitiesToOrchestrator(functions, subOrch, activityNames);
                 // Now mapping that suborchestrator to this orchestrator
-                if (!functions[orch.name].subOrchestrators) {
-                    functions[orch.name].subOrchestrators = {};
+                if (!functions[subOrch.name].isCalledBy) {
+                    functions[subOrch.name].isCalledBy = orch.name;
                 }
-                functions[orch.name].subOrchestrators[subOrch.name] = functions[subOrch.name];
-                delete functions[subOrch.name];
             }
         }
     }
@@ -92,15 +83,14 @@ function remapOrchestratorsAndActivities(functions, projectFolder, hostJsonFolde
 }
 function mapActivitiesToOrchestrator(functions, orch, activityNames) {
     for (const activityName of activityNames) {
+        if (!!functions[activityName].isCalledBy) {
+            continue;
+        }
         // If this orchestrator seems to be calling this activity
         const regex = new RegExp(`\\([\\s\\w\.-]*["'\`]?${activityName}["'\`\\)]{1}`);
         if (!!regex.exec(orch.code)) {
             // Then mapping this activity to this orchestrator
-            if (!functions[orch.name].activities) {
-                functions[orch.name].activities = {};
-            }
-            functions[orch.name].activities[activityName] = functions[activityName];
-            delete functions[activityName];
+            functions[activityName].isCalledBy = orch.name;
         }
     }
 }
