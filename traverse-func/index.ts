@@ -8,8 +8,8 @@ import { execSync } from 'child_process';
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
-// If pattern provided, returns file content. Otherwise returns full path to the file.
-function findFileRecursively(folder: string, fileName: string, pattern?: string): string {
+// If returnFileContents == true, returns file content. Otherwise returns full path to the file.
+function findFileRecursively(folder: string, fileName: string, returnFileContents: boolean, pattern?: string): string {
 
     const nameRegex = new RegExp(fileName, 'i');
 
@@ -22,7 +22,7 @@ function findFileRecursively(folder: string, fileName: string, pattern?: string)
                 continue;
             }
 
-            const result = findFileRecursively(fullPath, fileName, pattern);
+            const result = findFileRecursively(fullPath, fileName, returnFileContents, pattern);
             if (!!result) {
                 return result;
             }
@@ -30,12 +30,12 @@ function findFileRecursively(folder: string, fileName: string, pattern?: string)
         } else if (!!nameRegex.exec(name)) {
 
             if (!pattern) {
-                return fullPath;
+                return returnFileContents ? fs.readFileSync(fullPath, { encoding: 'utf8' }) : fullPath;
             }
 
             const code = fs.readFileSync(fullPath, { encoding: 'utf8' });
             if (!!new RegExp(pattern).exec(code)) {
-                return code;
+                return returnFileContents ? code : fullPath;
             }
         }
     }
@@ -55,8 +55,8 @@ function remapOrchestratorsAndActivities(functions: {}, projectFolder: string, h
         .map(name => {
 
             const code = isDotNet ?
-                findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`) :
-                findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$');
+                findFileRecursively(projectFolder, '.+\.cs$', true, `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`) :
+                findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true);
 
             return !code ? undefined : { name, code };
         })
@@ -157,7 +157,7 @@ export default async function (context: Context, req: HttpRequest): Promise<void
             projectFolder = path.join(gitTempFolder, ...projectPath);
         }
 
-        const hostJsonPath = findFileRecursively(projectFolder, 'host.json');
+        const hostJsonPath = findFileRecursively(projectFolder, 'host.json', false);
         if (!hostJsonPath) {
             throw new Error('host.json file not found under the provided project path');
         }

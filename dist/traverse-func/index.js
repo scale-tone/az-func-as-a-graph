@@ -16,8 +16,8 @@ const rimraf = require("rimraf");
 const child_process_1 = require("child_process");
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
-// If pattern provided, returns file content. Otherwise returns full path to the file.
-function findFileRecursively(folder, fileName, pattern) {
+// If returnFileContents == true, returns file content. Otherwise returns full path to the file.
+function findFileRecursively(folder, fileName, returnFileContents, pattern) {
     const nameRegex = new RegExp(fileName, 'i');
     for (const name of fs.readdirSync(folder)) {
         var fullPath = path.join(folder, name);
@@ -25,18 +25,18 @@ function findFileRecursively(folder, fileName, pattern) {
             if (ExcludedFolders.includes(name.toLowerCase())) {
                 continue;
             }
-            const result = findFileRecursively(fullPath, fileName, pattern);
+            const result = findFileRecursively(fullPath, fileName, returnFileContents, pattern);
             if (!!result) {
                 return result;
             }
         }
         else if (!!nameRegex.exec(name)) {
             if (!pattern) {
-                return fullPath;
+                return returnFileContents ? fs.readFileSync(fullPath, { encoding: 'utf8' }) : fullPath;
             }
             const code = fs.readFileSync(fullPath, { encoding: 'utf8' });
             if (!!new RegExp(pattern).exec(code)) {
-                return code;
+                return returnFileContents ? code : fullPath;
             }
         }
     }
@@ -50,8 +50,8 @@ function remapOrchestratorsAndActivities(functions, projectFolder, hostJsonFolde
         .filter(name => functions[name].bindings.some(b => b.type === 'orchestrationTrigger'))
         .map(name => {
         const code = isDotNet ?
-            findFileRecursively(projectFolder, '.+\.cs$', `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`) :
-            findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$');
+            findFileRecursively(projectFolder, '.+\.cs$', true, `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`) :
+            findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true);
         return !code ? undefined : { name, code };
     })
         .filter(orch => !!orch);
@@ -126,7 +126,7 @@ function default_1(context, req) {
                 child_process_1.execSync(`git clone ${projectFolder}`, { cwd: gitTempFolder });
                 projectFolder = path.join(gitTempFolder, ...projectPath);
             }
-            const hostJsonPath = findFileRecursively(projectFolder, 'host.json');
+            const hostJsonPath = findFileRecursively(projectFolder, 'host.json', false);
             if (!hostJsonPath) {
                 throw new Error('host.json file not found under the provided project path');
             }
