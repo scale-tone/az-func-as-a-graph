@@ -12,7 +12,9 @@
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
+    "@types/rimraf": "^3.0.0",
     "durable-functions": "^1.4.6",
+    "rimraf": "^3.0.2",
     "typescript": "^3.6.4"
   },
   "devDependencies": {

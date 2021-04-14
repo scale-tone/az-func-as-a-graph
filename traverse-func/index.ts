@@ -2,10 +2,8 @@ import { Context, HttpRequest } from "@azure/functions"
 import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
-//import * as rimraf from 'rimraf';
+import * as rimraf from 'rimraf';
 import { execSync } from 'child_process';
-
-const rimraf = require("../common/rimraf");
 
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 
