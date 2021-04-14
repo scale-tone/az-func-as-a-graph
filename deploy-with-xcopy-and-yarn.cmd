@@ -12,4 +12,4 @@ echo package.zip > d:\home\data\SitePackages\packagename.txt
 
 echo kkkk compressing %MY_BUILD_TEMP_FOLDER% to d:\home\data\SitePackages\package.zip...
 
-powershell "Compress-Archive %MY_BUILD_TEMP_FOLDER%\* d:\home\data\SitePackages\package.zip"
+powershell "$ProgressPreference = 'SilentlyContinue'; Compress-Archive %MY_BUILD_TEMP_FOLDER%\* d:\home\data\SitePackages\package.zip"
