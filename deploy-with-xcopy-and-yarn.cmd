@@ -1,3 +1,7 @@
+echo kkk silently and globally installing yarn
+
+call npm install yarn -g --silent
+
 echo kkk xcopying
 
 xcopy %DEPLOYMENT_SOURCE% %DEPLOYMENT_TARGET% /S /H /Y
