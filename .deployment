@@ -1,0 +1,2 @@
+[config]
+command = echo The project is pre-compiled, don't need to do any deployment. Deployment source is %DEPLOYMENT_SOURCE%. Deployment target is %DEPLOYMENT_TARGET%.
