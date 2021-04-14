@@ -1,10 +1,10 @@
-echo >>>> installing yarn
+echo kkk installing yarn
 npm i -g yarn
-echo >>>> xcopying
+echo kkk xcopying
 xcopy %DEPLOYMENT_SOURCE% %DEPLOYMENT_TARGET% /S /H /Y
-echo >>>> going to %DEPLOYMENT_TARGET%
+echo kkk going to %DEPLOYMENT_TARGET%
 cd %DEPLOYMENT_TARGET%
-echo >>>> doing ls
+echo kkk doing ls
 ls
-echo >>>> doing yarn
+echo kkk doing yarn
 yarn
