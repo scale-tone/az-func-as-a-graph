@@ -12,8 +12,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
-const rimraf = require("rimraf");
+//import * as rimraf from 'rimraf';
 const child_process_1 = require("child_process");
+const rimraf = require("../common/rimraf");
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
