@@ -1,5 +1,5 @@
 {
-  "name": "durable-mvc-starter-ui",
+  "name": "az-function-as-a-graph-ui",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
