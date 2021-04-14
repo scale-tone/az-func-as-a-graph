@@ -4,10 +4,12 @@
   "description": "",
   "scripts": {
     "build": "tsc & (cd .\\ui & npm install & npm run build)",
-    "watch": "tsc -w",
-    "prestart": "npm run build",
-    "start": "func start",
-    "test": "jest --verbose"
+    "build:production": "npm run prestart && npm prune --production",
+    "watch": "tsc --w",
+    "prestart": "npm run build && func extensions install",
+    "start:host": "func start",
+    "start": "npm-run-all --parallel start:host watch",
+    "test": "echo \"No tests yet...\""
   },
   "dependencies": {
     "durable-functions": "^1.4.6",
@@ -17,6 +19,7 @@
     "@azure/functions": "^1.2.2",
     "@types/jest": "^26.0.20",
     "@types/node": "^14.14.31",
+    "npm-run-all": "^4.1.5",
     "jest": "26.6.0",
     "ts-jest": "^26.5.3",
     "typescript": "^3.6.4"
