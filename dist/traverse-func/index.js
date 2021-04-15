@@ -91,7 +91,7 @@ function mapOrchestratorsAndActivities(functions, projectFolder, hostJsonFolder)
                 continue;
             }
             // If this orchestrator seems to be calling that suborchestrator
-            const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry)(Async)?(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${subOrch.name}\\s*["'\\)]{1}`, 'i');
+            const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${subOrch.name}\\s*["'\\)]{1}`, 'i');
             if (!!regex.exec(orch.code)) {
                 // Mapping activities to that suborchestrator
                 mapActivitiesToOrchestrator(functions, subOrch);
@@ -124,7 +124,7 @@ function mapOrchestratorsAndActivities(functions, projectFolder, hostJsonFolder)
         // Also trying to match this orchestrator with its calling function
         for (const func of otherFunctions) {
             // If this function seems to be calling that orchestrator
-            const regex = new RegExp(`StartNew(Async)?(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${orch.name}\\s*["'\\)]{1}`, 'i');
+            const regex = new RegExp(`(StartNew|StartNewAsync|start_new)(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${orch.name}\\s*["'\\)]{1}`, 'i');
             if (!!regex.exec(func.code)) {
                 functions[orch.name].isCalledBy = func.name;
             }
