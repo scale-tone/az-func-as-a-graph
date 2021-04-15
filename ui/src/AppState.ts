@@ -21,14 +21,7 @@ export class AppState {
     get inProgress(): boolean { return this._inProgress; };
 
     constructor() {
-        mermaid.initialize({
-            startOnLoad: true,
-            sequence: {
-                noteMargin: 0,
-                boxMargin: 5,
-                boxTextMargin: 5
-            }
-        });
+        mermaid.initialize({ startOnLoad: true });
     }
 
     load() {
@@ -112,6 +105,11 @@ export class AppState {
 
                     for (const outputBinding of func.outputBindings) {
                         code += `${func.name} -.-> ${func.name}.${outputBinding.type}(["#32;${this.getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
+                    }
+
+                    if (!!func.isCalledByItself) {
+                        
+                        code += `${func.name} -- "[ContinueAsNew]" --> ${func.name}\n`;
                     }
                 }
 

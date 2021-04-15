@@ -9,9 +9,9 @@ const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.pyth
 
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
-function findFileRecursively(folder: string, fileName: string, returnFileContents: boolean, pattern?: string): string {
+function findFileRecursively(folder: string, fileName: string, returnFileContents: boolean, pattern?: RegExp): {str: string, pos?: number, length?: number} {
 
-    const nameRegex = new RegExp(fileName, 'i');
+    const fileNameRegex = new RegExp(fileName, 'i');
 
     for (const name of fs.readdirSync(folder)) {
         var fullPath = path.join(folder, name);
@@ -27,15 +27,17 @@ function findFileRecursively(folder: string, fileName: string, returnFileContent
                 return result;
             }
 
-        } else if (!!nameRegex.exec(name)) {
+        } else if (!!fileNameRegex.exec(name)) {
 
             if (!pattern) {
-                return returnFileContents ? fs.readFileSync(fullPath, { encoding: 'utf8' }) : fullPath;
+                return { str: returnFileContents ? fs.readFileSync(fullPath, { encoding: 'utf8' }) : fullPath };
             }
 
             const code = fs.readFileSync(fullPath, { encoding: 'utf8' });
-            if (!!new RegExp(pattern).exec(code)) {
-                return returnFileContents ? code : fullPath;
+            const match = pattern.exec(code);
+
+            if (!!match) {
+                return { str: returnFileContents ? code : fullPath, pos: match.index, length: match[0].length };
             }
         }
     }
@@ -43,37 +45,70 @@ function findFileRecursively(folder: string, fileName: string, returnFileContent
     return undefined;
 }
 
+function getCodeInBrackets(str: string, startFrom: number, openingBracket: string, closingBracket: string, mustHaveSymbols: string): string {
+
+    var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = false;
+    for (var i = startFrom; i < str.length; i++) {
+        switch (str[i]) {
+            case openingBracket:
+                if (bracketCount <= 0) {
+                    openBracketPos = i + 1;
+                }
+                bracketCount++;
+                break;
+            case closingBracket:
+                bracketCount--;
+                if (bracketCount <= 0 && mustHaveSymbolFound) {
+                    return str.substring(openBracketPos, i);
+                }
+                break;
+        }
+
+        if (bracketCount > 0 && mustHaveSymbols.includes(str[i])) {
+            mustHaveSymbolFound = true;
+        }
+    }
+    return '';
+}
+
 // Tries to match orchestrations and their activities by parsing source code
-function remapOrchestratorsAndActivities(functions: {}, projectFolder: string, hostJsonFolder: string) {
+function mapOrchestratorsAndActivities(functions: {}, projectFolder: string, hostJsonFolder: string) {
 
     const isDotNet = isDotNetProject(projectFolder);
     
-    const activityNames = Object.keys(functions).filter(name => functions[name].bindings.some(b => b.type === 'activityTrigger'));
-
     const orchestrators = Object.keys(functions)
         .filter(name => functions[name].bindings.some(b => b.type === 'orchestrationTrigger'))
         .map(name => {
 
-            const code = isDotNet ?
-                findFileRecursively(projectFolder, '.+\.cs$', true, `FunctionName\\((nameof)?["'\`\\(]?${name}["'\`\\)]{1}`) :
+            const match = isDotNet ?
+                findFileRecursively(projectFolder, '.+\.cs$', true, new RegExp(`FunctionName\\((nameof)?["'\`\\(]?${name}\\s*["'\`\\)]{1}`)) :
                 findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true);
 
-            return !code ? undefined : { name, code };
+            return !match ? undefined : {
+                name,
+                code: !isDotNet ? match.str: getCodeInBrackets(match.str, match.pos + match.length, '{', '}', ' \n')
+            };
         })
         .filter(orch => !!orch);
     
+    if (!orchestrators.length) {
+        return functions;
+    }
+
     for (const orch of orchestrators) {
+
+        // Matching suborchestrators
         for (const subOrch of orchestrators) {
             if (orch.name === subOrch.name) {
                 continue;
             }
 
-            // If this orchestrator seems to be calling that suporchestrator
-            const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry)(Async)?(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\()${subOrch.name}["'\\)]{1}`, 'i');
+            // If this orchestrator seems to be calling that suborchestrator
+            const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry)(Async)?(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${subOrch.name}\\s*["'\\)]{1}`, 'i');
             if (!!regex.exec(orch.code)) {
 
                 // Mapping activities to that suborchestrator
-                mapActivitiesToOrchestrator(functions, subOrch, activityNames);
+                mapActivitiesToOrchestrator(functions, subOrch);
 
                 // Now mapping that suborchestrator to this orchestrator
                 if (!functions[subOrch.name].isCalledBy) {
@@ -81,22 +116,53 @@ function remapOrchestratorsAndActivities(functions: {}, projectFolder: string, h
                 }
             }
         }
+
+        // Checking whether orchestrator calls itself
+        if (!!new RegExp(`\\.\s*ContinueAsNew\s*\\(`, 'i').exec(orch.code)) {
+            functions[orch.name].isCalledByItself = true;
+        }
     }
 
-    // Now mapping activities to the remaining orchestrators
+    const otherFunctions = Object.keys(functions)
+        .filter(name => functions[name].bindings.some(b => !['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type)))
+        .map(name => {
+
+            const match = isDotNet ?
+                findFileRecursively(projectFolder, '.+\.cs$', true, new RegExp(`FunctionName\\((nameof)?["'\`\\(]?${name}\\s*["'\`\\)]{1}`)) :
+                findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true);
+
+            return !match ? undefined : {
+                name,
+                code: !isDotNet ? match.str : getCodeInBrackets(match.str, match.pos + match.length, '{', '}', ' \n')
+            };
+        })
+        .filter(func => !!func);
+    
+    
     for (const orch of orchestrators) {
 
-        if (!functions[orch.name]) {
-            continue;
-        }
+        // Mapping activities to the remaining orchestrators
+        mapActivitiesToOrchestrator(functions, orch);
 
-        mapActivitiesToOrchestrator(functions, orch, activityNames);
+        // Also trying to match this orchestrator with its calling function
+        for (const func of otherFunctions) {
+
+            // If this function seems to be calling that orchestrator
+            const regex = new RegExp(`StartNew(Async)?(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${orch.name}\\s*["'\\)]{1}`, 'i');
+            if (!!regex.exec(func.code)) {
+
+                functions[orch.name].isCalledBy = func.name;
+            }
+        }
     }
 
     return functions;
 }
 
-function mapActivitiesToOrchestrator(functions: any, orch: {name: string, code: string}, activityNames: string[]): void {
+function mapActivitiesToOrchestrator(functions: any, orch: {name: string, code: string}): void {
+
+    const activityNames = Object.keys(functions)
+        .filter(name => functions[name].bindings.some(b => b.type === 'activityTrigger'));
 
     for (const activityName of activityNames) {
 
@@ -105,7 +171,7 @@ function mapActivitiesToOrchestrator(functions: any, orch: {name: string, code: 
         }
 
         // If this orchestrator seems to be calling this activity
-        const regex = new RegExp(`\\([\\s\\w\.-]*["'\`]?${activityName}["'\`\\)]{1}`);
+        const regex = new RegExp(`\\([\\s\\w\.-]*["'\`]?${activityName}\\s*["'\`\\)]{1}`);
         if (!!regex.exec(orch.code)) {
 
             // Then mapping this activity to this orchestrator
@@ -157,14 +223,14 @@ export default async function (context: Context, req: HttpRequest): Promise<void
             projectFolder = path.join(gitTempFolder, ...projectPath);
         }
 
-        const hostJsonPath = findFileRecursively(projectFolder, 'host.json', false);
-        if (!hostJsonPath) {
+        const hostJsonMatch = findFileRecursively(projectFolder, 'host.json', false);
+        if (!hostJsonMatch) {
             throw new Error('host.json file not found under the provided project path');
         }
 
-        context.log(`>>> Found host.json at ${hostJsonPath}`);
+        context.log(`>>> Found host.json at ${hostJsonMatch.str}`);
 
-        var hostJsonFolder = path.dirname(hostJsonPath);
+        var hostJsonFolder = path.dirname(hostJsonMatch.str);
 
         // If it is a C# function, we'll need to dotnet publish first
         if (isDotNetProject(hostJsonFolder)) {
@@ -197,7 +263,7 @@ export default async function (context: Context, req: HttpRequest): Promise<void
         }
 
         context.res = {
-            body: remapOrchestratorsAndActivities(result, projectFolder, hostJsonFolder)
+            body: mapOrchestratorsAndActivities(result, projectFolder, hostJsonFolder)
         };
 
     } catch (err) {

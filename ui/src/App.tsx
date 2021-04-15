@@ -1,7 +1,7 @@
 import React from 'react';
 import { observer } from 'mobx-react';
 
-import { AppBar, Box, Button, LinearProgress, TextField, Toolbar, Typography } from '@material-ui/core';
+import { AppBar, Box, Button, LinearProgress, Link, TextField, Toolbar, Typography } from '@material-ui/core';
 
 import FileCopyIcon from '@material-ui/icons/FileCopy';
 import SaveIcon from '@material-ui/icons/Save';
@@ -29,7 +29,9 @@ export default class App extends React.Component<{ state: AppState }> {
                 <Toolbar>
 
                     <Typography variant="h5" color="inherit" className="title-typography">
-                        Azure Functions as a Graph
+                        <Link color="inherit" href={window.location.origin + window.location.pathname}>
+                            Azure Functions as a Graph
+                        </Link>
                     </Typography>
 
                     <TextField
