@@ -9,21 +9,24 @@
 )
 
 call npm install yarn -g --silent
-IF %errorlevel% NEQ 0 exit /b %ERRORLEVEL%
+IF %errorlevel% NEQ 0 goto end
 
 SET MY_BUILD_TEMP_FOLDER=%TMP%\D72793BA373B4EBB80AEC9E6CF1E0C0E
 
 mkdir %MY_BUILD_TEMP_FOLDER%
 xcopy %DEPLOYMENT_SOURCE% %MY_BUILD_TEMP_FOLDER% /S /H /Y
-IF %errorlevel% NEQ 0 exit /b %ERRORLEVEL%
+IF %errorlevel% NEQ 0 goto end
 
 cd %MY_BUILD_TEMP_FOLDER%
 call yarn
-IF %errorlevel% NEQ 0 exit /b %ERRORLEVEL%
+IF %errorlevel% NEQ 0 goto end
 
 mkdir d:\home\data\SitePackages
 echo package.zip > d:\home\data\SitePackages\packagename.txt
 del d:\home\data\SitePackages\package.zip
 
 powershell "$ProgressPreference = 'SilentlyContinue'; Compress-Archive %MY_BUILD_TEMP_FOLDER%\* d:\home\data\SitePackages\package.zip"
-IF %errorlevel% NEQ 0 exit /b %ERRORLEVEL%
+
+:end
+rmdir /S /Q %MY_BUILD_TEMP_FOLDER%
+exit /b %ERRORLEVEL%
