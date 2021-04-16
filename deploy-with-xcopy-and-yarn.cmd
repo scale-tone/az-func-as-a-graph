@@ -3,7 +3,9 @@
 :: Fetches npm packages into a temp folder (which is much faster), then zips it and mounts that zip file.
 :: ----------------------
 
-if "%WEBSITE_RUN_FROM_PACKAGE%" NEQ "1" (
+@echo off
+
+IF "%WEBSITE_RUN_FROM_PACKAGE%" NEQ "1" (
     echo For this script to work you need to enable Run from Package (set WEBSITE_RUN_FROM_PACKAGE to '1')
     exit /b 1
 )
