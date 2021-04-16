@@ -23,7 +23,7 @@ IF %errorlevel% NEQ 0 goto end
 
 mkdir d:\home\data\SitePackages
 echo package.zip > d:\home\data\SitePackages\packagename.txt
-del d:\home\data\SitePackages\package.zip
+del /Q d:\home\data\SitePackages\package.zip
 
 powershell "$ProgressPreference = 'SilentlyContinue'; Compress-Archive %MY_BUILD_TEMP_FOLDER%\* d:\home\data\SitePackages\package.zip"
 
