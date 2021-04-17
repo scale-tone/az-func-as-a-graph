@@ -77,11 +77,8 @@ function mapOrchestratorsAndActivities(functions, projectFolder, hostJsonFolder)
     if (!orchestrators.length && !entities.length) {
         return functions;
     }
-    console.log(`>>>> Orchestrators: ${JSON.stringify(orchestratorNames)}`);
-    console.log(`>>>> Entities: ${JSON.stringify(entityNames)}`);
     const otherFunctionNames = functionNames.filter(name => !functions[name].bindings.some(b => ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type)));
     const otherFunctions = getFunctionsAndTheirCodes(otherFunctionNames, isDotNet, projectFolder, hostJsonFolder);
-    console.log(`>>>> Other Functions: ${JSON.stringify(otherFunctionNames)}`);
     for (const orch of orchestrators) {
         // Trying to match this orchestrator with its calling function
         for (const func of otherFunctions) {
