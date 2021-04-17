@@ -75,10 +75,10 @@ export class AppState {
                 // Sorting by trigger type, then by name
                 functions.sort((f1, f2) => {
 
-                    var s1 = (!!f1.isCalledBy || !f1.triggerBinding || !f1.triggerBinding.type) ? '' : f1.triggerBinding.type;
+                    var s1 = (!!f1.isCalledBy?.length || !f1.triggerBinding || !f1.triggerBinding.type) ? '' : f1.triggerBinding.type;
                     s1 += '~' + f1.name;
 
-                    var s2 = (!!f2.isCalledBy || !f2.triggerBinding || !f2.triggerBinding.type) ? '' : f2.triggerBinding.type;
+                    var s2 = (!!f2.isCalledBy?.length || !f2.triggerBinding || !f2.triggerBinding.type) ? '' : f2.triggerBinding.type;
                     s2 += '~' + f2.name;
 
                     return (s1 > s2) ? 1 : ((s2 > s1) ? -1 : 0);
@@ -90,9 +90,11 @@ export class AppState {
 
                     code += `${func.nodeCode}\n`;
 
-                    if (!!func.isCalledBy) {
+                    if (!!func.isCalledBy?.length) {
                         
-                        code += `${func.isCalledBy} --> ${func.name}\n`;
+                        for (const calledBy of func.isCalledBy) {
+                            code += `${calledBy} --> ${func.name}\n`;
+                        }
 
                     } else if (!!func.triggerBinding) {
 
