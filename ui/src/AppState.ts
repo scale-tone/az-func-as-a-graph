@@ -109,8 +109,15 @@ export class AppState {
                         code += `${func.name} -.-> ${func.name}.${outputBinding.type}(["#32;${this.getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
                     }
 
+                    if (!!func.isSignalledBy?.length) {
+
+                        for (const signalledBy of func.isSignalledBy) {
+                            code += `${signalledBy.name} -. "#9889; ${signalledBy.signalName}" .-> ${func.name}\n`;
+                        }
+                    }
+
                     if (!!func.isCalledByItself) {
-                        
+
                         code += `${func.name} -- "[ContinueAsNew]" --> ${func.name}\n`;
                     }
                 }
