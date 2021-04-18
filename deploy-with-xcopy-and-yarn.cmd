@@ -8,9 +8,6 @@
     exit /b 1
 )
 
-call npm install yarn -g --silent
-IF %errorlevel% NEQ 0 goto end
-
 SET MY_BUILD_TEMP_FOLDER=%TMP%\D72793BA373B4EBB80AEC9E6CF1E0C0E
 
 mkdir %MY_BUILD_TEMP_FOLDER%
@@ -18,6 +15,10 @@ xcopy %DEPLOYMENT_SOURCE% %MY_BUILD_TEMP_FOLDER% /S /H /Y
 IF %errorlevel% NEQ 0 goto end
 
 cd %MY_BUILD_TEMP_FOLDER%
+
+call npm install yarn -g --silent
+IF %errorlevel% NEQ 0 goto end
+
 call yarn
 IF %errorlevel% NEQ 0 goto end
 
