@@ -17,8 +17,7 @@ IF %errorlevel% NEQ 0 goto end
 cd %MY_BUILD_TEMP_FOLDER%
 
 call npm install yarn --silent
-SET PATH=%PATH%;%MY_BUILD_TEMP_FOLDER%\node_modules\.bin\yarn
-call yarn
+call node_modules\.bin\yarn
 IF %errorlevel% NEQ 0 goto end
 
 mkdir d:\home\data\SitePackages
