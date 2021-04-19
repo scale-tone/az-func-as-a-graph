@@ -23,9 +23,6 @@ function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern)
         for (const name of yield fs.promises.readdir(folder)) {
             var fullPath = path.join(folder, name);
             if ((yield fs.promises.lstat(fullPath)).isDirectory()) {
-                if (name === 'ApproveClaim') {
-                    throw new Error('!A deliberate exception!');
-                }
                 if (ExcludedFolders.includes(name.toLowerCase())) {
                     continue;
                 }
