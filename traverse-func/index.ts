@@ -9,20 +9,21 @@ const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.pyth
 
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
-function findFileRecursively(folder: string, fileName: string, returnFileContents: boolean, pattern?: RegExp): {str: string, pos?: number, length?: number} {
+async function findFileRecursivelyAsync(folder: string, fileName: string, returnFileContents: boolean, pattern?: RegExp)
+    : Promise<{ str: string, pos?: number, length?: number }> {
 
     const fileNameRegex = new RegExp(fileName, 'i');
 
-    for (const name of fs.readdirSync(folder)) {
+    for (const name of await fs.promises.readdir(folder)) {
         var fullPath = path.join(folder, name);
 
-        if (fs.lstatSync(fullPath).isDirectory()) {
+        if ((await fs.promises.lstat(fullPath)).isDirectory()) {
 
             if (ExcludedFolders.includes(name.toLowerCase())) {
                 continue;
             }
 
-            const result = findFileRecursively(fullPath, fileName, returnFileContents, pattern);
+            const result = await findFileRecursivelyAsync(fullPath, fileName, returnFileContents, pattern);
             if (!!result) {
                 return result;
             }
@@ -30,10 +31,14 @@ function findFileRecursively(folder: string, fileName: string, returnFileContent
         } else if (!!fileNameRegex.exec(name)) {
 
             if (!pattern) {
-                return { str: returnFileContents ? fs.readFileSync(fullPath, { encoding: 'utf8' }) : fullPath };
+                if (returnFileContents) {
+                    return { str: await fs.promises.readFile(fullPath, { encoding: 'utf8' }) };
+                } else {
+                    return { str: fullPath };
+                }
             }
 
-            const code = fs.readFileSync(fullPath, { encoding: 'utf8' });
+            const code = await fs.promises.readFile(fullPath, { encoding: 'utf8' });
             const match = pattern.exec(code);
 
             if (!!match) {
@@ -45,6 +50,7 @@ function findFileRecursively(folder: string, fileName: string, returnFileContent
     return undefined;
 }
 
+// Complements regex's inability to keep up with nested brackets
 function getCodeInBrackets(str: string, startFrom: number, openingBracket: string, closingBracket: string, mustHaveSymbols: string): string {
 
     var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = false;
@@ -72,23 +78,23 @@ function getCodeInBrackets(str: string, startFrom: number, openingBracket: strin
 }
 
 // Tries to match orchestrations and their activities by parsing source code
-function mapOrchestratorsAndActivities(functions: {}, projectFolder: string, hostJsonFolder: string) {
+async function mapOrchestratorsAndActivitiesAsync(functions: {}, projectFolder: string, hostJsonFolder: string): Promise<{}> {
 
-    const isDotNet = isDotNetProject(projectFolder);
+    const isDotNet = await isDotNetProjectAsync(projectFolder);
     const functionNames = Object.keys(functions);
     
     const orchestratorNames = functionNames.filter(name => functions[name].bindings.some(b => b.type === 'orchestrationTrigger'));
-    const orchestrators = getFunctionsAndTheirCodes(orchestratorNames, isDotNet, projectFolder, hostJsonFolder);
+    const orchestrators = await getFunctionsAndTheirCodesAsync(orchestratorNames, isDotNet, projectFolder, hostJsonFolder);
 
     const entityNames = functionNames.filter(name => functions[name].bindings.some(b => b.type === 'entityTrigger'));
-    const entities = getFunctionsAndTheirCodes(entityNames, isDotNet, projectFolder, hostJsonFolder);
+    const entities = await getFunctionsAndTheirCodesAsync(entityNames, isDotNet, projectFolder, hostJsonFolder);
 
     if (!orchestrators.length && !entities.length) {
         return functions;
     }
 
     const otherFunctionNames = functionNames.filter(name => !functions[name].bindings.some(b => ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type)));
-    const otherFunctions = getFunctionsAndTheirCodes(otherFunctionNames, isDotNet, projectFolder, hostJsonFolder);
+    const otherFunctions = await getFunctionsAndTheirCodesAsync(otherFunctionNames, isDotNet, projectFolder, hostJsonFolder);
 
     for (const orch of orchestrators) {
 
@@ -171,22 +177,25 @@ function getEventNames(orchestratorCode: string): string[] {
 }
 
 // Tries to load code for functions of certain type
-function getFunctionsAndTheirCodes(functionNames: string[], isDotNet: boolean, projectFolder: string, hostJsonFolder: string): { name: string, code: string }[] {
+async function getFunctionsAndTheirCodesAsync(functionNames: string[], isDotNet: boolean, projectFolder: string, hostJsonFolder: string)
+    : Promise<{ name: string, code: string }[]> {
+    
+    const promises = functionNames.map(async name => {
 
-    return functionNames.map(name => {
+        const match = await (isDotNet ?
+            findFileRecursivelyAsync(projectFolder, '.+\.cs$', true, new RegExp(`FunctionName\\(\\s*(nameof\\s*\\(\\s*|["'\`])${name}\\s*["'\`\\)]{1}`)) :
+            findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true));
 
-            const match = isDotNet ?
-                findFileRecursively(projectFolder, '.+\.cs$', true, new RegExp(`FunctionName\\(\\s*(nameof\\s*\\(\\s*|["'\`])${name}\\s*["'\`\\)]{1}`)) :
-                findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true);
+        return !match ? undefined : {
+            name,
+            code: !isDotNet ? match.str : getCodeInBrackets(match.str, match.pos + match.length, '{', '}', ' \n')
+        };
+    });
 
-            return !match ? undefined : {
-                name,
-                code: !isDotNet ? match.str : getCodeInBrackets(match.str, match.pos + match.length, '{', '}', ' \n')
-            };
-        })
-        .filter(f => !!f);
+    return (await Promise.all(promises)).filter(f => !!f);
 }
 
+// Tries to match orchestrator with its activities
 function mapActivitiesToOrchestrator(functions: any, orch: {name: string, code: string}): void {
 
     const activityNames = Object.keys(functions)
@@ -207,8 +216,8 @@ function mapActivitiesToOrchestrator(functions: any, orch: {name: string, code: 
     }
 }
 
-function isDotNetProject(projectFolder): boolean {
-    return fs.readdirSync(projectFolder).some(fn => {
+async function isDotNetProjectAsync(projectFolder): Promise<boolean> {
+    return (await fs.promises.readdir(projectFolder)).some(fn => {
         fn = fn.toLowerCase();
         return (fn.endsWith('.sln')) || (fn.endsWith('.csproj') && fn !== 'extensions.csproj')
     });
@@ -243,14 +252,14 @@ export default async function (context: Context, req: HttpRequest): Promise<void
                 }
             }
 
-            gitTempFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'git-clone-'));
+            gitTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
             
             context.log(`>>> Cloning ${projectFolder} to ${gitTempFolder}...`);
             execSync(`git clone ${projectFolder}`, { cwd: gitTempFolder });
             projectFolder = path.join(gitTempFolder, ...projectPath);
         }
 
-        const hostJsonMatch = findFileRecursively(projectFolder, 'host.json', false);
+        const hostJsonMatch = await findFileRecursivelyAsync(projectFolder, 'host.json', false);
         if (!hostJsonMatch) {
             throw new Error('host.json file not found under the provided project path');
         }
@@ -260,9 +269,9 @@ export default async function (context: Context, req: HttpRequest): Promise<void
         var hostJsonFolder = path.dirname(hostJsonMatch.str);
 
         // If it is a C# function, we'll need to dotnet publish first
-        if (isDotNetProject(hostJsonFolder)) {
+        if (await isDotNetProjectAsync(hostJsonFolder)) {
 
-            publishTempFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'dotnet-publish-'));
+            publishTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
 
             context.log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
             execSync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
@@ -271,26 +280,28 @@ export default async function (context: Context, req: HttpRequest): Promise<void
 
         const result = {};
 
-        for (const functionName of fs.readdirSync(hostJsonFolder)) {
+        const promises = (await fs.promises.readdir(hostJsonFolder)).map(async functionName => {
+
             const fullPath = path.join(hostJsonFolder, functionName);
             const functionJsonFilePath = path.join(fullPath, 'function.json');
 
-            if (!fs.lstatSync(fullPath).isDirectory() || !fs.existsSync(functionJsonFilePath)) {
-                continue;
+            if (!!(await fs.promises.lstat(fullPath)).isDirectory() && !!fs.existsSync(functionJsonFilePath)) {
+
+                try {
+                    const functionJson = JSON.parse(await fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' }));
+
+                    result[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
+
+                } catch (err) {
+                    context.log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
+                }
             }
+        });
 
-            try {
-                const functionJson = JSON.parse(fs.readFileSync(functionJsonFilePath, { encoding: 'utf8' }));
-
-                result[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
-
-            } catch (err) {
-                context.log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
-            }
-        }
+        await Promise.all(promises);
 
         context.res = {
-            body: mapOrchestratorsAndActivities(result, projectFolder, hostJsonFolder)
+            body: await mapOrchestratorsAndActivitiesAsync(result, projectFolder, hostJsonFolder)
         };
 
     } catch (err) {

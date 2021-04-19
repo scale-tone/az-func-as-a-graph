@@ -17,32 +17,43 @@ const child_process_1 = require("child_process");
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
-function findFileRecursively(folder, fileName, returnFileContents, pattern) {
-    const fileNameRegex = new RegExp(fileName, 'i');
-    for (const name of fs.readdirSync(folder)) {
-        var fullPath = path.join(folder, name);
-        if (fs.lstatSync(fullPath).isDirectory()) {
-            if (ExcludedFolders.includes(name.toLowerCase())) {
-                continue;
+function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const fileNameRegex = new RegExp(fileName, 'i');
+        for (const name of yield fs.promises.readdir(folder)) {
+            var fullPath = path.join(folder, name);
+            if ((yield fs.promises.lstat(fullPath)).isDirectory()) {
+                if (name === 'ApproveClaim') {
+                    throw new Error('!A deliberate exception!');
+                }
+                if (ExcludedFolders.includes(name.toLowerCase())) {
+                    continue;
+                }
+                const result = yield findFileRecursivelyAsync(fullPath, fileName, returnFileContents, pattern);
+                if (!!result) {
+                    return result;
+                }
             }
-            const result = findFileRecursively(fullPath, fileName, returnFileContents, pattern);
-            if (!!result) {
-                return result;
+            else if (!!fileNameRegex.exec(name)) {
+                if (!pattern) {
+                    if (returnFileContents) {
+                        return { str: yield fs.promises.readFile(fullPath, { encoding: 'utf8' }) };
+                    }
+                    else {
+                        return { str: fullPath };
+                    }
+                }
+                const code = yield fs.promises.readFile(fullPath, { encoding: 'utf8' });
+                const match = pattern.exec(code);
+                if (!!match) {
+                    return { str: returnFileContents ? code : fullPath, pos: match.index, length: match[0].length };
+                }
             }
         }
-        else if (!!fileNameRegex.exec(name)) {
-            if (!pattern) {
-                return { str: returnFileContents ? fs.readFileSync(fullPath, { encoding: 'utf8' }) : fullPath };
-            }
-            const code = fs.readFileSync(fullPath, { encoding: 'utf8' });
-            const match = pattern.exec(code);
-            if (!!match) {
-                return { str: returnFileContents ? code : fullPath, pos: match.index, length: match[0].length };
-            }
-        }
-    }
-    return undefined;
+        return undefined;
+    });
 }
+// Complements regex's inability to keep up with nested brackets
 function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols) {
     var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = false;
     for (var i = startFrom; i < str.length; i++) {
@@ -67,68 +78,70 @@ function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustH
     return '';
 }
 // Tries to match orchestrations and their activities by parsing source code
-function mapOrchestratorsAndActivities(functions, projectFolder, hostJsonFolder) {
-    const isDotNet = isDotNetProject(projectFolder);
-    const functionNames = Object.keys(functions);
-    const orchestratorNames = functionNames.filter(name => functions[name].bindings.some(b => b.type === 'orchestrationTrigger'));
-    const orchestrators = getFunctionsAndTheirCodes(orchestratorNames, isDotNet, projectFolder, hostJsonFolder);
-    const entityNames = functionNames.filter(name => functions[name].bindings.some(b => b.type === 'entityTrigger'));
-    const entities = getFunctionsAndTheirCodes(entityNames, isDotNet, projectFolder, hostJsonFolder);
-    if (!orchestrators.length && !entities.length) {
-        return functions;
-    }
-    const otherFunctionNames = functionNames.filter(name => !functions[name].bindings.some(b => ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type)));
-    const otherFunctions = getFunctionsAndTheirCodes(otherFunctionNames, isDotNet, projectFolder, hostJsonFolder);
-    for (const orch of orchestrators) {
-        // Trying to match this orchestrator with its calling function
-        const regex = new RegExp(`(StartNew|StartNewAsync|start_new)(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${orch.name}\\s*["'\\)]{1}`, 'i');
-        for (const func of otherFunctions) {
-            // If this function seems to be calling that orchestrator
-            if (!!regex.exec(func.code)) {
-                functions[orch.name].isCalledBy.push(func.name);
-            }
+function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const isDotNet = yield isDotNetProjectAsync(projectFolder);
+        const functionNames = Object.keys(functions);
+        const orchestratorNames = functionNames.filter(name => functions[name].bindings.some(b => b.type === 'orchestrationTrigger'));
+        const orchestrators = yield getFunctionsAndTheirCodesAsync(orchestratorNames, isDotNet, projectFolder, hostJsonFolder);
+        const entityNames = functionNames.filter(name => functions[name].bindings.some(b => b.type === 'entityTrigger'));
+        const entities = yield getFunctionsAndTheirCodesAsync(entityNames, isDotNet, projectFolder, hostJsonFolder);
+        if (!orchestrators.length && !entities.length) {
+            return functions;
         }
-        // Matching suborchestrators
-        for (const subOrch of orchestrators) {
-            if (orch.name === subOrch.name) {
-                continue;
-            }
-            // If this orchestrator seems to be calling that suborchestrator
-            const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${subOrch.name}\\s*["'\\)]{1}`, 'i');
-            if (!!regex.exec(orch.code)) {
-                // Mapping that suborchestrator to this orchestrator
-                functions[subOrch.name].isCalledBy.push(orch.name);
-            }
-        }
-        // Mapping activities to orchestrators
-        mapActivitiesToOrchestrator(functions, orch);
-        // Checking whether orchestrator calls itself
-        if (!!new RegExp(`ContinueAsNew\s*\\(`, 'i').exec(orch.code)) {
-            functions[orch.name].isCalledByItself = true;
-        }
-        // Trying to map event producers with their consumers
-        const eventNames = getEventNames(orch.code);
-        for (const eventName of eventNames) {
-            const regex = new RegExp(`RaiseEvent(Async)?(.|\r|\n)*${eventName}`, 'i');
+        const otherFunctionNames = functionNames.filter(name => !functions[name].bindings.some(b => ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type)));
+        const otherFunctions = yield getFunctionsAndTheirCodesAsync(otherFunctionNames, isDotNet, projectFolder, hostJsonFolder);
+        for (const orch of orchestrators) {
+            // Trying to match this orchestrator with its calling function
+            const regex = new RegExp(`(StartNew|StartNewAsync|start_new)(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${orch.name}\\s*["'\\)]{1}`, 'i');
             for (const func of otherFunctions) {
-                // If this function seems to be sending that event
+                // If this function seems to be calling that orchestrator
                 if (!!regex.exec(func.code)) {
-                    functions[orch.name].isSignalledBy.push({ name: func.name, signalName: eventName });
+                    functions[orch.name].isCalledBy.push(func.name);
+                }
+            }
+            // Matching suborchestrators
+            for (const subOrch of orchestrators) {
+                if (orch.name === subOrch.name) {
+                    continue;
+                }
+                // If this orchestrator seems to be calling that suborchestrator
+                const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${subOrch.name}\\s*["'\\)]{1}`, 'i');
+                if (!!regex.exec(orch.code)) {
+                    // Mapping that suborchestrator to this orchestrator
+                    functions[subOrch.name].isCalledBy.push(orch.name);
+                }
+            }
+            // Mapping activities to orchestrators
+            mapActivitiesToOrchestrator(functions, orch);
+            // Checking whether orchestrator calls itself
+            if (!!new RegExp(`ContinueAsNew\s*\\(`, 'i').exec(orch.code)) {
+                functions[orch.name].isCalledByItself = true;
+            }
+            // Trying to map event producers with their consumers
+            const eventNames = getEventNames(orch.code);
+            for (const eventName of eventNames) {
+                const regex = new RegExp(`RaiseEvent(Async)?(.|\r|\n)*${eventName}`, 'i');
+                for (const func of otherFunctions) {
+                    // If this function seems to be sending that event
+                    if (!!regex.exec(func.code)) {
+                        functions[orch.name].isSignalledBy.push({ name: func.name, signalName: eventName });
+                    }
                 }
             }
         }
-    }
-    for (const entity of entities) {
-        // Trying to match this entity with its calling function
-        for (const func of otherFunctions) {
-            // If this function seems to be calling that entity
-            const regex = new RegExp(`${entity.name}\\s*["'>]{1}`);
-            if (!!regex.exec(func.code)) {
-                functions[entity.name].isCalledBy.push(func.name);
+        for (const entity of entities) {
+            // Trying to match this entity with its calling function
+            for (const func of otherFunctions) {
+                // If this function seems to be calling that entity
+                const regex = new RegExp(`${entity.name}\\s*["'>]{1}`);
+                if (!!regex.exec(func.code)) {
+                    functions[entity.name].isCalledBy.push(func.name);
+                }
             }
         }
-    }
-    return functions;
+        return functions;
+    });
 }
 // Tries to extract event names that this orchestrator is awaiting
 function getEventNames(orchestratorCode) {
@@ -141,18 +154,21 @@ function getEventNames(orchestratorCode) {
     return result;
 }
 // Tries to load code for functions of certain type
-function getFunctionsAndTheirCodes(functionNames, isDotNet, projectFolder, hostJsonFolder) {
-    return functionNames.map(name => {
-        const match = isDotNet ?
-            findFileRecursively(projectFolder, '.+\.cs$', true, new RegExp(`FunctionName\\(\\s*(nameof\\s*\\(\\s*|["'\`])${name}\\s*["'\`\\)]{1}`)) :
-            findFileRecursively(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true);
-        return !match ? undefined : {
-            name,
-            code: !isDotNet ? match.str : getCodeInBrackets(match.str, match.pos + match.length, '{', '}', ' \n')
-        };
-    })
-        .filter(f => !!f);
+function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, hostJsonFolder) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const promises = functionNames.map((name) => __awaiter(this, void 0, void 0, function* () {
+            const match = yield (isDotNet ?
+                findFileRecursivelyAsync(projectFolder, '.+\.cs$', true, new RegExp(`FunctionName\\(\\s*(nameof\\s*\\(\\s*|["'\`])${name}\\s*["'\`\\)]{1}`)) :
+                findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true));
+            return !match ? undefined : {
+                name,
+                code: !isDotNet ? match.str : getCodeInBrackets(match.str, match.pos + match.length, '{', '}', ' \n')
+            };
+        }));
+        return (yield Promise.all(promises)).filter(f => !!f);
+    });
 }
+// Tries to match orchestrator with its activities
 function mapActivitiesToOrchestrator(functions, orch) {
     const activityNames = Object.keys(functions)
         .filter(name => functions[name].bindings.some(b => b.type === 'activityTrigger'));
@@ -168,10 +184,12 @@ function mapActivitiesToOrchestrator(functions, orch) {
         }
     }
 }
-function isDotNetProject(projectFolder) {
-    return fs.readdirSync(projectFolder).some(fn => {
-        fn = fn.toLowerCase();
-        return (fn.endsWith('.sln')) || (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+function isDotNetProjectAsync(projectFolder) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return (yield fs.promises.readdir(projectFolder)).some(fn => {
+            fn = fn.toLowerCase();
+            return (fn.endsWith('.sln')) || (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+        });
     });
 }
 // Main function
@@ -195,41 +213,41 @@ function default_1(context, req) {
                         projectPath.push(...match[3].split('/'));
                     }
                 }
-                gitTempFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'git-clone-'));
+                gitTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
                 context.log(`>>> Cloning ${projectFolder} to ${gitTempFolder}...`);
                 child_process_1.execSync(`git clone ${projectFolder}`, { cwd: gitTempFolder });
                 projectFolder = path.join(gitTempFolder, ...projectPath);
             }
-            const hostJsonMatch = findFileRecursively(projectFolder, 'host.json', false);
+            const hostJsonMatch = yield findFileRecursivelyAsync(projectFolder, 'host.json', false);
             if (!hostJsonMatch) {
                 throw new Error('host.json file not found under the provided project path');
             }
             context.log(`>>> Found host.json at ${hostJsonMatch.str}`);
             var hostJsonFolder = path.dirname(hostJsonMatch.str);
             // If it is a C# function, we'll need to dotnet publish first
-            if (isDotNetProject(hostJsonFolder)) {
-                publishTempFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'dotnet-publish-'));
+            if (yield isDotNetProjectAsync(hostJsonFolder)) {
+                publishTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
                 context.log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
                 child_process_1.execSync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
                 hostJsonFolder = publishTempFolder;
             }
             const result = {};
-            for (const functionName of fs.readdirSync(hostJsonFolder)) {
+            const promises = (yield fs.promises.readdir(hostJsonFolder)).map((functionName) => __awaiter(this, void 0, void 0, function* () {
                 const fullPath = path.join(hostJsonFolder, functionName);
                 const functionJsonFilePath = path.join(fullPath, 'function.json');
-                if (!fs.lstatSync(fullPath).isDirectory() || !fs.existsSync(functionJsonFilePath)) {
-                    continue;
+                if (!!(yield fs.promises.lstat(fullPath)).isDirectory() && !!fs.existsSync(functionJsonFilePath)) {
+                    try {
+                        const functionJson = JSON.parse(yield fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' }));
+                        result[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
+                    }
+                    catch (err) {
+                        context.log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
+                    }
                 }
-                try {
-                    const functionJson = JSON.parse(fs.readFileSync(functionJsonFilePath, { encoding: 'utf8' }));
-                    result[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
-                }
-                catch (err) {
-                    context.log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
-                }
-            }
+            }));
+            yield Promise.all(promises);
             context.res = {
-                body: mapOrchestratorsAndActivities(result, projectFolder, hostJsonFolder)
+                body: yield mapOrchestratorsAndActivitiesAsync(result, projectFolder, hostJsonFolder)
             };
         }
         catch (err) {
