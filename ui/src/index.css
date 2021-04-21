@@ -29,11 +29,16 @@ body {
 
 .diagram-div {
     padding-top: 30px;
+    padding-bottom: 30px;
 }
 
 .diagram-div > svg {
     display: block;
     margin: auto;
+}
+
+.label > g > text {
+    transform: translateX(25px);
 }
 
 .error-typography {

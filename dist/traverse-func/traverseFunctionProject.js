@@ -67,7 +67,7 @@ function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustH
             case closingBracket:
                 bracketCount--;
                 if (bracketCount <= 0 && mustHaveSymbolFound) {
-                    return str.substring(openBracketPos, i);
+                    return str.substring(startFrom, i);
                 }
                 break;
         }
@@ -82,17 +82,17 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
     return __awaiter(this, void 0, void 0, function* () {
         const isDotNet = yield isDotNetProjectAsync(projectFolder);
         const functionNames = Object.keys(functions);
-        const orchestratorNames = functionNames.filter(name => functions[name].bindings.some(b => b.type === 'orchestrationTrigger'));
+        const orchestratorNames = functionNames.filter(name => functions[name].bindings.some((b) => b.type === 'orchestrationTrigger'));
         const orchestrators = yield getFunctionsAndTheirCodesAsync(orchestratorNames, isDotNet, projectFolder, hostJsonFolder);
-        const activityNames = Object.keys(functions).filter(name => functions[name].bindings.some(b => b.type === 'activityTrigger'));
+        const activityNames = Object.keys(functions).filter(name => functions[name].bindings.some((b) => b.type === 'activityTrigger'));
         const activities = yield getFunctionsAndTheirCodesAsync(activityNames, isDotNet, projectFolder, hostJsonFolder);
-        const entityNames = functionNames.filter(name => functions[name].bindings.some(b => b.type === 'entityTrigger'));
+        const entityNames = functionNames.filter(name => functions[name].bindings.some((b) => b.type === 'entityTrigger'));
         const entities = yield getFunctionsAndTheirCodesAsync(entityNames, isDotNet, projectFolder, hostJsonFolder);
-        const otherFunctionNames = functionNames.filter(name => !functions[name].bindings.some(b => ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type)));
+        const otherFunctionNames = functionNames.filter(name => !functions[name].bindings.some((b) => ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type)));
         const otherFunctions = yield getFunctionsAndTheirCodesAsync(otherFunctionNames, isDotNet, projectFolder, hostJsonFolder);
         for (const orch of orchestrators) {
             // Trying to match this orchestrator with its calling function
-            const regex = new RegExp(`(StartNew|StartNewAsync|start_new)(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${orch.name}\\s*["'\\)]{1}`, 'i');
+            const regex = new RegExp(`(StartNew|StartNewAsync|start_new)(<[\\w\.-\\[\\]]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${orch.name}\\s*["'\\)]{1}`, 'i');
             for (const func of otherFunctions) {
                 // If this function seems to be calling that orchestrator
                 if (!!regex.exec(func.code)) {
@@ -105,7 +105,7 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                     continue;
                 }
                 // If this orchestrator seems to be calling that suborchestrator
-                const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(<[\\w\.-]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${subOrch.name}\\s*["'\\)]{1}`, 'i');
+                const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(<[\\w\.-\\[\\]]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${subOrch.name}\\s*["'\\)]{1}`, 'i');
                 if (!!regex.exec(orch.code)) {
                     // Mapping that suborchestrator to this orchestrator
                     functions[subOrch.name].isCalledBy.push(orch.name);
@@ -139,6 +139,12 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                 }
             }
         }
+        if (isDotNet) {
+            for (const func of otherFunctions) {
+                const moreBindings = tryExtractBindingsFromDotNetCode(func);
+                functions[func.name].bindings.push(...moreBindings);
+            }
+        }
         // Also adding file paths and code positions
         for (const func of otherFunctions.concat(orchestrators).concat(activities).concat(entities)) {
             functions[func.name].filePath = func.filePath;
@@ -147,10 +153,127 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
         return functions;
     });
 }
+// In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
+function tryExtractBindingsFromDotNetCode(func) {
+    const result = [];
+    if (!func.code) {
+        return result;
+    }
+    const regex = new RegExp(`\\[\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
+    var match;
+    while (!!(match = regex.exec(func.code))) {
+        const isReturn = !!match[1];
+        const attributeName = match[2];
+        const attributeCode = getCodeInBrackets(func.code, match.index + match[0].length - 1, '(', ')', '"');
+        switch (attributeName) {
+            case 'Blob': {
+                const binding = { type: 'blob', direction: isReturn ? 'out' : 'inout' };
+                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
+                if (!!paramsMatch) {
+                    binding['path'] = paramsMatch[1];
+                }
+                result.push(binding);
+                break;
+            }
+            case 'Table': {
+                const binding = { type: 'table', direction: isReturn ? 'out' : 'inout' };
+                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
+                if (!!paramsMatch) {
+                    binding['tableName'] = paramsMatch[1];
+                }
+                result.push(binding);
+                break;
+            }
+            case 'CosmosDB': {
+                const binding = { type: 'cosmosDB', direction: isReturn ? 'out' : 'inout' };
+                const paramsMatch = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`).exec(attributeCode);
+                if (!!paramsMatch) {
+                    binding['databaseName'] = paramsMatch[1];
+                    binding['collectionName'] = paramsMatch[3];
+                }
+                result.push(binding);
+                break;
+            }
+            case 'SignalRConnectionInfo': {
+                const binding = { type: 'signalRConnectionInfo', direction: 'in' };
+                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
+                if (!!paramsMatch) {
+                    binding['hubName'] = paramsMatch[1];
+                }
+                result.push(binding);
+                break;
+            }
+            case 'EventGrid': {
+                const binding = { type: 'eventGrid', direction: 'out' };
+                const paramsMatch = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`).exec(attributeCode);
+                if (!!paramsMatch) {
+                    binding['topicEndpointUri'] = paramsMatch[1];
+                    binding['topicKeySetting'] = paramsMatch[3];
+                }
+                result.push(binding);
+                break;
+            }
+            case 'EventHub': {
+                const binding = { type: 'eventHub', direction: 'out' };
+                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
+                if (!!paramsMatch) {
+                    binding['eventHubName'] = paramsMatch[1];
+                }
+                result.push(binding);
+                break;
+            }
+            case 'Queue': {
+                const binding = { type: 'queue', direction: 'out' };
+                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
+                if (!!paramsMatch) {
+                    binding['queueName'] = paramsMatch[1];
+                }
+                result.push(binding);
+                break;
+            }
+            case 'ServiceBus': {
+                const binding = { type: 'serviceBus', direction: 'out' };
+                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
+                if (!!paramsMatch) {
+                    binding['queueName'] = paramsMatch[1];
+                }
+                result.push(binding);
+                break;
+            }
+            case 'SignalR': {
+                const binding = { type: 'signalR', direction: 'out' };
+                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
+                if (!!paramsMatch) {
+                    binding['hubName'] = paramsMatch[1];
+                }
+                result.push(binding);
+                break;
+            }
+            case 'RabbitMQ': {
+                const binding = { type: 'rabbitMQ', direction: 'out' };
+                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
+                if (!!paramsMatch) {
+                    binding['queueName'] = paramsMatch[1];
+                }
+                result.push(binding);
+                break;
+            }
+            case 'SendGrid': {
+                result.push({ type: 'sendGrid', direction: 'out' });
+                break;
+            }
+            case 'TwilioSms': {
+                result.push({ type: 'twilioSms', direction: 'out' });
+                break;
+            }
+        }
+    }
+    return result;
+}
 // Tries to extract event names that this orchestrator is awaiting
 function getEventNames(orchestratorCode) {
     const result = [];
-    const regex = new RegExp(`WaitForExternalEvent(<[\\s\\w\.-]+>)?\\(\\s*(nameof\\s*\\(\\s*|["'\`])?([\\s\\w\.-]+)\\s*["'\`\\),]{1}`, 'gi');
+    const regex = new RegExp(`WaitForExternalEvent(<[\\s\\w\.-\\[\\]]+>)?\\(\\s*(nameof\\s*\\(\\s*|["'\`])?([\\s\\w\.-]+)\\s*["'\`\\),]{1}`, 'gi');
     var match;
     while (!!(match = regex.exec(orchestratorCode))) {
         result.push(match[3]);
@@ -161,7 +284,6 @@ function getEventNames(orchestratorCode) {
 function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function* () {
         const promises = functionNames.map((name) => __awaiter(this, void 0, void 0, function* () {
-            var _a;
             const match = yield (isDotNet ?
                 findFileRecursivelyAsync(projectFolder, '.+\.cs$', true, new RegExp(`FunctionName\\(\\s*(nameof\\s*\\(\\s*|["'\`])${name}\\s*["'\`\\)]{1}`)) :
                 findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true));
@@ -169,7 +291,7 @@ function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, 
                 name,
                 code: !isDotNet ? match.code : getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n'),
                 filePath: match.filePath,
-                pos: (_a = match.pos) !== null && _a !== void 0 ? _a : 0
+                pos: !match.pos ? 0 : match.pos
             };
         }));
         return (yield Promise.all(promises)).filter(f => !!f);
@@ -179,7 +301,7 @@ function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, 
 function mapActivitiesToOrchestrator(functions, orch, activityNames) {
     for (const activityName of activityNames) {
         // If this orchestrator seems to be calling this activity
-        const regex = new RegExp(`(CallActivity|call_activity)[\\s\\w\.-<>\\(]*\\([\\s\\w\.-]*["'\`]?${activityName}\\s*["'\`\\)]{1}`, 'i');
+        const regex = new RegExp(`(CallActivity|call_activity)[\\s\\w\.-<>\\[\\]\\(]*\\([\\s\\w\.-]*["'\`]?${activityName}\\s*["'\`\\)]{1}`, 'i');
         if (!!regex.exec(orch.code)) {
             // Then mapping this activity to this orchestrator
             if (!functions[activityName].isCalledBy) {
