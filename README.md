@@ -3,6 +3,9 @@
 
 Visualizes your Azure Functions project in form of a graph. Accepts links to GitHub public repos or local paths (in which case you'll need to run the tool on your devbox).
 
+UPD: is now also a part of [Durable Functions Monitor VsCode extension](https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.durablefunctionsmonitor).
+**Command Palette -> Visualize Functions as a Graph...**
+
 ## How to run locally
 
 This tool is itself an Azure Function (written in TypeScript), so to run it you'll need:
