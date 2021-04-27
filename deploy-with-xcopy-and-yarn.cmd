@@ -17,7 +17,7 @@ IF %errorlevel% NEQ 0 goto end
 cd %MY_BUILD_TEMP_FOLDER%
 
 call npm install yarn --silent
-call node_modules\.bin\yarn
+call node_modules\.bin\yarn install --production
 IF %errorlevel% NEQ 0 goto end
 
 mkdir d:\home\data\SitePackages
