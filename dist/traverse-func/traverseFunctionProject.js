@@ -14,6 +14,7 @@ const os = require("os");
 const fs = require("fs");
 const path = require("path");
 const child_process_1 = require("child_process");
+const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
@@ -53,30 +54,6 @@ function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern)
         return undefined;
     });
 }
-// Complements regex's inability to keep up with nested brackets
-function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols) {
-    var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = false;
-    for (var i = startFrom; i < str.length; i++) {
-        switch (str[i]) {
-            case openingBracket:
-                if (bracketCount <= 0) {
-                    openBracketPos = i + 1;
-                }
-                bracketCount++;
-                break;
-            case closingBracket:
-                bracketCount--;
-                if (bracketCount <= 0 && mustHaveSymbolFound) {
-                    return str.substring(startFrom, i);
-                }
-                break;
-        }
-        if (bracketCount > 0 && mustHaveSymbols.includes(str[i])) {
-            mustHaveSymbolFound = true;
-        }
-    }
-    return '';
-}
 // Tries to match orchestrations and their activities by parsing source code
 function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -92,7 +69,7 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
         const otherFunctions = yield getFunctionsAndTheirCodesAsync(otherFunctionNames, isDotNet, projectFolder, hostJsonFolder);
         for (const orch of orchestrators) {
             // Trying to match this orchestrator with its calling function
-            const regex = new RegExp(`(StartNew|StartNewAsync|start_new)(<[\\w\.-\\[\\]]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${orch.name}\\s*["'\\)]{1}`, 'i');
+            const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getStartNewOrchestrationRegex(orch.name);
             for (const func of otherFunctions) {
                 // If this function seems to be calling that orchestrator
                 if (!!regex.exec(func.code)) {
@@ -105,7 +82,7 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                     continue;
                 }
                 // If this orchestrator seems to be calling that suborchestrator
-                const regex = new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(<[\\w\.-\\[\\]]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\.-]*)${subOrch.name}\\s*["'\\)]{1}`, 'i');
+                const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getCallSubOrchestratorRegex(subOrch.name);
                 if (!!regex.exec(orch.code)) {
                     // Mapping that suborchestrator to this orchestrator
                     functions[subOrch.name].isCalledBy.push(orch.name);
@@ -114,13 +91,13 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
             // Mapping activities to orchestrators
             mapActivitiesToOrchestrator(functions, orch, activityNames);
             // Checking whether orchestrator calls itself
-            if (!!new RegExp(`ContinueAsNew\s*\\(`, 'i').exec(orch.code)) {
+            if (!!traverseFunctionProjectUtils_1.TraversalRegexes.continueAsNewRegex.exec(orch.code)) {
                 functions[orch.name].isCalledByItself = true;
             }
             // Trying to map event producers with their consumers
             const eventNames = getEventNames(orch.code);
             for (const eventName of eventNames) {
-                const regex = new RegExp(`RaiseEvent(Async)?(.|\r|\n)*${eventName}`, 'i');
+                const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getRaiseEventRegex(eventName);
                 for (const func of otherFunctions) {
                     // If this function seems to be sending that event
                     if (!!regex.exec(func.code)) {
@@ -133,7 +110,7 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
             // Trying to match this entity with its calling function
             for (const func of otherFunctions) {
                 // If this function seems to be calling that entity
-                const regex = new RegExp(`${entity.name}\\s*["'>]{1}`);
+                const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getSignalEntityRegex(entity.name);
                 if (!!regex.exec(func.code)) {
                     functions[entity.name].isCalledBy.push(func.name);
                 }
@@ -141,7 +118,7 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
         }
         if (isDotNet) {
             for (const func of otherFunctions) {
-                const moreBindings = tryExtractBindingsFromDotNetCode(func);
+                const moreBindings = traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(func);
                 functions[func.name].bindings.push(...moreBindings);
             }
         }
@@ -153,130 +130,13 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
         return functions;
     });
 }
-// In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
-function tryExtractBindingsFromDotNetCode(func) {
-    const result = [];
-    if (!func.code) {
-        return result;
-    }
-    const regex = new RegExp(`\\[\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
-    var match;
-    while (!!(match = regex.exec(func.code))) {
-        const isReturn = !!match[1];
-        const attributeName = match[2];
-        const attributeCode = getCodeInBrackets(func.code, match.index + match[0].length - 1, '(', ')', '"');
-        switch (attributeName) {
-            case 'Blob': {
-                const binding = { type: 'blob', direction: isReturn ? 'out' : 'inout' };
-                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
-                if (!!paramsMatch) {
-                    binding['path'] = paramsMatch[1];
-                }
-                result.push(binding);
-                break;
-            }
-            case 'Table': {
-                const binding = { type: 'table', direction: isReturn ? 'out' : 'inout' };
-                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
-                if (!!paramsMatch) {
-                    binding['tableName'] = paramsMatch[1];
-                }
-                result.push(binding);
-                break;
-            }
-            case 'CosmosDB': {
-                const binding = { type: 'cosmosDB', direction: isReturn ? 'out' : 'inout' };
-                const paramsMatch = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`).exec(attributeCode);
-                if (!!paramsMatch) {
-                    binding['databaseName'] = paramsMatch[1];
-                    binding['collectionName'] = paramsMatch[3];
-                }
-                result.push(binding);
-                break;
-            }
-            case 'SignalRConnectionInfo': {
-                const binding = { type: 'signalRConnectionInfo', direction: 'in' };
-                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
-                if (!!paramsMatch) {
-                    binding['hubName'] = paramsMatch[1];
-                }
-                result.push(binding);
-                break;
-            }
-            case 'EventGrid': {
-                const binding = { type: 'eventGrid', direction: 'out' };
-                const paramsMatch = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`).exec(attributeCode);
-                if (!!paramsMatch) {
-                    binding['topicEndpointUri'] = paramsMatch[1];
-                    binding['topicKeySetting'] = paramsMatch[3];
-                }
-                result.push(binding);
-                break;
-            }
-            case 'EventHub': {
-                const binding = { type: 'eventHub', direction: 'out' };
-                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
-                if (!!paramsMatch) {
-                    binding['eventHubName'] = paramsMatch[1];
-                }
-                result.push(binding);
-                break;
-            }
-            case 'Queue': {
-                const binding = { type: 'queue', direction: 'out' };
-                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
-                if (!!paramsMatch) {
-                    binding['queueName'] = paramsMatch[1];
-                }
-                result.push(binding);
-                break;
-            }
-            case 'ServiceBus': {
-                const binding = { type: 'serviceBus', direction: 'out' };
-                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
-                if (!!paramsMatch) {
-                    binding['queueName'] = paramsMatch[1];
-                }
-                result.push(binding);
-                break;
-            }
-            case 'SignalR': {
-                const binding = { type: 'signalR', direction: 'out' };
-                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
-                if (!!paramsMatch) {
-                    binding['hubName'] = paramsMatch[1];
-                }
-                result.push(binding);
-                break;
-            }
-            case 'RabbitMQ': {
-                const binding = { type: 'rabbitMQ', direction: 'out' };
-                const paramsMatch = new RegExp(`"([^"]+)"`).exec(attributeCode);
-                if (!!paramsMatch) {
-                    binding['queueName'] = paramsMatch[1];
-                }
-                result.push(binding);
-                break;
-            }
-            case 'SendGrid': {
-                result.push({ type: 'sendGrid', direction: 'out' });
-                break;
-            }
-            case 'TwilioSms': {
-                result.push({ type: 'twilioSms', direction: 'out' });
-                break;
-            }
-        }
-    }
-    return result;
-}
 // Tries to extract event names that this orchestrator is awaiting
 function getEventNames(orchestratorCode) {
     const result = [];
-    const regex = new RegExp(`WaitForExternalEvent(<[\\s\\w\.-\\[\\]]+>)?\\(\\s*(nameof\\s*\\(\\s*|["'\`])?([\\s\\w\.-]+)\\s*["'\`\\),]{1}`, 'gi');
+    const regex = traverseFunctionProjectUtils_1.TraversalRegexes.waitForExternalEventRegex;
     var match;
     while (!!(match = regex.exec(orchestratorCode))) {
-        result.push(match[3]);
+        result.push(match[4]);
     }
     return result;
 }
@@ -285,11 +145,11 @@ function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, 
     return __awaiter(this, void 0, void 0, function* () {
         const promises = functionNames.map((name) => __awaiter(this, void 0, void 0, function* () {
             const match = yield (isDotNet ?
-                findFileRecursivelyAsync(projectFolder, '.+\.cs$', true, new RegExp(`FunctionName\\(\\s*(nameof\\s*\\(\\s*|["'\`])${name}\\s*["'\`\\)]{1}`)) :
+                findFileRecursivelyAsync(projectFolder, '.+\.cs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
                 findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true));
             return !match ? undefined : {
                 name,
-                code: !isDotNet ? match.code : getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n'),
+                code: !isDotNet ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n'),
                 filePath: match.filePath,
                 pos: !match.pos ? 0 : match.pos
             };
@@ -301,7 +161,7 @@ function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, 
 function mapActivitiesToOrchestrator(functions, orch, activityNames) {
     for (const activityName of activityNames) {
         // If this orchestrator seems to be calling this activity
-        const regex = new RegExp(`(CallActivity|call_activity)[\\s\\w\.-<>\\[\\]\\(]*\\([\\s\\w\.-]*["'\`]?${activityName}\\s*["'\`\\)]{1}`, 'i');
+        const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getCallActivityRegex(activityName);
         if (!!regex.exec(orch.code)) {
             // Then mapping this activity to this orchestrator
             if (!functions[activityName].isCalledBy) {
@@ -319,6 +179,9 @@ function isDotNetProjectAsync(projectFolder) {
         });
     });
 }
+// Collects all function.json files in a Functions project. Also tries to supplement them with bindings
+// extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
+// (if the project uses Durable Functions)
 function traverseFunctionProject(projectFolder, log) {
     return __awaiter(this, void 0, void 0, function* () {
         var functions = {}, tempFolders = [];
