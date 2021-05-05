@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 
+import { FunctionsMap } from '../ui/src/shared/FunctionsMap';
 import { getCodeInBrackets, TraversalRegexes, DotNetBindingsParser } from './traverseFunctionProjectUtils';
 
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
@@ -55,7 +56,7 @@ async function findFileRecursivelyAsync(folder: string, fileName: string, return
 }
 
 // Tries to match orchestrations and their activities by parsing source code
-async function mapOrchestratorsAndActivitiesAsync(functions: any, projectFolder: string, hostJsonFolder: string): Promise<{}> {
+async function mapOrchestratorsAndActivitiesAsync(functions: FunctionsMap, projectFolder: string, hostJsonFolder: string): Promise<{}> {
 
     const isDotNet = await isDotNetProjectAsync(projectFolder);
     const functionNames = Object.keys(functions);
@@ -189,7 +190,7 @@ async function getFunctionsAndTheirCodesAsync(functionNames: string[], isDotNet:
 }
 
 // Tries to match orchestrator with its activities
-function mapActivitiesToOrchestrator(functions: any, orch: {name: string, code: string}, activityNames: string[]): void {
+function mapActivitiesToOrchestrator(functions: FunctionsMap, orch: {name: string, code: string}, activityNames: string[]): void {
 
     for (const activityName of activityNames) {
 
@@ -216,9 +217,10 @@ async function isDotNetProjectAsync(projectFolder: string): Promise<boolean> {
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
 // extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
 // (if the project uses Durable Functions)
-export async function traverseFunctionProject(projectFolder: string, log: (s: any) => void): Promise<{ functions: {}, tempFolders: string[] }> {
+export async function traverseFunctionProject(projectFolder: string, log: (s: any) => void)
+    : Promise<{ functions: FunctionsMap, tempFolders: string[] }> {
 
-    var functions: { [n: string]: any } = {}, tempFolders = [];
+    var functions: FunctionsMap = {}, tempFolders = [];
 
     // If it is a git repo, cloning it
     if (projectFolder.toLowerCase().startsWith('http')) {
