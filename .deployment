@@ -1,2 +1,2 @@
 [config]
-command = deploy-with-xcopy-and-yarn.cmd
+command = deploy-with-xcopy-and-zip-deploy.cmd
