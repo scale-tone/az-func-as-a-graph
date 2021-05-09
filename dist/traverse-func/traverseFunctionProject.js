@@ -145,7 +145,7 @@ function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, 
     return __awaiter(this, void 0, void 0, function* () {
         const promises = functionNames.map((name) => __awaiter(this, void 0, void 0, function* () {
             const match = yield (isDotNet ?
-                findFileRecursivelyAsync(projectFolder, '.+\.cs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
+                findFileRecursivelyAsync(projectFolder, '.+\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
                 findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true));
             return !match ? undefined : {
                 name,
@@ -175,7 +175,9 @@ function isDotNetProjectAsync(projectFolder) {
     return __awaiter(this, void 0, void 0, function* () {
         return (yield fs.promises.readdir(projectFolder)).some(fn => {
             fn = fn.toLowerCase();
-            return (fn.endsWith('.sln')) || (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+            return (fn.endsWith('.sln')) ||
+                (fn.endsWith('.fsproj')) ||
+                (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
         });
     });
 }

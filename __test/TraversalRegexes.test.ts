@@ -134,6 +134,10 @@ test('getDotNetFunctionNameRegex', () => {
         `[FunctionName (  nameof \t  (${functionName}))]`,
 
         `[FunctionNameAttribute("${functionName}")]`,
+        
+        ` [<FunctionName("${functionName}")>]
+  let Run([<OrchestrationTrigger>] backupContext: DurableOrchestrationContext) = task {`
+        
     ];
 
     const regex = TraversalRegexes.getDotNetFunctionNameRegex(functionName);
@@ -153,8 +157,9 @@ test('getCallActivityRegex', () => {
         `yield context.df.callActivity
             ("${activityName}", x);`,
         
-        `yield context.call_activity ( "${activityName}", y)`
+        `yield context.call_activity ( "${activityName}", y)`,
 
+        `backupContext.CallActivityAsync<string[]>("${activityName}", rootDirectory)`
     ];
 
     const regex = TraversalRegexes.getCallActivityRegex(activityName);

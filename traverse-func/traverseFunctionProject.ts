@@ -175,7 +175,7 @@ async function getFunctionsAndTheirCodesAsync(functionNames: string[], isDotNet:
     const promises = functionNames.map(async name => {
 
         const match = await (isDotNet ?
-            findFileRecursivelyAsync(projectFolder, '.+\.cs$', true, TraversalRegexes.getDotNetFunctionNameRegex(name)) :
+            findFileRecursivelyAsync(projectFolder, '.+\.(f|c)s$', true, TraversalRegexes.getDotNetFunctionNameRegex(name)) :
             findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true));
 
         return !match ? undefined : {
@@ -210,7 +210,9 @@ function mapActivitiesToOrchestrator(functions: FunctionsMap, orch: {name: strin
 async function isDotNetProjectAsync(projectFolder: string): Promise<boolean> {
     return (await fs.promises.readdir(projectFolder)).some(fn => {
         fn = fn.toLowerCase();
-        return (fn.endsWith('.sln')) || (fn.endsWith('.csproj') && fn !== 'extensions.csproj')
+        return (fn.endsWith('.sln')) ||
+            (fn.endsWith('.fsproj')) ||
+            (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
     });
 }
 
