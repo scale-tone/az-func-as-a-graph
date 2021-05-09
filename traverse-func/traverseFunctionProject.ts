@@ -281,7 +281,8 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
         if (!!(await fs.promises.lstat(fullPath)).isDirectory() && !!fs.existsSync(functionJsonFilePath)) {
 
             try {
-                const functionJson = JSON.parse(await fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' }));
+                const functionJsonString = await fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
+                const functionJson = JSON.parse(functionJsonString);
 
                 functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
 

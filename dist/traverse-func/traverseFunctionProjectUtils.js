@@ -60,8 +60,8 @@ class DotNetBindingsParser {
         const regex = this.returnAttributeRegex;
         var match;
         while (!!(match = regex.exec(func.code))) {
-            const isReturn = !!match[1];
-            const attributeName = match[2];
+            const isReturn = !!match[2];
+            const attributeName = match[3];
             const attributeCode = getCodeInBrackets(func.code, match.index + match[0].length - 1, '(', ')', '"');
             switch (attributeName) {
                 case 'Blob': {
@@ -170,7 +170,7 @@ class DotNetBindingsParser {
     }
 }
 exports.DotNetBindingsParser = DotNetBindingsParser;
-DotNetBindingsParser.returnAttributeRegex = new RegExp(`\\[\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
+DotNetBindingsParser.returnAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
 DotNetBindingsParser.blobParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.tableParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);

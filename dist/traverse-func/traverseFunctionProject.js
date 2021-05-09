@@ -227,7 +227,8 @@ function traverseFunctionProject(projectFolder, log) {
             const functionJsonFilePath = path.join(fullPath, 'function.json');
             if (!!(yield fs.promises.lstat(fullPath)).isDirectory() && !!fs.existsSync(functionJsonFilePath)) {
                 try {
-                    const functionJson = JSON.parse(yield fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' }));
+                    const functionJsonString = yield fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
+                    const functionJson = JSON.parse(functionJsonString);
                     functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
                 }
                 catch (err) {

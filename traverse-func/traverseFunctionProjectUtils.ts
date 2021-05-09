@@ -73,9 +73,9 @@ export class DotNetBindingsParser {
         var match: RegExpExecArray | null;
         while (!!(match = regex.exec(func.code))) {
 
-            const isReturn = !!match[1];
+            const isReturn = !!match[2];
 
-            const attributeName = match[2];
+            const attributeName = match[3];
             const attributeCode = getCodeInBrackets(func.code, match.index + match[0].length - 1, '(', ')', '"');
 
             switch (attributeName) {
@@ -205,7 +205,7 @@ export class DotNetBindingsParser {
         return result;
     }
 
-    static readonly returnAttributeRegex = new RegExp(`\\[\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
+    static readonly returnAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
     static readonly blobParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly tableParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
