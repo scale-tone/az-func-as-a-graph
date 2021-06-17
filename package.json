@@ -10,7 +10,7 @@
     "start:host": "func start",
     "start": "npm-run-all --parallel start:host watch",
     "test": "jest --verbose"
-},
+  },
   "dependencies": {
     "@microsoft/applicationinsights-web": "^2.6.2",
     "@types/rimraf": "^3.0.0",
