@@ -68,7 +68,7 @@ function az_func_as_a_graph(projectFolder, outputFile) {
             return;
         }
         if (!outputFile) {
-            outputFile = 'function-graph.png';
+            outputFile = 'function-graph.svg';
         }
         var tempFilesAndFolders = [];
         try {

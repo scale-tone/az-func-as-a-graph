@@ -79,7 +79,7 @@ async function az_func_as_a_graph(projectFolder: string, outputFile: string) {
     }
 
     if (!outputFile) {
-        outputFile = 'function-graph.png';
+        outputFile = 'function-graph.svg';
     }
     
     var tempFilesAndFolders = [];
