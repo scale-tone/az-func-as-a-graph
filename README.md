@@ -20,6 +20,16 @@ func start
 
 Then navigate to `http://localhost:7071` with your browser, specify either local path or link to a github repo and press 'Visualize'.
 
+## How to run from command line
+
+Clone this repo, then type the following from the project root folder:
+```
+npm install
+node dist/az-func-as-a-graph {path-to-my-functions-project-folder} {output-file-name.svg}
+```
+
+This is now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) NPM package (which will be locally installed by `az-func-as-a-graph.js` script at its first run).
+
 ## How to deploy to Azure
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fscale-tone%2Faz-func-as-a-graph%2Fmain%2Farm-template.json)
