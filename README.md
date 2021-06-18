@@ -22,6 +22,8 @@ Then navigate to `http://localhost:7071` with your browser, specify either local
 
 ## How to run from command line
 
+This mode allows to programmatically generate diagrams out of your source code, e.g. as part of your build pipeline.
+
 Clone this repo, then type the following from the project root folder:
 ```
 npm install
