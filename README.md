@@ -34,7 +34,7 @@ This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/m
 
 `npm install` is only needed once, of course.
 
-`{path-to-my-functions-project-folder}` can be either local folder or link to a GitHub repo. `{output-file-name.svg}` should be local file name with path and `.svg` extension, the graph will be written to this file in SVG format.
+`{path-to-my-functions-project-folder}` can be either local folder or link to a GitHub repo. `{output-file-name.svg}` should be file name with local path and `.svg` extension, the graph will be written to this file in SVG format.
 
 ## How to deploy to Azure
 
