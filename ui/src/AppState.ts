@@ -47,10 +47,13 @@ export class AppState {
         window.history.replaceState(null, null, `?path=${encodeURIComponent(projectPath)}`);
         this.pathText = '';
 
-        axios.post(`a/p/i/traverse-func`, projectPath).then(response => {
+        const traversedFunctionsPromise = axios.post(`a/p/i/traverse-func`, projectPath);
+
+        Promise.all([traversedFunctionsPromise, this._iconsSvgPromise]).then(responses => {
 
             try {
-                const diagramCode = buildFunctionDiagramCode(response.data);
+                const diagramCode = buildFunctionDiagramCode(responses[0].data);
+                const iconsSvg = responses[1].data;
 
                 if (!diagramCode) {
                     this._inProgress = false;
@@ -61,7 +64,7 @@ export class AppState {
 
                 mermaid.render('mermaidSvgId', this._diagramCode, (svg) => {
 
-                    this._diagramSvg = this.applyIcons(svg);
+                    this._diagramSvg = this.applyIcons(svg, iconsSvg);
 
                     this._inProgress = false;
                 });
@@ -77,10 +80,14 @@ export class AppState {
         });
     }
 
-    private applyIcons(svg: string): string {
+    private applyIcons(svg: string, iconsSvg: string): string {
 
+        // Placing icons code into a <defs> block at the top
+        svg = svg.replace(`><style>`, `>\n<defs>\n${iconsSvg}</defs>\n<style>`);
+
+        // Adding <use> blocks referencing relevant icons
         svg = svg.replace(/<g class="node (\w+).*?<g class="label" transform="translate\([0-9,.-]+\)"><g transform="translate\([0-9,.-]+\)">/g,
-            '$&<image href="static/icons/$1.svg" width="20px"/>');
+            `$&<use href="#az-icon-$1" width="20px" height="20px"/>`);
 
         return svg;
     }
@@ -93,4 +100,6 @@ export class AppState {
     private _diagramSvg: string;
     @observable
     private _inProgress: boolean;
+
+    private _iconsSvgPromise = axios.get('static/icons/all-azure-icons.svg');
 }

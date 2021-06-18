@@ -34,39 +34,14 @@ function runMermaidCli(inputFile: string, outputFile: string): Promise<void> {
 
 async function applyIcons(svg: string): Promise<string> {
 
-    const iconFolder = path.join('.', 'ui', 'build', 'static', 'icons');
+    const iconsSvg = await fs.promises.readFile(path.join('.', 'ui', 'build', 'static', 'icons', 'all-azure-icons.svg'), { encoding: 'utf8' });
 
-    var iconsSvg = '';
-    const azIconIdPrefix = 'az-icon-';
-
-    for (const iconFileName of await fs.promises.readdir(iconFolder)) {
-        const iconFilePath = path.join(iconFolder, iconFileName);
-
-        var iconSvg = await fs.promises.readFile(iconFilePath, { encoding: 'utf8' });
-
-        // removing xml prefix
-        iconSvg = iconSvg.replace(/<\?xml .+\?>/, '');
-
-        // adding/replacing id attribute
-        const idString = ` id="${azIconIdPrefix}${path.basename(iconFilePath, '.svg')}"`;
-
-        const match = /\s+id=".+"/.exec(iconSvg);
-        if (!!match) {
-
-            iconSvg = iconSvg.substr(0, match.index) + idString + iconSvg.substr(match.index + match[0].length);
-
-        } else {
-
-            iconSvg = iconSvg.replace(/<svg\s+/, `<svg id="${azIconIdPrefix}${path.basename(iconFilePath, '.svg')}" `);
-        }
-
-        iconsSvg += iconSvg + '\n';
-    }
-
+    // Placing icons code into a <defs> block at the top
     svg = svg.replace(`><style>`, `>\n<defs>\n${iconsSvg}</defs>\n<style>`);
 
+    // Adding <use> blocks referencing relevant icons
     svg = svg.replace(/<g class="node (\w+).*?<g class="label" transform="translate\([0-9,.-]+\)"><g transform="translate\([0-9,.-]+\)">/g,
-    `$&<use href="#${azIconIdPrefix}$1" width="20px" height="20px"/>`);
+    `$&<use href="#az-icon-$1" width="20px" height="20px"/>`);
 
     return svg;
 }

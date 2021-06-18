@@ -25,6 +25,7 @@ export default class App extends React.Component<{ state: AppState }> {
         const state = this.props.state;
 
         return (<>
+
             <AppBar position="static" color="default">
                 <Toolbar>
 
