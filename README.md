@@ -27,14 +27,20 @@ This mode allows to programmatically generate diagrams out of your source code, 
 Clone this repo, then type the following from the project root folder:
 ```
 npm install
-node dist/az-func-as-a-graph {path-to-my-functions-project-folder} {output-file-name.svg}
+node dist/az-func-as-a-graph {path-to-my-functions-project-folder} {output-file-name} {html-template-name}
 ```
 
 This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) NPM package (which will be locally installed by [az-func-as-a-graph](https://github.com/scale-tone/az-func-as-a-graph/blob/main/az-func-as-a-graph.ts) script at its first run).
 
 `npm install` is only needed once, of course.
 
-`{path-to-my-functions-project-folder}` can be either local folder or link to a GitHub repo. `{output-file-name.svg}` should be file name with local path and `.svg` extension, the graph will be written to this file in SVG format.
+`{path-to-my-functions-project-folder}` can be either local folder or link to a GitHub repo. 
+
+`{output-file-name}` should be a file name with local path. 
+* If its extension is `.svg`, the graph will be written to this file in SVG format.
+* If its extension is `.htm`, a static HTML page will be generated. The tool will also try its best to make that page *interactive*, so that e.g. when you click on a graph node, the relevant Function's source code is shown. [Here is an example of such a page](https://scale-tone.github.io/temp/WhatIfDemo-Functions.htm).
+
+`{html-template-name}` is an optional path to an HTML template to be used, when generating those HTML pages. If omitted, [this default one](https://github.com/scale-tone/az-func-as-a-graph/blob/main/graph-template.htm) will be used.
 
 ## How to deploy to Azure
 
