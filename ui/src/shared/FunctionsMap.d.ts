@@ -6,6 +6,7 @@ export type FunctionsMap = {
         isSignalledBy: { name: string, signalName: string }[],
         isCalledByItself?: boolean,
         filePath?: string,
-        pos?: number
+        pos?: number,
+        lineNr?: number
     }
 };

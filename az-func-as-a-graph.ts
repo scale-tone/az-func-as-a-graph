@@ -8,6 +8,7 @@ import * as crypto from 'crypto';
 
 import { traverseFunctionProject } from './traverse-func/traverseFunctionProject';
 import { buildFunctionDiagramCode } from './ui/src/buildFunctionDiagramCode';
+import { FunctionsMap } from './ui/src/shared/FunctionsMap';
 
 function runMermaidCli(inputFile: string, outputFile: string): Promise<void> {
 
@@ -46,7 +47,37 @@ async function applyIcons(svg: string): Promise<string> {
     return svg;
 }
 
-async function az_func_as_a_graph(projectFolder: string, outputFile: string) {
+// Tries to convert local file names to their GitHub URL equivalents
+function convertLocalPathsToGitHub(functions: FunctionsMap, orgUrl: string, repoName: string, branchName: string): FunctionsMap{
+
+    if (!orgUrl || !repoName || !branchName) {
+        return functions;
+    }
+
+    for (const funcName in functions) {
+        
+        const func = functions[funcName];
+
+        if (!func.filePath) {
+            continue;
+        }
+
+        const repoNameWithSeparators = path.sep + repoName + path.sep;
+
+        const pos = func.filePath.indexOf(repoNameWithSeparators);
+        if (pos < 0) {
+            continue;
+        }
+
+        const relativePath = func.filePath.substr(pos + repoNameWithSeparators.length).split(path.sep);
+        func.filePath = `${orgUrl}/${repoName}/blob/${branchName}/${relativePath.join('/')}#L${func.lineNr}`;
+    }
+
+    return functions;
+}
+
+// Does the main job
+async function az_func_as_a_graph(projectFolder: string, outputFile: string, htmlTemplateFile: string) {
 
     if (!projectFolder) {
         console.error('Path to an Azure Functions project not specified');
@@ -56,27 +87,59 @@ async function az_func_as_a_graph(projectFolder: string, outputFile: string) {
     if (!outputFile) {
         outputFile = 'function-graph.svg';
     }
+
+    if (!htmlTemplateFile) {
+        htmlTemplateFile = 'graph-template.htm';
+    }
     
     var tempFilesAndFolders = [];
     try {
 
         const traverseResult = await traverseFunctionProject(projectFolder, console.log);
+
         tempFilesAndFolders = traverseResult.tempFolders;
 
-        const functions = traverseResult.functions;
+        var functions = traverseResult.functions;
         const diagramCode = 'graph LR\n' + await buildFunctionDiagramCode(functions);
         
-        const tempFileName = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
-        fs.writeFileSync(tempFileName, diagramCode);
-        tempFilesAndFolders.push(tempFileName);
+        const tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
+        await fs.promises.writeFile(tempInputFile, diagramCode);
+        tempFilesAndFolders.push(tempInputFile);
 
-        await runMermaidCli(tempFileName, outputFile);
+        const outputFileExt = path.extname(outputFile).toLowerCase();
+        const isHtmlOutput = ['.htm', '.html'].includes(outputFileExt);
 
-        if (outputFile.toLowerCase().endsWith('.svg')) {
+        const tempOutputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + (isHtmlOutput ? '.svg' : outputFileExt));
+        tempFilesAndFolders.push(tempOutputFile);
 
-            var svg = await fs.promises.readFile(outputFile, { encoding: 'utf8' });
+        await runMermaidCli(tempInputFile, tempOutputFile);
+
+        if (isHtmlOutput) {
+
+            var html = await fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' });
+
+            var svg = await fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
+            svg = await applyIcons(svg);
+
+            const projectName = path.basename(projectFolder);
+
+            html = html.replace(/{{PROJECT_NAME}}/g, projectName);
+            html = html.replace(/{{GRAPH_SVG}}/g, svg);
+
+            functions = convertLocalPathsToGitHub(functions, traverseResult.orgUrl, traverseResult.repoName, traverseResult.branchName);
+            html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(functions)}`);
+
+            await fs.promises.writeFile(outputFile, html);
+
+        } else if (outputFileExt === '.svg') {
+
+            var svg = await fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
             svg = await applyIcons(svg);
             await fs.promises.writeFile(outputFile, svg);
+
+        } else {
+
+            await fs.promises.copyFile(tempOutputFile, outputFile);
         }
 
         console.log(`Diagram was successfully generated and saved to ${outputFile}`);
@@ -92,4 +155,4 @@ async function az_func_as_a_graph(projectFolder: string, outputFile: string) {
     }
 }
 
-az_func_as_a_graph(process.argv[2], process.argv[3]);
+az_func_as_a_graph(process.argv[2], process.argv[3], process.argv[4]);

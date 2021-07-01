@@ -149,6 +149,7 @@ async function mapOrchestratorsAndActivitiesAsync(functions: FunctionsMap, proje
     for (const func of otherFunctions.concat(orchestrators).concat(activities).concat(entities)) {
         functions[func.name].filePath = func.filePath;
         functions[func.name].pos = func.pos;
+        functions[func.name].lineNr = func.lineNr;
     }
 
     return functions;
@@ -168,22 +169,31 @@ function getEventNames(orchestratorCode: string): string[] {
     return result;
 }
 
+// Primitive way of getting a line number out of symbol position
+function posToLineNr(code: string, pos: number): number {
+    const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
+    return !lineBreaks ? 1 : lineBreaks.length + 1;
+}
+
 // Tries to load code for functions of certain type
 async function getFunctionsAndTheirCodesAsync(functionNames: string[], isDotNet: boolean, projectFolder: string, hostJsonFolder: string)
-    : Promise<{ name: string, code: string, filePath: string, pos: number }[]> {
+    : Promise<{ name: string, code: string, filePath: string, pos: number, lineNr: number }[]> {
     
     const promises = functionNames.map(async name => {
 
         const match = await (isDotNet ?
             findFileRecursivelyAsync(projectFolder, '.+\.(f|c)s$', true, TraversalRegexes.getDotNetFunctionNameRegex(name)) :
             findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true));
+        
+        if (!match) {
+            return undefined;
+        }
 
-        return !match ? undefined : {
-            name,
-            code: !isDotNet ? match.code : getCodeInBrackets(match.code!, match.pos! + match.length!, '{', '}', ' \n'),
-            filePath: match.filePath,
-            pos: !match.pos ? 0 : match.pos
-        };
+        const code = !isDotNet ? match.code : getCodeInBrackets(match.code!, match.pos! + match.length!, '{', '}', ' \n');
+        const pos = !match.pos ? 0 : match.pos;
+        const lineNr = posToLineNr(match.code, pos);
+
+        return { name, code, filePath: match.filePath, pos, lineNr };
     });
 
     return (await Promise.all(promises)).filter(f => !!f) as any;
@@ -220,37 +230,71 @@ async function isDotNetProjectAsync(projectFolder: string): Promise<boolean> {
 // extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
 // (if the project uses Durable Functions)
 export async function traverseFunctionProject(projectFolder: string, log: (s: any) => void)
-    : Promise<{ functions: FunctionsMap, tempFolders: string[] }> {
+    : Promise<{ functions: FunctionsMap, orgUrl: string, repoName: string, branchName: string, tempFolders: string[] }> {
 
-    var functions: FunctionsMap = {}, tempFolders = [];
+    var functions: FunctionsMap = {}, tempFolders = [], orgUrl = '', repoName = '', branchName = '';
 
     // If it is a git repo, cloning it
     if (projectFolder.toLowerCase().startsWith('http')) {
 
-        var projectPath = [];
+        var restOfUrl = [];
+        const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(projectFolder);
 
-        // Trying to infer project path
-        if (!projectFolder.toLowerCase().endsWith('.git')) {
+        if (!match || match.length < 5) {
 
-            const match = /(https:\/\/github.com\/.*?)\/([^\/]+)\/tree\/[^\/]+\/(.*)/i.exec(projectFolder);
-            if (!match || match.length < 4) {
+            projectFolder += '.git';
 
-                projectFolder += '.git';
+        } else {
 
-            } else {
+            orgUrl = match[1];
 
-                projectFolder = `${match[1]}/${match[2]}.git`;
-                projectPath.push(match[2]);
-                projectPath.push(...match[3].split('/'));
+            repoName = match[2];
+            if (repoName.toLowerCase().endsWith('.git')) {
+                repoName = repoName.substr(0, repoName.length - 4);
+            }
+
+            projectFolder = `${orgUrl}/${repoName}.git`;
+
+            if (!!match[4]) {
+                restOfUrl.push(...match[4].split('/'));
             }
         }
 
         const gitTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
         tempFolders.push(gitTempFolder);
 
+        var relativePath = '';
+
         log(`>>> Cloning ${projectFolder} to ${gitTempFolder}...`);
-        execSync(`git clone ${projectFolder}`, { cwd: gitTempFolder });
-        projectFolder = path.join(gitTempFolder, ...projectPath);
+
+        // The provided URL might contain both branch name and relative path. The only way to separate one from another
+        // is to repeatedly try cloning assumed branch names, until we finally succeed.
+        for (var i = restOfUrl.length; i > 0; i--) {
+
+            try {
+
+                const assumedBranchName = restOfUrl.slice(0, i).join('/');
+                execSync(`git clone ${projectFolder} --branch ${assumedBranchName}`, { cwd: gitTempFolder });
+
+                branchName = assumedBranchName;
+                relativePath = path.join(...restOfUrl.slice(i, restOfUrl.length));
+
+                break;
+            } catch {
+                continue;
+            }
+        }
+
+        if (!branchName) {
+
+            // Just doing a normal git clone
+            execSync(`git clone ${projectFolder}`, { cwd: gitTempFolder });
+
+            // And getting the current branch name (it might be different from default)
+            branchName = execSync('git rev-parse --abbrev-ref HEAD', { env: { GIT_DIR: path.join(gitTempFolder, repoName, '.git') } }).toString();
+        }
+
+        projectFolder = path.join(gitTempFolder, repoName, relativePath);
     }
 
     const hostJsonMatch = await findFileRecursivelyAsync(projectFolder, 'host.json', false);
@@ -295,5 +339,5 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
 
     functions = await mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
 
-    return { functions, tempFolders };
+    return { functions, orgUrl, repoName, branchName, tempFolders };
 }

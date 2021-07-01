@@ -126,6 +126,7 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
         for (const func of otherFunctions.concat(orchestrators).concat(activities).concat(entities)) {
             functions[func.name].filePath = func.filePath;
             functions[func.name].pos = func.pos;
+            functions[func.name].lineNr = func.lineNr;
         }
         return functions;
     });
@@ -140,6 +141,11 @@ function getEventNames(orchestratorCode) {
     }
     return result;
 }
+// Primitive way of getting a line number out of symbol position
+function posToLineNr(code, pos) {
+    const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
+    return !lineBreaks ? 1 : lineBreaks.length + 1;
+}
 // Tries to load code for functions of certain type
 function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -147,12 +153,13 @@ function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, 
             const match = yield (isDotNet ?
                 findFileRecursivelyAsync(projectFolder, '.+\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
                 findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true));
-            return !match ? undefined : {
-                name,
-                code: !isDotNet ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n'),
-                filePath: match.filePath,
-                pos: !match.pos ? 0 : match.pos
-            };
+            if (!match) {
+                return undefined;
+            }
+            const code = !isDotNet ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n');
+            const pos = !match.pos ? 0 : match.pos;
+            const lineNr = posToLineNr(match.code, pos);
+            return { name, code, filePath: match.filePath, pos, lineNr };
         }));
         return (yield Promise.all(promises)).filter(f => !!f);
     });
@@ -186,27 +193,50 @@ function isDotNetProjectAsync(projectFolder) {
 // (if the project uses Durable Functions)
 function traverseFunctionProject(projectFolder, log) {
     return __awaiter(this, void 0, void 0, function* () {
-        var functions = {}, tempFolders = [];
+        var functions = {}, tempFolders = [], orgUrl = '', repoName = '', branchName = '';
         // If it is a git repo, cloning it
         if (projectFolder.toLowerCase().startsWith('http')) {
-            var projectPath = [];
-            // Trying to infer project path
-            if (!projectFolder.toLowerCase().endsWith('.git')) {
-                const match = /(https:\/\/github.com\/.*?)\/([^\/]+)\/tree\/[^\/]+\/(.*)/i.exec(projectFolder);
-                if (!match || match.length < 4) {
-                    projectFolder += '.git';
+            var restOfUrl = [];
+            const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(projectFolder);
+            if (!match || match.length < 5) {
+                projectFolder += '.git';
+            }
+            else {
+                orgUrl = match[1];
+                repoName = match[2];
+                if (repoName.toLowerCase().endsWith('.git')) {
+                    repoName = repoName.substr(0, repoName.length - 4);
                 }
-                else {
-                    projectFolder = `${match[1]}/${match[2]}.git`;
-                    projectPath.push(match[2]);
-                    projectPath.push(...match[3].split('/'));
+                projectFolder = `${orgUrl}/${repoName}.git`;
+                if (!!match[4]) {
+                    restOfUrl.push(...match[4].split('/'));
                 }
             }
             const gitTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
             tempFolders.push(gitTempFolder);
+            var relativePath = '';
             log(`>>> Cloning ${projectFolder} to ${gitTempFolder}...`);
-            child_process_1.execSync(`git clone ${projectFolder}`, { cwd: gitTempFolder });
-            projectFolder = path.join(gitTempFolder, ...projectPath);
+            // The provided URL might contain both branch name and relative path. The only way to separate one from another
+            // is to repeatedly try cloning assumed branch names, until we finally succeed.
+            for (var i = restOfUrl.length; i > 0; i--) {
+                try {
+                    const assumedBranchName = restOfUrl.slice(0, i).join('/');
+                    child_process_1.execSync(`git clone ${projectFolder} --branch ${assumedBranchName}`, { cwd: gitTempFolder });
+                    branchName = assumedBranchName;
+                    relativePath = path.join(...restOfUrl.slice(i, restOfUrl.length));
+                    break;
+                }
+                catch (_a) {
+                    continue;
+                }
+            }
+            if (!branchName) {
+                // Just doing a normal git clone
+                child_process_1.execSync(`git clone ${projectFolder}`, { cwd: gitTempFolder });
+                // And getting the current branch name (it might be different from default)
+                branchName = child_process_1.execSync('git rev-parse --abbrev-ref HEAD', { env: { GIT_DIR: path.join(gitTempFolder, repoName, '.git') } }).toString();
+            }
+            projectFolder = path.join(gitTempFolder, repoName, relativePath);
         }
         const hostJsonMatch = yield findFileRecursivelyAsync(projectFolder, 'host.json', false);
         if (!hostJsonMatch) {
@@ -238,7 +268,7 @@ function traverseFunctionProject(projectFolder, log) {
         }));
         yield Promise.all(promises);
         functions = yield mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
-        return { functions, tempFolders };
+        return { functions, orgUrl, repoName, branchName, tempFolders };
     });
 }
 exports.traverseFunctionProject = traverseFunctionProject;
