@@ -1,6 +1,82 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DotNetBindingsParser = exports.TraversalRegexes = exports.getCodeInBrackets = void 0;
+exports.DotNetBindingsParser = exports.TraversalRegexes = exports.getCodeInBrackets = exports.isDotNetProjectAsync = exports.posToLineNr = exports.CloneFromGitHub = void 0;
+const os = require("os");
+const fs = require("fs");
+const path = require("path");
+const child_process_1 = require("child_process");
+// Does a git clone into a temp folder and returns info about the repo
+function CloneFromGitHub(url) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var orgUrl = '', repoName = '', branchName = '', relativePath = '', gitTempFolder = '';
+        var restOfUrl = [];
+        const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(url);
+        if (!match || match.length < 5) {
+            url += '.git';
+        }
+        else {
+            orgUrl = match[1];
+            repoName = match[2];
+            if (repoName.toLowerCase().endsWith('.git')) {
+                repoName = repoName.substr(0, repoName.length - 4);
+            }
+            url = `${orgUrl}/${repoName}.git`;
+            if (!!match[4]) {
+                restOfUrl.push(...match[4].split('/'));
+            }
+        }
+        gitTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
+        // The provided URL might contain both branch name and relative path. The only way to separate one from another
+        // is to repeatedly try cloning assumed branch names, until we finally succeed.
+        for (var i = restOfUrl.length; i > 0; i--) {
+            try {
+                const assumedBranchName = restOfUrl.slice(0, i).join('/');
+                child_process_1.execSync(`git clone ${url} --branch ${assumedBranchName}`, { cwd: gitTempFolder });
+                branchName = assumedBranchName;
+                relativePath = path.join(...restOfUrl.slice(i, restOfUrl.length));
+                break;
+            }
+            catch (_a) {
+                continue;
+            }
+        }
+        if (!branchName) {
+            // Just doing a normal git clone
+            child_process_1.execSync(`git clone ${url}`, { cwd: gitTempFolder });
+            // And getting the current branch name (it might be different from default)
+            branchName = child_process_1.execSync('git rev-parse --abbrev-ref HEAD', { env: { GIT_DIR: path.join(gitTempFolder, repoName, '.git') } }).toString();
+        }
+        return { orgUrl, repoName, branchName, relativePath, gitTempFolder };
+    });
+}
+exports.CloneFromGitHub = CloneFromGitHub;
+// Primitive way of getting a line number out of symbol position
+function posToLineNr(code, pos) {
+    const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
+    return !lineBreaks ? 1 : lineBreaks.length + 1;
+}
+exports.posToLineNr = posToLineNr;
+// Checks if the given folder looks like a .Net project
+function isDotNetProjectAsync(projectFolder) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return (yield fs.promises.readdir(projectFolder)).some(fn => {
+            fn = fn.toLowerCase();
+            return (fn.endsWith('.sln')) ||
+                (fn.endsWith('.fsproj')) ||
+                (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+        });
+    });
+}
+exports.isDotNetProjectAsync = isDotNetProjectAsync;
 // Complements regex's inability to keep up with nested brackets
 function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols) {
     var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = false;

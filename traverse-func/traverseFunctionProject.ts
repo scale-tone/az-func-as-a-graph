@@ -3,10 +3,82 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 
-import { FunctionsMap } from '../ui/src/shared/FunctionsMap';
-import { getCodeInBrackets, TraversalRegexes, DotNetBindingsParser } from './traverseFunctionProjectUtils';
+import { FunctionsMap, TraverseFunctionResult, GitHubInfo } from '../ui/src/shared/FunctionsMap';
+import {
+    getCodeInBrackets, TraversalRegexes, DotNetBindingsParser,
+    isDotNetProjectAsync, posToLineNr, CloneFromGitHub
+} from './traverseFunctionProjectUtils';
 
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
+
+// Collects all function.json files in a Functions project. Also tries to supplement them with bindings
+// extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
+// (if the project uses Durable Functions)
+export async function traverseFunctionProject(projectFolder: string, log: (s: any) => void)
+    : Promise<TraverseFunctionResult> {
+
+    var functions: FunctionsMap = {}, tempFolders = [], gitHubInfo: GitHubInfo;
+
+    // If it is a git repo, cloning it
+    if (projectFolder.toLowerCase().startsWith('http')) {
+
+        log(`>>> Cloning ${projectFolder}`);
+
+        gitHubInfo = await CloneFromGitHub(projectFolder);
+
+        log(`>>> Successfully cloned to ${gitHubInfo.gitTempFolder}`);
+
+        tempFolders.push(gitHubInfo.gitTempFolder);
+
+        projectFolder = path.join(gitHubInfo.gitTempFolder, gitHubInfo.repoName, gitHubInfo.relativePath);
+    }
+
+    const hostJsonMatch = await findFileRecursivelyAsync(projectFolder, 'host.json', false);
+    if (!hostJsonMatch) {
+        throw new Error('host.json file not found under the provided project path');
+    }
+
+    log(`>>> Found host.json at ${hostJsonMatch.filePath}`);
+
+    var hostJsonFolder = path.dirname(hostJsonMatch.filePath);
+
+    // If it is a C# function, we'll need to dotnet publish first
+    if (await isDotNetProjectAsync(hostJsonFolder)) {
+
+        const publishTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
+        tempFolders.push(publishTempFolder);
+
+        log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
+        execSync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
+        hostJsonFolder = publishTempFolder;
+    }
+
+    // Reading function.json files, in parallel
+    const promises = (await fs.promises.readdir(hostJsonFolder)).map(async functionName => {
+
+        const fullPath = path.join(hostJsonFolder, functionName);
+        const functionJsonFilePath = path.join(fullPath, 'function.json');
+
+        if (!!(await fs.promises.lstat(fullPath)).isDirectory() && !!fs.existsSync(functionJsonFilePath)) {
+
+            try {
+                const functionJsonString = await fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
+                const functionJson = JSON.parse(functionJsonString);
+
+                functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
+
+            } catch (err) {
+                log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
+            }
+        }
+    });
+    await Promise.all(promises);
+
+    // Now enriching data from function.json with more info extracted from code
+    functions = await mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
+
+    return { functions, tempFolders, gitHubInfo };
+}
 
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
@@ -169,12 +241,6 @@ function getEventNames(orchestratorCode: string): string[] {
     return result;
 }
 
-// Primitive way of getting a line number out of symbol position
-function posToLineNr(code: string, pos: number): number {
-    const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
-    return !lineBreaks ? 1 : lineBreaks.length + 1;
-}
-
 // Tries to load code for functions of certain type
 async function getFunctionsAndTheirCodesAsync(functionNames: string[], isDotNet: boolean, projectFolder: string, hostJsonFolder: string)
     : Promise<{ name: string, code: string, filePath: string, pos: number, lineNr: number }[]> {
@@ -215,129 +281,4 @@ function mapActivitiesToOrchestrator(functions: FunctionsMap, orch: {name: strin
             functions[activityName].isCalledBy.push(orch.name);
         }
     }
-}
-
-async function isDotNetProjectAsync(projectFolder: string): Promise<boolean> {
-    return (await fs.promises.readdir(projectFolder)).some(fn => {
-        fn = fn.toLowerCase();
-        return (fn.endsWith('.sln')) ||
-            (fn.endsWith('.fsproj')) ||
-            (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
-    });
-}
-
-// Collects all function.json files in a Functions project. Also tries to supplement them with bindings
-// extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
-// (if the project uses Durable Functions)
-export async function traverseFunctionProject(projectFolder: string, log: (s: any) => void)
-    : Promise<{ functions: FunctionsMap, orgUrl: string, repoName: string, branchName: string, tempFolders: string[] }> {
-
-    var functions: FunctionsMap = {}, tempFolders = [], orgUrl = '', repoName = '', branchName = '';
-
-    // If it is a git repo, cloning it
-    if (projectFolder.toLowerCase().startsWith('http')) {
-
-        var restOfUrl = [];
-        const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(projectFolder);
-
-        if (!match || match.length < 5) {
-
-            projectFolder += '.git';
-
-        } else {
-
-            orgUrl = match[1];
-
-            repoName = match[2];
-            if (repoName.toLowerCase().endsWith('.git')) {
-                repoName = repoName.substr(0, repoName.length - 4);
-            }
-
-            projectFolder = `${orgUrl}/${repoName}.git`;
-
-            if (!!match[4]) {
-                restOfUrl.push(...match[4].split('/'));
-            }
-        }
-
-        const gitTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
-        tempFolders.push(gitTempFolder);
-
-        var relativePath = '';
-
-        log(`>>> Cloning ${projectFolder} to ${gitTempFolder}...`);
-
-        // The provided URL might contain both branch name and relative path. The only way to separate one from another
-        // is to repeatedly try cloning assumed branch names, until we finally succeed.
-        for (var i = restOfUrl.length; i > 0; i--) {
-
-            try {
-
-                const assumedBranchName = restOfUrl.slice(0, i).join('/');
-                execSync(`git clone ${projectFolder} --branch ${assumedBranchName}`, { cwd: gitTempFolder });
-
-                branchName = assumedBranchName;
-                relativePath = path.join(...restOfUrl.slice(i, restOfUrl.length));
-
-                break;
-            } catch {
-                continue;
-            }
-        }
-
-        if (!branchName) {
-
-            // Just doing a normal git clone
-            execSync(`git clone ${projectFolder}`, { cwd: gitTempFolder });
-
-            // And getting the current branch name (it might be different from default)
-            branchName = execSync('git rev-parse --abbrev-ref HEAD', { env: { GIT_DIR: path.join(gitTempFolder, repoName, '.git') } }).toString();
-        }
-
-        projectFolder = path.join(gitTempFolder, repoName, relativePath);
-    }
-
-    const hostJsonMatch = await findFileRecursivelyAsync(projectFolder, 'host.json', false);
-    if (!hostJsonMatch) {
-        throw new Error('host.json file not found under the provided project path');
-    }
-
-    log(`>>> Found host.json at ${hostJsonMatch.filePath}`);
-
-    var hostJsonFolder = path.dirname(hostJsonMatch.filePath);
-
-    // If it is a C# function, we'll need to dotnet publish first
-    if (await isDotNetProjectAsync(hostJsonFolder)) {
-
-        const publishTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
-        tempFolders.push(publishTempFolder);
-
-        log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
-        execSync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
-        hostJsonFolder = publishTempFolder;
-    }
-
-    const promises = (await fs.promises.readdir(hostJsonFolder)).map(async functionName => {
-
-        const fullPath = path.join(hostJsonFolder, functionName);
-        const functionJsonFilePath = path.join(fullPath, 'function.json');
-
-        if (!!(await fs.promises.lstat(fullPath)).isDirectory() && !!fs.existsSync(functionJsonFilePath)) {
-
-            try {
-                const functionJsonString = await fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
-                const functionJson = JSON.parse(functionJsonString);
-
-                functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
-
-            } catch (err) {
-                log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
-            }
-        }
-    });
-    await Promise.all(promises);
-
-    functions = await mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
-
-    return { functions, orgUrl, repoName, branchName, tempFolders };
 }

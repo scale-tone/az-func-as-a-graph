@@ -8,7 +8,7 @@ import * as crypto from 'crypto';
 
 import { traverseFunctionProject } from './traverse-func/traverseFunctionProject';
 import { buildFunctionDiagramCode } from './ui/src/buildFunctionDiagramCode';
-import { FunctionsMap } from './ui/src/shared/FunctionsMap';
+import { FunctionsMap, GitHubInfo } from './ui/src/shared/FunctionsMap';
 
 function runMermaidCli(inputFile: string, outputFile: string): Promise<void> {
 
@@ -48,9 +48,9 @@ async function applyIcons(svg: string): Promise<string> {
 }
 
 // Tries to convert local file names to their GitHub URL equivalents
-function convertLocalPathsToGitHub(functions: FunctionsMap, orgUrl: string, repoName: string, branchName: string): FunctionsMap{
+function convertLocalPathsToGitHub(functions: FunctionsMap, gitHubInfo: GitHubInfo): FunctionsMap {
 
-    if (!orgUrl || !repoName || !branchName) {
+    if (!gitHubInfo || !gitHubInfo.orgUrl || !gitHubInfo.repoName || !gitHubInfo.branchName) {
         return functions;
     }
 
@@ -62,7 +62,7 @@ function convertLocalPathsToGitHub(functions: FunctionsMap, orgUrl: string, repo
             continue;
         }
 
-        const repoNameWithSeparators = path.sep + repoName + path.sep;
+        const repoNameWithSeparators = path.sep + gitHubInfo.repoName + path.sep;
 
         const pos = func.filePath.indexOf(repoNameWithSeparators);
         if (pos < 0) {
@@ -70,7 +70,7 @@ function convertLocalPathsToGitHub(functions: FunctionsMap, orgUrl: string, repo
         }
 
         const relativePath = func.filePath.substr(pos + repoNameWithSeparators.length).split(path.sep);
-        func.filePath = `${orgUrl}/${repoName}/blob/${branchName}/${relativePath.join('/')}#L${func.lineNr}`;
+        func.filePath = `${gitHubInfo.orgUrl}/${gitHubInfo.repoName}/blob/${gitHubInfo.branchName}/${relativePath.join('/')}#L${func.lineNr}`;
     }
 
     return functions;
@@ -99,8 +99,7 @@ async function az_func_as_a_graph(projectFolder: string, outputFile: string, htm
 
         tempFilesAndFolders = traverseResult.tempFolders;
 
-        var functions = traverseResult.functions;
-        const diagramCode = 'graph LR\n' + await buildFunctionDiagramCode(functions);
+        const diagramCode = 'graph LR\n' + await buildFunctionDiagramCode(traverseResult.functions);
         
         const tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
         await fs.promises.writeFile(tempInputFile, diagramCode);
@@ -126,8 +125,7 @@ async function az_func_as_a_graph(projectFolder: string, outputFile: string, htm
             html = html.replace(/{{PROJECT_NAME}}/g, projectName);
             html = html.replace(/{{GRAPH_SVG}}/g, svg);
 
-            functions = convertLocalPathsToGitHub(functions, traverseResult.orgUrl, traverseResult.repoName, traverseResult.branchName);
-            html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(functions)}`);
+            html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(convertLocalPathsToGitHub(traverseResult.functions, traverseResult.gitHubInfo))}`);
 
             await fs.promises.writeFile(outputFile, html);
 

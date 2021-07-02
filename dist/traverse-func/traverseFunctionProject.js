@@ -16,6 +16,56 @@ const path = require("path");
 const child_process_1 = require("child_process");
 const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
+// Collects all function.json files in a Functions project. Also tries to supplement them with bindings
+// extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
+// (if the project uses Durable Functions)
+function traverseFunctionProject(projectFolder, log) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var functions = {}, tempFolders = [], gitHubInfo;
+        // If it is a git repo, cloning it
+        if (projectFolder.toLowerCase().startsWith('http')) {
+            log(`>>> Cloning ${projectFolder}`);
+            gitHubInfo = yield traverseFunctionProjectUtils_1.CloneFromGitHub(projectFolder);
+            log(`>>> Successfully cloned to ${gitHubInfo.gitTempFolder}`);
+            tempFolders.push(gitHubInfo.gitTempFolder);
+            projectFolder = path.join(gitHubInfo.gitTempFolder, gitHubInfo.repoName, gitHubInfo.relativePath);
+        }
+        const hostJsonMatch = yield findFileRecursivelyAsync(projectFolder, 'host.json', false);
+        if (!hostJsonMatch) {
+            throw new Error('host.json file not found under the provided project path');
+        }
+        log(`>>> Found host.json at ${hostJsonMatch.filePath}`);
+        var hostJsonFolder = path.dirname(hostJsonMatch.filePath);
+        // If it is a C# function, we'll need to dotnet publish first
+        if (yield traverseFunctionProjectUtils_1.isDotNetProjectAsync(hostJsonFolder)) {
+            const publishTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
+            tempFolders.push(publishTempFolder);
+            log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
+            child_process_1.execSync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
+            hostJsonFolder = publishTempFolder;
+        }
+        // Reading function.json files, in parallel
+        const promises = (yield fs.promises.readdir(hostJsonFolder)).map((functionName) => __awaiter(this, void 0, void 0, function* () {
+            const fullPath = path.join(hostJsonFolder, functionName);
+            const functionJsonFilePath = path.join(fullPath, 'function.json');
+            if (!!(yield fs.promises.lstat(fullPath)).isDirectory() && !!fs.existsSync(functionJsonFilePath)) {
+                try {
+                    const functionJsonString = yield fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
+                    const functionJson = JSON.parse(functionJsonString);
+                    functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
+                }
+                catch (err) {
+                    log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
+                }
+            }
+        }));
+        yield Promise.all(promises);
+        // Now enriching data from function.json with more info extracted from code
+        functions = yield mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
+        return { functions, tempFolders, gitHubInfo };
+    });
+}
+exports.traverseFunctionProject = traverseFunctionProject;
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
 function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
@@ -57,7 +107,7 @@ function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern)
 // Tries to match orchestrations and their activities by parsing source code
 function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function* () {
-        const isDotNet = yield isDotNetProjectAsync(projectFolder);
+        const isDotNet = yield traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder);
         const functionNames = Object.keys(functions);
         const orchestratorNames = functionNames.filter(name => functions[name].bindings.some((b) => b.type === 'orchestrationTrigger'));
         const orchestrators = yield getFunctionsAndTheirCodesAsync(orchestratorNames, isDotNet, projectFolder, hostJsonFolder);
@@ -141,11 +191,6 @@ function getEventNames(orchestratorCode) {
     }
     return result;
 }
-// Primitive way of getting a line number out of symbol position
-function posToLineNr(code, pos) {
-    const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
-    return !lineBreaks ? 1 : lineBreaks.length + 1;
-}
 // Tries to load code for functions of certain type
 function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -158,7 +203,7 @@ function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, 
             }
             const code = !isDotNet ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n');
             const pos = !match.pos ? 0 : match.pos;
-            const lineNr = posToLineNr(match.code, pos);
+            const lineNr = traverseFunctionProjectUtils_1.posToLineNr(match.code, pos);
             return { name, code, filePath: match.filePath, pos, lineNr };
         }));
         return (yield Promise.all(promises)).filter(f => !!f);
@@ -178,98 +223,4 @@ function mapActivitiesToOrchestrator(functions, orch, activityNames) {
         }
     }
 }
-function isDotNetProjectAsync(projectFolder) {
-    return __awaiter(this, void 0, void 0, function* () {
-        return (yield fs.promises.readdir(projectFolder)).some(fn => {
-            fn = fn.toLowerCase();
-            return (fn.endsWith('.sln')) ||
-                (fn.endsWith('.fsproj')) ||
-                (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
-        });
-    });
-}
-// Collects all function.json files in a Functions project. Also tries to supplement them with bindings
-// extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
-// (if the project uses Durable Functions)
-function traverseFunctionProject(projectFolder, log) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var functions = {}, tempFolders = [], orgUrl = '', repoName = '', branchName = '';
-        // If it is a git repo, cloning it
-        if (projectFolder.toLowerCase().startsWith('http')) {
-            var restOfUrl = [];
-            const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(projectFolder);
-            if (!match || match.length < 5) {
-                projectFolder += '.git';
-            }
-            else {
-                orgUrl = match[1];
-                repoName = match[2];
-                if (repoName.toLowerCase().endsWith('.git')) {
-                    repoName = repoName.substr(0, repoName.length - 4);
-                }
-                projectFolder = `${orgUrl}/${repoName}.git`;
-                if (!!match[4]) {
-                    restOfUrl.push(...match[4].split('/'));
-                }
-            }
-            const gitTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
-            tempFolders.push(gitTempFolder);
-            var relativePath = '';
-            log(`>>> Cloning ${projectFolder} to ${gitTempFolder}...`);
-            // The provided URL might contain both branch name and relative path. The only way to separate one from another
-            // is to repeatedly try cloning assumed branch names, until we finally succeed.
-            for (var i = restOfUrl.length; i > 0; i--) {
-                try {
-                    const assumedBranchName = restOfUrl.slice(0, i).join('/');
-                    child_process_1.execSync(`git clone ${projectFolder} --branch ${assumedBranchName}`, { cwd: gitTempFolder });
-                    branchName = assumedBranchName;
-                    relativePath = path.join(...restOfUrl.slice(i, restOfUrl.length));
-                    break;
-                }
-                catch (_a) {
-                    continue;
-                }
-            }
-            if (!branchName) {
-                // Just doing a normal git clone
-                child_process_1.execSync(`git clone ${projectFolder}`, { cwd: gitTempFolder });
-                // And getting the current branch name (it might be different from default)
-                branchName = child_process_1.execSync('git rev-parse --abbrev-ref HEAD', { env: { GIT_DIR: path.join(gitTempFolder, repoName, '.git') } }).toString();
-            }
-            projectFolder = path.join(gitTempFolder, repoName, relativePath);
-        }
-        const hostJsonMatch = yield findFileRecursivelyAsync(projectFolder, 'host.json', false);
-        if (!hostJsonMatch) {
-            throw new Error('host.json file not found under the provided project path');
-        }
-        log(`>>> Found host.json at ${hostJsonMatch.filePath}`);
-        var hostJsonFolder = path.dirname(hostJsonMatch.filePath);
-        // If it is a C# function, we'll need to dotnet publish first
-        if (yield isDotNetProjectAsync(hostJsonFolder)) {
-            const publishTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
-            tempFolders.push(publishTempFolder);
-            log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
-            child_process_1.execSync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
-            hostJsonFolder = publishTempFolder;
-        }
-        const promises = (yield fs.promises.readdir(hostJsonFolder)).map((functionName) => __awaiter(this, void 0, void 0, function* () {
-            const fullPath = path.join(hostJsonFolder, functionName);
-            const functionJsonFilePath = path.join(fullPath, 'function.json');
-            if (!!(yield fs.promises.lstat(fullPath)).isDirectory() && !!fs.existsSync(functionJsonFilePath)) {
-                try {
-                    const functionJsonString = yield fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
-                    const functionJson = JSON.parse(functionJsonString);
-                    functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
-                }
-                catch (err) {
-                    log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
-                }
-            }
-        }));
-        yield Promise.all(promises);
-        functions = yield mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
-        return { functions, orgUrl, repoName, branchName, tempFolders };
-    });
-}
-exports.traverseFunctionProject = traverseFunctionProject;
 //# sourceMappingURL=traverseFunctionProject.js.map

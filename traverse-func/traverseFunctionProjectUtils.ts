@@ -1,3 +1,85 @@
+import * as os from 'os';
+import * as fs from 'fs';
+import * as path from 'path';
+import { execSync } from 'child_process';
+
+import { GitHubInfo } from '../ui/src/shared/FunctionsMap';
+
+// Does a git clone into a temp folder and returns info about the repo
+export async function CloneFromGitHub(url: string): Promise<GitHubInfo> {
+
+    var orgUrl = '', repoName = '', branchName = '', relativePath = '', gitTempFolder = '';
+
+    var restOfUrl = [];
+    const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(url);
+
+    if (!match || match.length < 5) {
+
+        url += '.git';
+
+    } else {
+
+        orgUrl = match[1];
+
+        repoName = match[2];
+        if (repoName.toLowerCase().endsWith('.git')) {
+            repoName = repoName.substr(0, repoName.length - 4);
+        }
+
+        url = `${orgUrl}/${repoName}.git`;
+
+        if (!!match[4]) {
+            restOfUrl.push(...match[4].split('/'));
+        }
+    }
+
+    gitTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
+
+    // The provided URL might contain both branch name and relative path. The only way to separate one from another
+    // is to repeatedly try cloning assumed branch names, until we finally succeed.
+    for (var i = restOfUrl.length; i > 0; i--) {
+
+        try {
+
+            const assumedBranchName = restOfUrl.slice(0, i).join('/');
+            execSync(`git clone ${url} --branch ${assumedBranchName}`, { cwd: gitTempFolder });
+
+            branchName = assumedBranchName;
+            relativePath = path.join(...restOfUrl.slice(i, restOfUrl.length));
+
+            break;
+        } catch {
+            continue;
+        }
+    }
+
+    if (!branchName) {
+
+        // Just doing a normal git clone
+        execSync(`git clone ${url}`, { cwd: gitTempFolder });
+
+        // And getting the current branch name (it might be different from default)
+        branchName = execSync('git rev-parse --abbrev-ref HEAD', { env: { GIT_DIR: path.join(gitTempFolder, repoName, '.git') } }).toString();
+    }
+
+    return { orgUrl, repoName, branchName, relativePath, gitTempFolder };
+}
+
+// Primitive way of getting a line number out of symbol position
+export function posToLineNr(code: string, pos: number): number {
+    const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
+    return !lineBreaks ? 1 : lineBreaks.length + 1;
+}
+
+// Checks if the given folder looks like a .Net project
+export async function isDotNetProjectAsync(projectFolder: string): Promise<boolean> {
+    return (await fs.promises.readdir(projectFolder)).some(fn => {
+        fn = fn.toLowerCase();
+        return (fn.endsWith('.sln')) ||
+            (fn.endsWith('.fsproj')) ||
+            (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+    });
+}
 
 // Complements regex's inability to keep up with nested brackets
 export function getCodeInBrackets(str: string, startFrom: number, openingBracket: string, closingBracket: string, mustHaveSymbols: string): string {

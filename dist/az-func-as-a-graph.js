@@ -46,8 +46,8 @@ function applyIcons(svg) {
     });
 }
 // Tries to convert local file names to their GitHub URL equivalents
-function convertLocalPathsToGitHub(functions, orgUrl, repoName, branchName) {
-    if (!orgUrl || !repoName || !branchName) {
+function convertLocalPathsToGitHub(functions, gitHubInfo) {
+    if (!gitHubInfo || !gitHubInfo.orgUrl || !gitHubInfo.repoName || !gitHubInfo.branchName) {
         return functions;
     }
     for (const funcName in functions) {
@@ -55,13 +55,13 @@ function convertLocalPathsToGitHub(functions, orgUrl, repoName, branchName) {
         if (!func.filePath) {
             continue;
         }
-        const repoNameWithSeparators = path.sep + repoName + path.sep;
+        const repoNameWithSeparators = path.sep + gitHubInfo.repoName + path.sep;
         const pos = func.filePath.indexOf(repoNameWithSeparators);
         if (pos < 0) {
             continue;
         }
         const relativePath = func.filePath.substr(pos + repoNameWithSeparators.length).split(path.sep);
-        func.filePath = `${orgUrl}/${repoName}/blob/${branchName}/${relativePath.join('/')}#L${func.lineNr}`;
+        func.filePath = `${gitHubInfo.orgUrl}/${gitHubInfo.repoName}/blob/${gitHubInfo.branchName}/${relativePath.join('/')}#L${func.lineNr}`;
     }
     return functions;
 }
@@ -82,8 +82,7 @@ function az_func_as_a_graph(projectFolder, outputFile, htmlTemplateFile) {
         try {
             const traverseResult = yield traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log);
             tempFilesAndFolders = traverseResult.tempFolders;
-            var functions = traverseResult.functions;
-            const diagramCode = 'graph LR\n' + (yield buildFunctionDiagramCode_1.buildFunctionDiagramCode(functions));
+            const diagramCode = 'graph LR\n' + (yield buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions));
             const tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
             yield fs.promises.writeFile(tempInputFile, diagramCode);
             tempFilesAndFolders.push(tempInputFile);
@@ -99,8 +98,7 @@ function az_func_as_a_graph(projectFolder, outputFile, htmlTemplateFile) {
                 const projectName = path.basename(projectFolder);
                 html = html.replace(/{{PROJECT_NAME}}/g, projectName);
                 html = html.replace(/{{GRAPH_SVG}}/g, svg);
-                functions = convertLocalPathsToGitHub(functions, traverseResult.orgUrl, traverseResult.repoName, traverseResult.branchName);
-                html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(functions)}`);
+                html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(convertLocalPathsToGitHub(traverseResult.functions, traverseResult.gitHubInfo))}`);
                 yield fs.promises.writeFile(outputFile, html);
             }
             else if (outputFileExt === '.svg') {

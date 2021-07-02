@@ -10,3 +10,17 @@ export type FunctionsMap = {
         lineNr?: number
     }
 };
+
+export type GitHubInfo = {
+    orgUrl: string;
+    repoName: string;
+    branchName: string;
+    relativePath: string;
+    gitTempFolder: string;
+}
+
+export type TraverseFunctionResult = {
+    functions: FunctionsMap;
+    tempFolders: string[];
+    gitHubInfo: GitHubInfo;
+}
