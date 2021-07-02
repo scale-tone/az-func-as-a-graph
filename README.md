@@ -34,7 +34,7 @@ This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/m
 
 `npm install` is only needed once, of course.
 
-`{path-to-my-functions-project-folder}` can be either local folder or link to a GitHub repo. 
+`{path-to-my-functions-project-folder}` can be either local folder or link to a GitHub repo. If it is a link, then it can as well point to a particular branch or tag and/or include a relative path. E.g. `https://github.com/scale-tone/WhatIfDemo/tree/20190516.1/WhatIfDemo-Functions`.
 
 `{output-file-name}` should be a file name with local path. 
 * If its extension is `.svg`, the graph will be written to this file in SVG format.
