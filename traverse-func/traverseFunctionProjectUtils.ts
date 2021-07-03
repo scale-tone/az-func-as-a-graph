@@ -96,7 +96,7 @@ export function getCodeInBrackets(str: string, startFrom: number, openingBracket
             case closingBracket:
                 bracketCount--;
                 if (bracketCount <= 0 && mustHaveSymbolFound) {
-                    return str.substring(startFrom, i);
+                    return str.substring(startFrom, i + 1);
                 }
                 break;
         }
@@ -143,26 +143,30 @@ export class TraversalRegexes {
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
 export class DotNetBindingsParser {
 
-    static tryExtractBindings(func: any): any[] {
+    static tryExtractBindings(funcCode: string): any[] {
 
         const result: any[] = [];
 
-        if (!func.code) {
+        if (!funcCode) {
             return result;
         }
 
-        const regex = this.returnAttributeRegex;
+        const regex = this.bindingAttributeRegex;
         var match: RegExpExecArray | null;
-        while (!!(match = regex.exec(func.code))) {
+        while (!!(match = regex.exec(funcCode))) {
 
             const isReturn = !!match[2];
 
             const attributeName = match[3];
-            const attributeCode = getCodeInBrackets(func.code, match.index + match[0].length - 1, '(', ')', '"');
+            const attributeCodeStartIndex = match.index + match[0].length - 1;
+            const attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '"');
+
+            this.isOutRegex.lastIndex = attributeCodeStartIndex + attributeCode.length;
+            const isOut = !!this.isOutRegex.exec(funcCode);
 
             switch (attributeName) {
                 case 'Blob': {
-                    const binding: any = { type: 'blob', direction: isReturn ? 'out' : 'inout' };
+                    const binding: any = { type: 'blob', direction: isReturn || isOut ? 'out' : 'in' };
 
                     const paramsMatch = this.blobParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -173,7 +177,7 @@ export class DotNetBindingsParser {
                     break;
                 }
                 case 'Table': {
-                    const binding: any = { type: 'table', direction: isReturn ? 'out' : 'inout' };
+                    const binding: any = { type: 'table', direction: isReturn || isOut ? 'out' : 'in' };
 
                     const paramsMatch = this.tableParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -184,7 +188,7 @@ export class DotNetBindingsParser {
                     break;
                 }
                 case 'CosmosDB': {
-                    const binding: any = { type: 'cosmosDB', direction: isReturn ? 'out' : 'inout' };
+                    const binding: any = { type: 'cosmosDB', direction: isReturn || isOut ? 'out' : 'in' };
 
                     const paramsMatch = this.cosmosDbParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -287,7 +291,7 @@ export class DotNetBindingsParser {
         return result;
     }
 
-    static readonly returnAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
+    static readonly bindingAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
     static readonly blobParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly tableParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
@@ -298,4 +302,5 @@ export class DotNetBindingsParser {
     static readonly serviceBusParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly signalRParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly rabbitMqParamsRegex = new RegExp(`"([^"]+)"`);
+    static readonly isOutRegex = new RegExp(`\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
 }

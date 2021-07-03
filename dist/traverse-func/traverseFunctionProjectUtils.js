@@ -91,7 +91,7 @@ function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustH
             case closingBracket:
                 bracketCount--;
                 if (bracketCount <= 0 && mustHaveSymbolFound) {
-                    return str.substring(startFrom, i);
+                    return str.substring(startFrom, i + 1);
                 }
                 break;
         }
@@ -128,20 +128,23 @@ TraversalRegexes.continueAsNewRegex = new RegExp(`ContinueAsNew\\s*\\(`, 'i');
 TraversalRegexes.waitForExternalEventRegex = new RegExp(`(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w\.-\\[\\]]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`])?([\\s\\w\.-]+)\\s*["'\`\\),]{1}`, 'gi');
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
 class DotNetBindingsParser {
-    static tryExtractBindings(func) {
+    static tryExtractBindings(funcCode) {
         const result = [];
-        if (!func.code) {
+        if (!funcCode) {
             return result;
         }
-        const regex = this.returnAttributeRegex;
+        const regex = this.bindingAttributeRegex;
         var match;
-        while (!!(match = regex.exec(func.code))) {
+        while (!!(match = regex.exec(funcCode))) {
             const isReturn = !!match[2];
             const attributeName = match[3];
-            const attributeCode = getCodeInBrackets(func.code, match.index + match[0].length - 1, '(', ')', '"');
+            const attributeCodeStartIndex = match.index + match[0].length - 1;
+            const attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '"');
+            this.isOutRegex.lastIndex = attributeCodeStartIndex + attributeCode.length;
+            const isOut = !!this.isOutRegex.exec(funcCode);
             switch (attributeName) {
                 case 'Blob': {
-                    const binding = { type: 'blob', direction: isReturn ? 'out' : 'inout' };
+                    const binding = { type: 'blob', direction: isReturn || isOut ? 'out' : 'in' };
                     const paramsMatch = this.blobParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
                         binding['path'] = paramsMatch[1];
@@ -150,7 +153,7 @@ class DotNetBindingsParser {
                     break;
                 }
                 case 'Table': {
-                    const binding = { type: 'table', direction: isReturn ? 'out' : 'inout' };
+                    const binding = { type: 'table', direction: isReturn || isOut ? 'out' : 'in' };
                     const paramsMatch = this.tableParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
                         binding['tableName'] = paramsMatch[1];
@@ -159,7 +162,7 @@ class DotNetBindingsParser {
                     break;
                 }
                 case 'CosmosDB': {
-                    const binding = { type: 'cosmosDB', direction: isReturn ? 'out' : 'inout' };
+                    const binding = { type: 'cosmosDB', direction: isReturn || isOut ? 'out' : 'in' };
                     const paramsMatch = this.cosmosDbParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
                         binding['databaseName'] = paramsMatch[1];
@@ -246,7 +249,7 @@ class DotNetBindingsParser {
     }
 }
 exports.DotNetBindingsParser = DotNetBindingsParser;
-DotNetBindingsParser.returnAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
+DotNetBindingsParser.bindingAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
 DotNetBindingsParser.blobParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.tableParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
@@ -257,4 +260,5 @@ DotNetBindingsParser.queueParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.serviceBusParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.signalRParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.rabbitMqParamsRegex = new RegExp(`"([^"]+)"`);
+DotNetBindingsParser.isOutRegex = new RegExp(`\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
 //# sourceMappingURL=traverseFunctionProjectUtils.js.map

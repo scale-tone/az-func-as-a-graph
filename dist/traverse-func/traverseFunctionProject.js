@@ -167,8 +167,9 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
             }
         }
         if (isDotNet) {
+            // Trying to extract extra binding info from C# code
             for (const func of otherFunctions) {
-                const moreBindings = traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(func);
+                const moreBindings = traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(func.code);
                 functions[func.name].bindings.push(...moreBindings);
             }
         }
