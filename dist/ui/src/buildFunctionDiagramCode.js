@@ -6,7 +6,7 @@ function getTriggerBindingText(binding) {
     var _a, _b, _c, _d, _e, _f, _g;
     switch (binding.type) {
         case 'httpTrigger':
-            return `http${!binding.methods ? '' : ':[' + binding.methods.join(',') + ']'}${!binding.route ? '' : ':' + binding.route}`;
+            return `${binding.authLevel === 'anonymous' ? '#127760;' : '#128274;'} http${!binding.methods ? '' : ':[' + binding.methods.join(',') + ']'}${!binding.route ? '' : ':' + binding.route}`;
         case 'blobTrigger':
             return `blob:${(_a = binding.path) !== null && _a !== void 0 ? _a : ''}`;
         case 'cosmosDBTrigger':
@@ -43,12 +43,12 @@ function getBindingText(binding) {
     }
 }
 // Translates functions and their bindings into a Mermaid Flowchart diagram code
-function buildFunctionDiagramCode(funcs) {
+function buildFunctionDiagramCode(functionsMap) {
     var _a, _b;
     const functions = [];
     // Determine what kind of function this one is
-    for (const name in funcs) {
-        const func = funcs[name];
+    for (const name in functionsMap) {
+        const func = functionsMap[name];
         var triggerBinding = undefined, inputBindings = [], outputBindings = [], otherBindings = [];
         var nodeCode = `${name}{{"${space}${name}"}}:::function`;
         for (const binding of func.bindings) {
@@ -89,9 +89,11 @@ function buildFunctionDiagramCode(funcs) {
     var code = '';
     for (const func of functions) {
         code += `${func.nodeCode}\n`;
+        // Making Functions nodes a bit darker
+        code += `style ${func.name} fill:#D9D9FF,stroke-width:2px\n`;
         if (!!((_a = func.isCalledBy) === null || _a === void 0 ? void 0 : _a.length)) {
             for (const calledBy of func.isCalledBy) {
-                code += `${calledBy} --> ${func.name}\n`;
+                code += `${calledBy} ---> ${func.name}\n`;
             }
         }
         else if (!!func.triggerBinding) {
@@ -108,7 +110,7 @@ function buildFunctionDiagramCode(funcs) {
         }
         if (!!((_b = func.isSignalledBy) === null || _b === void 0 ? void 0 : _b.length)) {
             for (const signalledBy of func.isSignalledBy) {
-                code += `${signalledBy.name} -. "#9889; ${signalledBy.signalName}" .-> ${func.name}\n`;
+                code += `${signalledBy.name} -- "#9889; ${signalledBy.signalName}" ---> ${func.name}\n`;
             }
         }
         if (!!func.isCalledByItself) {

@@ -6,7 +6,7 @@ function getTriggerBindingText(binding: any): string {
 
     switch (binding.type) {
         case 'httpTrigger':
-            return `http${!binding.methods ? '' : ':[' + binding.methods.join(',') + ']'}${!binding.route ? '' : ':' + binding.route}`;
+            return `${binding.authLevel === 'anonymous' ? '#127760;' : '#128274;'} http${!binding.methods ? '' : ':[' + binding.methods.join(',') + ']'}${!binding.route ? '' : ':' + binding.route}`;
         case 'blobTrigger':
             return `blob:${binding.path ?? ''}`;
         case 'cosmosDBTrigger':
@@ -45,13 +45,13 @@ function getBindingText(binding: any): string {
 }
 
 // Translates functions and their bindings into a Mermaid Flowchart diagram code
-export function buildFunctionDiagramCode(funcs: FunctionsMap): string {
+export function buildFunctionDiagramCode(functionsMap: FunctionsMap): string {
 
     const functions = [];
 
     // Determine what kind of function this one is
-    for (const name in funcs) {
-        const func = funcs[name];
+    for (const name in functionsMap) {
+        const func = functionsMap[name];
 
         var triggerBinding = undefined, inputBindings = [], outputBindings = [], otherBindings = [];
         var nodeCode = `${name}{{"${space}${name}"}}:::function`;
@@ -97,11 +97,13 @@ export function buildFunctionDiagramCode(funcs: FunctionsMap): string {
     for (const func of functions) {
 
         code += `${func.nodeCode}\n`;
+        // Making Functions nodes a bit darker
+        code += `style ${func.name} fill:#D9D9FF,stroke-width:2px\n`;
 
         if (!!func.isCalledBy?.length) {
 
             for (const calledBy of func.isCalledBy) {
-                code += `${calledBy} --> ${func.name}\n`;
+                code += `${calledBy} ---> ${func.name}\n`;
             }
 
         } else if (!!func.triggerBinding) {
@@ -124,7 +126,7 @@ export function buildFunctionDiagramCode(funcs: FunctionsMap): string {
         if (!!func.isSignalledBy?.length) {
 
             for (const signalledBy of func.isSignalledBy) {
-                code += `${signalledBy.name} -. "#9889; ${signalledBy.signalName}" .-> ${func.name}\n`;
+                code += `${signalledBy.name} -- "#9889; ${signalledBy.signalName}" ---> ${func.name}\n`;
             }
         }
 
