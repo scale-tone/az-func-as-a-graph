@@ -8,19 +8,19 @@ function getTriggerBindingText(binding: any): string {
         case 'httpTrigger':
             return `${binding.authLevel === 'anonymous' ? '#127760;' : '#128274;'} http${!binding.methods ? '' : ':[' + binding.methods.join(',') + ']'}${!binding.route ? '' : ':' + binding.route}`;
         case 'blobTrigger':
-            return `blob:${binding.path ?? ''}`;
+            return `${space}blob:${binding.path ?? ''}`;
         case 'cosmosDBTrigger':
-            return `cosmosDB:${binding.databaseName ?? ''}:${binding.collectionName ?? ''}`;
+            return `${space}cosmosDB:${binding.databaseName ?? ''}:${binding.collectionName ?? ''}`;
         case 'eventHubTrigger':
-            return `eventHub:${binding.eventHubName ?? ''}`;
+            return `${space}eventHub:${binding.eventHubName ?? ''}`;
         case 'serviceBusTrigger':
-            return `serviceBus:${!binding.queueName ? (binding.topicName ?? '') : binding.queueName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
+            return `${space}serviceBus:${!binding.queueName ? (binding.topicName ?? '') : binding.queueName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
         case 'queueTrigger':
-            return `queue:${binding.queueName ?? ''}`;
+            return `${space}queue:${binding.queueName ?? ''}`;
         case 'timerTrigger':
-            return `timer:${binding.schedule ?? ''}`;
+            return `${space}timer:${binding.schedule ?? ''}`;
         default:
-            return binding.type;
+            return `${space}${binding.type}`;
     }
 }
 
@@ -28,19 +28,19 @@ function getBindingText(binding: any): string {
 
     switch (binding.type) {
         case 'table':
-            return `table:${binding.tableName ?? ''}`;
+            return `${space}table:${binding.tableName ?? ''}`;
         case 'blob':
-            return `blob:${binding.path ?? ''}`;
+            return `${space}blob:${binding.path ?? ''}`;
         case 'cosmosDB':
-            return `cosmosDB:${binding.databaseName ?? ''}:${binding.collectionName ?? ''}`;
+            return `${space}cosmosDB:${binding.databaseName ?? ''}:${binding.collectionName ?? ''}`;
         case 'eventHub':
-            return `eventHub:${binding.eventHubName ?? ''}`;
+            return `${space}eventHub:${binding.eventHubName ?? ''}`;
         case 'serviceBus':
-            return `serviceBus:${!binding.queueName ? (binding.topicName ?? '') : binding.queueName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
+            return `${space}serviceBus:${!binding.queueName ? (binding.topicName ?? '') : binding.queueName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
         case 'queue':
-            return `queue:${binding.queueName ?? ''}`;
+            return `${space}queue:${binding.queueName ?? ''}`;
         default:
-            return binding.type;
+            return `${space}${binding.type}`;
     }
 }
 
@@ -80,14 +80,17 @@ export function buildFunctionDiagramCode(functionsMap: FunctionsMap): string {
         functions.push({ name, nodeCode, triggerBinding, inputBindings, outputBindings, otherBindings, ...func });
     }
 
-    // Sorting by trigger type, then by name
+    // Sorting by trigger type, then by name. Moving the ones that are being called to the bottom.
+    const getFunctionHash = (f) => {
+
+        var hash = (!!f.isCalledBy?.length || !f.triggerBinding || !f.triggerBinding.type) ? '' : f.triggerBinding.type;
+        hash += '~' + f.name;
+        return hash;
+    }
     functions.sort((f1, f2) => {
-
-        var s1 = (!!f1.isCalledBy?.length || !f1.triggerBinding || !f1.triggerBinding.type) ? '' : f1.triggerBinding.type;
-        s1 += '~' + f1.name;
-
-        var s2 = (!!f2.isCalledBy?.length || !f2.triggerBinding || !f2.triggerBinding.type) ? '' : f2.triggerBinding.type;
-        s2 += '~' + f2.name;
+        
+        var s1 = getFunctionHash(f1);
+        var s2 = getFunctionHash(f2);
 
         return (s1 > s2) ? 1 : ((s2 > s1) ? -1 : 0);
     });
@@ -108,19 +111,19 @@ export function buildFunctionDiagramCode(functionsMap: FunctionsMap): string {
 
         } else if (!!func.triggerBinding) {
 
-            code += `${func.name}.${func.triggerBinding.type}>"${space}${getTriggerBindingText(func.triggerBinding)}"]:::${func.triggerBinding.type} --> ${func.name}\n`;
+            code += `${func.name}.${func.triggerBinding.type}>"${getTriggerBindingText(func.triggerBinding)}"]:::${func.triggerBinding.type} --> ${func.name}\n`;
         }
 
         for (const inputBinding of func.inputBindings) {
-            code += `${func.name}.${inputBinding.type}(["${space}${getBindingText(inputBinding)}"]):::${inputBinding.type} -.-> ${func.name}\n`;
+            code += `${func.name}.${inputBinding.type}(["${getBindingText(inputBinding)}"]):::${inputBinding.type} -.-> ${func.name}\n`;
         }
 
         for (const outputBinding of func.outputBindings) {
-            code += `${func.name} -.-> ${func.name}.${outputBinding.type}(["${space}${getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
+            code += `${func.name} -.-> ${func.name}.${outputBinding.type}(["${getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
         }
 
         for (const otherBinding of func.otherBindings) {
-            code += `${func.name} -.- ${func.name}.${otherBinding.type}(["${space}${getBindingText(otherBinding)}"]):::${otherBinding.type}\n`;
+            code += `${func.name} -.- ${func.name}.${otherBinding.type}(["${getBindingText(otherBinding)}"]):::${otherBinding.type}\n`;
         }
 
         if (!!func.isSignalledBy?.length) {

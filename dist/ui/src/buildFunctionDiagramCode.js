@@ -8,38 +8,38 @@ function getTriggerBindingText(binding) {
         case 'httpTrigger':
             return `${binding.authLevel === 'anonymous' ? '#127760;' : '#128274;'} http${!binding.methods ? '' : ':[' + binding.methods.join(',') + ']'}${!binding.route ? '' : ':' + binding.route}`;
         case 'blobTrigger':
-            return `blob:${(_a = binding.path) !== null && _a !== void 0 ? _a : ''}`;
+            return `${space}blob:${(_a = binding.path) !== null && _a !== void 0 ? _a : ''}`;
         case 'cosmosDBTrigger':
-            return `cosmosDB:${(_b = binding.databaseName) !== null && _b !== void 0 ? _b : ''}:${(_c = binding.collectionName) !== null && _c !== void 0 ? _c : ''}`;
+            return `${space}cosmosDB:${(_b = binding.databaseName) !== null && _b !== void 0 ? _b : ''}:${(_c = binding.collectionName) !== null && _c !== void 0 ? _c : ''}`;
         case 'eventHubTrigger':
-            return `eventHub:${(_d = binding.eventHubName) !== null && _d !== void 0 ? _d : ''}`;
+            return `${space}eventHub:${(_d = binding.eventHubName) !== null && _d !== void 0 ? _d : ''}`;
         case 'serviceBusTrigger':
-            return `serviceBus:${!binding.queueName ? ((_e = binding.topicName) !== null && _e !== void 0 ? _e : '') : binding.queueName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
+            return `${space}serviceBus:${!binding.queueName ? ((_e = binding.topicName) !== null && _e !== void 0 ? _e : '') : binding.queueName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
         case 'queueTrigger':
-            return `queue:${(_f = binding.queueName) !== null && _f !== void 0 ? _f : ''}`;
+            return `${space}queue:${(_f = binding.queueName) !== null && _f !== void 0 ? _f : ''}`;
         case 'timerTrigger':
-            return `timer:${(_g = binding.schedule) !== null && _g !== void 0 ? _g : ''}`;
+            return `${space}timer:${(_g = binding.schedule) !== null && _g !== void 0 ? _g : ''}`;
         default:
-            return binding.type;
+            return `${space}${binding.type}`;
     }
 }
 function getBindingText(binding) {
     var _a, _b, _c, _d, _e, _f, _g;
     switch (binding.type) {
         case 'table':
-            return `table:${(_a = binding.tableName) !== null && _a !== void 0 ? _a : ''}`;
+            return `${space}table:${(_a = binding.tableName) !== null && _a !== void 0 ? _a : ''}`;
         case 'blob':
-            return `blob:${(_b = binding.path) !== null && _b !== void 0 ? _b : ''}`;
+            return `${space}blob:${(_b = binding.path) !== null && _b !== void 0 ? _b : ''}`;
         case 'cosmosDB':
-            return `cosmosDB:${(_c = binding.databaseName) !== null && _c !== void 0 ? _c : ''}:${(_d = binding.collectionName) !== null && _d !== void 0 ? _d : ''}`;
+            return `${space}cosmosDB:${(_c = binding.databaseName) !== null && _c !== void 0 ? _c : ''}:${(_d = binding.collectionName) !== null && _d !== void 0 ? _d : ''}`;
         case 'eventHub':
-            return `eventHub:${(_e = binding.eventHubName) !== null && _e !== void 0 ? _e : ''}`;
+            return `${space}eventHub:${(_e = binding.eventHubName) !== null && _e !== void 0 ? _e : ''}`;
         case 'serviceBus':
-            return `serviceBus:${!binding.queueName ? ((_f = binding.topicName) !== null && _f !== void 0 ? _f : '') : binding.queueName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
+            return `${space}serviceBus:${!binding.queueName ? ((_f = binding.topicName) !== null && _f !== void 0 ? _f : '') : binding.queueName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
         case 'queue':
-            return `queue:${(_g = binding.queueName) !== null && _g !== void 0 ? _g : ''}`;
+            return `${space}queue:${(_g = binding.queueName) !== null && _g !== void 0 ? _g : ''}`;
         default:
-            return binding.type;
+            return `${space}${binding.type}`;
     }
 }
 // Translates functions and their bindings into a Mermaid Flowchart diagram code
@@ -76,13 +76,16 @@ function buildFunctionDiagramCode(functionsMap) {
         }
         functions.push(Object.assign({ name, nodeCode, triggerBinding, inputBindings, outputBindings, otherBindings }, func));
     }
-    // Sorting by trigger type, then by name
+    // Sorting by trigger type, then by name. Moving the ones that are being called to the bottom.
+    const getFunctionHash = (f) => {
+        var _a;
+        var hash = (!!((_a = f.isCalledBy) === null || _a === void 0 ? void 0 : _a.length) || !f.triggerBinding || !f.triggerBinding.type) ? '' : f.triggerBinding.type;
+        hash += '~' + f.name;
+        return hash;
+    };
     functions.sort((f1, f2) => {
-        var _a, _b;
-        var s1 = (!!((_a = f1.isCalledBy) === null || _a === void 0 ? void 0 : _a.length) || !f1.triggerBinding || !f1.triggerBinding.type) ? '' : f1.triggerBinding.type;
-        s1 += '~' + f1.name;
-        var s2 = (!!((_b = f2.isCalledBy) === null || _b === void 0 ? void 0 : _b.length) || !f2.triggerBinding || !f2.triggerBinding.type) ? '' : f2.triggerBinding.type;
-        s2 += '~' + f2.name;
+        var s1 = getFunctionHash(f1);
+        var s2 = getFunctionHash(f2);
         return (s1 > s2) ? 1 : ((s2 > s1) ? -1 : 0);
     });
     // Rendering
@@ -97,16 +100,16 @@ function buildFunctionDiagramCode(functionsMap) {
             }
         }
         else if (!!func.triggerBinding) {
-            code += `${func.name}.${func.triggerBinding.type}>"${space}${getTriggerBindingText(func.triggerBinding)}"]:::${func.triggerBinding.type} --> ${func.name}\n`;
+            code += `${func.name}.${func.triggerBinding.type}>"${getTriggerBindingText(func.triggerBinding)}"]:::${func.triggerBinding.type} --> ${func.name}\n`;
         }
         for (const inputBinding of func.inputBindings) {
-            code += `${func.name}.${inputBinding.type}(["${space}${getBindingText(inputBinding)}"]):::${inputBinding.type} -.-> ${func.name}\n`;
+            code += `${func.name}.${inputBinding.type}(["${getBindingText(inputBinding)}"]):::${inputBinding.type} -.-> ${func.name}\n`;
         }
         for (const outputBinding of func.outputBindings) {
-            code += `${func.name} -.-> ${func.name}.${outputBinding.type}(["${space}${getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
+            code += `${func.name} -.-> ${func.name}.${outputBinding.type}(["${getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
         }
         for (const otherBinding of func.otherBindings) {
-            code += `${func.name} -.- ${func.name}.${otherBinding.type}(["${space}${getBindingText(otherBinding)}"]):::${otherBinding.type}\n`;
+            code += `${func.name} -.- ${func.name}.${otherBinding.type}(["${getBindingText(otherBinding)}"]):::${otherBinding.type}\n`;
         }
         if (!!((_b = func.isSignalledBy) === null || _b === void 0 ? void 0 : _b.length)) {
             for (const signalledBy of func.isSignalledBy) {
