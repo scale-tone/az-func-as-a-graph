@@ -1,7 +1,7 @@
 import React from 'react';
 import { observer } from 'mobx-react';
 
-import { AppBar, Box, Button, LinearProgress, Link, TextField, Toolbar, Typography } from '@material-ui/core';
+import { AppBar, Box, Button, Checkbox, FormControlLabel, FormGroup, LinearProgress, Link, TextField, Toolbar, Typography } from '@material-ui/core';
 
 import FileCopyIcon from '@material-ui/icons/FileCopy';
 import SaveIcon from '@material-ui/icons/Save';
@@ -65,9 +65,36 @@ export default class App extends React.Component<{ state: AppState }> {
 
             {!!state.inProgress && (<LinearProgress />)}
 
+            {!!state.functionsLoaded && (
+                <FormGroup row className="settings-group">
+
+                    <FormControlLabel
+                        control={<Checkbox
+                            color="default"
+                            disabled={state.inProgress}
+                            checked={state.renderFunctions}
+                            onChange={(evt) => state.renderFunctions = evt.target.checked}
+                        />}
+                        label="Show Functions"
+                    />
+
+                    <FormControlLabel
+                        control={<Checkbox
+                            color="default"
+                            disabled={state.inProgress}
+                            checked={state.renderProxies}
+                            onChange={(evt) => state.renderProxies = evt.target.checked}
+                        />}
+                        label="Show Proxies"
+                    />
+
+                </FormGroup>
+            )}
+            
             {!!state.error && (<Typography className="error-typography" color="error" variant="h5" >{state.error}</Typography>)}
 
             {!!state.diagramSvg && (<>
+                
                 <div className="diagram-div"
                     dangerouslySetInnerHTML={{ __html: state.diagramSvg }}
                 />

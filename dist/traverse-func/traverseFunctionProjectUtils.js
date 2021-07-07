@@ -78,8 +78,8 @@ function isDotNetProjectAsync(projectFolder) {
 }
 exports.isDotNetProjectAsync = isDotNetProjectAsync;
 // Complements regex's inability to keep up with nested brackets
-function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols) {
-    var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = false;
+function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols = '') {
+    var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = !mustHaveSymbols;
     for (var i = startFrom; i < str.length; i++) {
         switch (str[i]) {
             case openingBracket:
@@ -128,6 +128,7 @@ TraversalRegexes.continueAsNewRegex = new RegExp(`ContinueAsNew\\s*\\(`, 'i');
 TraversalRegexes.waitForExternalEventRegex = new RegExp(`(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w\.-\\[\\]]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`])?([\\s\\w\.-]+)\\s*["'\`\\),]{1}`, 'gi');
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
 class DotNetBindingsParser {
+    // Extracts additional bindings info from C#/F# source code
     static tryExtractBindings(funcCode) {
         const result = [];
         if (!funcCode) {
@@ -139,7 +140,7 @@ class DotNetBindingsParser {
             const isReturn = !!match[2];
             const attributeName = match[3];
             const attributeCodeStartIndex = match.index + match[0].length - 1;
-            const attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '"');
+            const attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '');
             this.isOutRegex.lastIndex = attributeCodeStartIndex + attributeCode.length;
             const isOut = !!this.isOutRegex.exec(funcCode);
             switch (attributeName) {
@@ -154,9 +155,9 @@ class DotNetBindingsParser {
                 }
                 case 'Table': {
                     const binding = { type: 'table', direction: isReturn || isOut ? 'out' : 'in' };
-                    const paramsMatch = this.tableParamsRegex.exec(attributeCode);
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['tableName'] = paramsMatch[1];
+                        binding['tableName'] = paramsMatch[2];
                     }
                     result.push(binding);
                     break;
@@ -201,18 +202,18 @@ class DotNetBindingsParser {
                 }
                 case 'Queue': {
                     const binding = { type: 'queue', direction: 'out' };
-                    const paramsMatch = this.queueParamsRegex.exec(attributeCode);
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['queueName'] = paramsMatch[1];
+                        binding['queueName'] = paramsMatch[2];
                     }
                     result.push(binding);
                     break;
                 }
                 case 'ServiceBus': {
                     const binding = { type: 'serviceBus', direction: 'out' };
-                    const paramsMatch = this.serviceBusParamsRegex.exec(attributeCode);
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['queueName'] = paramsMatch[1];
+                        binding['queueName'] = paramsMatch[2];
                     }
                     result.push(binding);
                     break;
@@ -250,15 +251,13 @@ class DotNetBindingsParser {
 }
 exports.DotNetBindingsParser = DotNetBindingsParser;
 DotNetBindingsParser.bindingAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
+DotNetBindingsParser.singleParamRegex = new RegExp(`("|nameof\\s*\\()?([\\w\.-]+)`);
+DotNetBindingsParser.eventHubParamsRegex = new RegExp(`"([^"]+)"`);
+DotNetBindingsParser.signalRParamsRegex = new RegExp(`"([^"]+)"`);
+DotNetBindingsParser.rabbitMqParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.blobParamsRegex = new RegExp(`"([^"]+)"`);
-DotNetBindingsParser.tableParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
 DotNetBindingsParser.signalRConnInfoParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.eventGridParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
-DotNetBindingsParser.eventHubParamsRegex = new RegExp(`"([^"]+)"`);
-DotNetBindingsParser.queueParamsRegex = new RegExp(`"([^"]+)"`);
-DotNetBindingsParser.serviceBusParamsRegex = new RegExp(`"([^"]+)"`);
-DotNetBindingsParser.signalRParamsRegex = new RegExp(`"([^"]+)"`);
-DotNetBindingsParser.rabbitMqParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.isOutRegex = new RegExp(`\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
 //# sourceMappingURL=traverseFunctionProjectUtils.js.map

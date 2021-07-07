@@ -28,13 +28,15 @@ body {
 }
 
 .diagram-div {
-    padding-top: 30px;
+    padding-top: 60px;
     padding-bottom: 30px;
 }
 
 .diagram-div > svg {
     display: block;
     margin: auto;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .label > g > text {
@@ -48,4 +50,10 @@ body {
 .bottom-toolbar {
     padding-top: 30px;
     padding-bottom: 30px;
+}
+
+.settings-group {
+    padding-top: 20px;
+    padding-right: 100px;
+    float:right;
 }

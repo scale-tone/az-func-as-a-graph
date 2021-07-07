@@ -48,7 +48,9 @@ function traverseFunctionProject(projectFolder, log) {
         const promises = (yield fs.promises.readdir(hostJsonFolder)).map((functionName) => __awaiter(this, void 0, void 0, function* () {
             const fullPath = path.join(hostJsonFolder, functionName);
             const functionJsonFilePath = path.join(fullPath, 'function.json');
-            if (!!(yield fs.promises.lstat(fullPath)).isDirectory() && !!fs.existsSync(functionJsonFilePath)) {
+            const isDirectory = (yield fs.promises.lstat(fullPath)).isDirectory();
+            const functionJsonExists = fs.existsSync(functionJsonFilePath);
+            if (isDirectory && functionJsonExists) {
                 try {
                     const functionJsonString = yield fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
                     const functionJson = JSON.parse(functionJsonString);
@@ -62,10 +64,30 @@ function traverseFunctionProject(projectFolder, log) {
         yield Promise.all(promises);
         // Now enriching data from function.json with more info extracted from code
         functions = yield mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
-        return { functions, tempFolders, gitHubInfo };
+        // Also reading proxies
+        const proxies = yield readProxiesJson(projectFolder, log);
+        return { functions, proxies, tempFolders, gitHubInfo };
     });
 }
 exports.traverseFunctionProject = traverseFunctionProject;
+// Tries to read proxies.json file from project folder
+function readProxiesJson(projectFolder, log) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const proxiesJsonPath = path.join(projectFolder, 'proxies.json');
+        if (!fs.existsSync(proxiesJsonPath)) {
+            return {};
+        }
+        const proxiesJsonString = yield fs.promises.readFile(proxiesJsonPath, { encoding: 'utf8' });
+        try {
+            const proxiesJson = JSON.parse(proxiesJsonString);
+            return !proxiesJson.proxies ? {} : proxiesJson.proxies;
+        }
+        catch (err) {
+            log(`>>> Failed to parse ${proxiesJsonPath}: ${err}`);
+            return {};
+        }
+    });
+}
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
 function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {

@@ -24,7 +24,7 @@ function runMermaidCli(inputFile, outputFile) {
         cp.execSync('npm i --no-save @mermaid-js/mermaid-cli');
     }
     return new Promise((resolve, reject) => {
-        const proc = cp.fork(mermaidCliPath, ['-i', inputFile, '-o', outputFile]);
+        const proc = cp.fork(mermaidCliPath, ['-i', inputFile, '-o', outputFile, '-c', 'mermaid.config.json']);
         proc.on('exit', (exitCode) => {
             if (exitCode === 0) {
                 resolve();
@@ -66,7 +66,7 @@ function convertLocalPathsToGitHub(functions, gitHubInfo) {
     return functions;
 }
 // Does the main job
-function az_func_as_a_graph(projectFolder, outputFile, htmlTemplateFile) {
+function az_func_as_a_graph(projectFolder, outputFile, settingsFile) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!projectFolder) {
             console.error('Path to an Azure Functions project not specified');
@@ -75,14 +75,25 @@ function az_func_as_a_graph(projectFolder, outputFile, htmlTemplateFile) {
         if (!outputFile) {
             outputFile = 'function-graph.svg';
         }
-        if (!htmlTemplateFile) {
-            htmlTemplateFile = 'graph-template.htm';
-        }
+        var htmlTemplateFile = 'graph-template.htm';
+        var graphSettings = {};
         var tempFilesAndFolders = [];
         try {
+            if (!!settingsFile) {
+                if (['.htm', '.html'].includes(path.extname(settingsFile).toLowerCase())) {
+                    htmlTemplateFile = settingsFile;
+                }
+                else {
+                    const graphSettingsString = yield fs.promises.readFile(settingsFile, { encoding: 'utf8' });
+                    graphSettings = JSON.parse(graphSettingsString);
+                    if (!!graphSettings.htmlTemplateFile) {
+                        htmlTemplateFile = graphSettings.htmlTemplateFile;
+                    }
+                }
+            }
             const traverseResult = yield traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log);
             tempFilesAndFolders = traverseResult.tempFolders;
-            const diagramCode = 'graph LR\n' + (yield buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions));
+            const diagramCode = 'graph LR\n' + (yield buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, graphSettings));
             const tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
             yield fs.promises.writeFile(tempInputFile, diagramCode);
             tempFilesAndFolders.push(tempInputFile);

@@ -11,7 +11,7 @@ export default async function (context: Context, req: HttpRequest): Promise<void
 
         const result = await traverseFunctionProject(req.body as string, context.log);
         tempFolders = result.tempFolders;
-        context.res = { body: result.functions };
+        context.res = { body: { functions: result.functions, proxies: result.proxies } };
         
     } catch (err) {
 

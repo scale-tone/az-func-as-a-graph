@@ -18,7 +18,7 @@ function default_1(context, req) {
         try {
             const result = yield traverseFunctionProject_1.traverseFunctionProject(req.body, context.log);
             tempFolders = result.tempFolders;
-            context.res = { body: result.functions };
+            context.res = { body: { functions: result.functions, proxies: result.proxies } };
         }
         catch (err) {
             context.log(`>>> Failed: ${err}`);

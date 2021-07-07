@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 
-import { FunctionsMap, TraverseFunctionResult, GitHubInfo } from '../ui/src/shared/FunctionsMap';
+import { FunctionsMap, ProxiesMap, TraverseFunctionResult, GitHubInfo } from '../ui/src/shared/FunctionsMap';
 import {
     getCodeInBrackets, TraversalRegexes, DotNetBindingsParser,
     isDotNetProjectAsync, posToLineNr, CloneFromGitHub
@@ -59,7 +59,10 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
         const fullPath = path.join(hostJsonFolder, functionName);
         const functionJsonFilePath = path.join(fullPath, 'function.json');
 
-        if (!!(await fs.promises.lstat(fullPath)).isDirectory() && !!fs.existsSync(functionJsonFilePath)) {
+        const isDirectory = (await fs.promises.lstat(fullPath)).isDirectory();
+        const functionJsonExists = fs.existsSync(functionJsonFilePath);
+
+        if (isDirectory && functionJsonExists) {
 
             try {
                 const functionJsonString = await fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
@@ -77,7 +80,31 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
     // Now enriching data from function.json with more info extracted from code
     functions = await mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
 
-    return { functions, tempFolders, gitHubInfo };
+    // Also reading proxies
+    const proxies = await readProxiesJson(projectFolder, log);
+
+    return { functions, proxies, tempFolders, gitHubInfo };
+}
+
+// Tries to read proxies.json file from project folder
+async function readProxiesJson(projectFolder: string, log: (s: any) => void): Promise<ProxiesMap> {
+
+    const proxiesJsonPath = path.join(projectFolder, 'proxies.json');
+    if (!fs.existsSync(proxiesJsonPath)) {
+        return {};
+    }
+    
+    const proxiesJsonString = await fs.promises.readFile(proxiesJsonPath, { encoding: 'utf8' });
+    try {
+
+        const proxiesJson = JSON.parse(proxiesJsonString);
+        return !proxiesJson.proxies ? {} : proxiesJson.proxies;
+
+    } catch(err) {
+
+        log(`>>> Failed to parse ${proxiesJsonPath}: ${err}`);
+        return {};
+    }
 }
 
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).

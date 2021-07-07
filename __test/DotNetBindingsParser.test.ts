@@ -34,9 +34,9 @@ test('bindingAttributeRegex', () => {
 test('isOutRegex', () => {
 
     const samples = [
-        `]out string message,`,
+        `  ]out string message,`,
         `] out string[] results (`,
-        `] ICollector myCollector,`,
+        ` ] ICollector myCollector,`,
         `]IAsyncCollector myCollector(`,
     ];
 
@@ -50,5 +50,31 @@ test('isOutRegex', () => {
 
         const match = regex.exec(sample);
         expect(match).not.toBeNull();
+    }
+});
+
+test('singleParamRegex', () => {
+
+    const samples = [
+        `("Users")CloudTable users`,
+        `( nameof (MyDataFile))] string data`,
+        ` ( Constants.MyQueue )  string msg`,
+    ];
+
+    const results = [
+        `Users`,
+        `MyDataFile`,
+        `Constants.MyQueue`,
+    ];
+
+    const regex = DotNetBindingsParser.singleParamRegex;
+    for (var i = 0; i < samples.length; i++) {
+
+        const sample = samples[i];
+        const result = results[i];
+
+        const match = regex.exec(sample);
+        expect(match).not.toBeNull();
+        expect(match[2]).toBe(result);
     }
 });

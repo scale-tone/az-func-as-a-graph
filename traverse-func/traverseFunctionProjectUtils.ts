@@ -82,9 +82,9 @@ export async function isDotNetProjectAsync(projectFolder: string): Promise<boole
 }
 
 // Complements regex's inability to keep up with nested brackets
-export function getCodeInBrackets(str: string, startFrom: number, openingBracket: string, closingBracket: string, mustHaveSymbols: string): string {
+export function getCodeInBrackets(str: string, startFrom: number, openingBracket: string, closingBracket: string, mustHaveSymbols: string = ''): string {
 
-    var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = false;
+    var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = !mustHaveSymbols;
     for (var i = startFrom; i < str.length; i++) {
         switch (str[i]) {
             case openingBracket:
@@ -143,9 +143,10 @@ export class TraversalRegexes {
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
 export class DotNetBindingsParser {
 
-    static tryExtractBindings(funcCode: string): any[] {
+    // Extracts additional bindings info from C#/F# source code
+    static tryExtractBindings(funcCode: string): {type: string, direction: string}[] {
 
-        const result: any[] = [];
+        const result = [];
 
         if (!funcCode) {
             return result;
@@ -159,7 +160,7 @@ export class DotNetBindingsParser {
 
             const attributeName = match[3];
             const attributeCodeStartIndex = match.index + match[0].length - 1;
-            const attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '"');
+            const attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '');
 
             this.isOutRegex.lastIndex = attributeCodeStartIndex + attributeCode.length;
             const isOut = !!this.isOutRegex.exec(funcCode);
@@ -179,9 +180,9 @@ export class DotNetBindingsParser {
                 case 'Table': {
                     const binding: any = { type: 'table', direction: isReturn || isOut ? 'out' : 'in' };
 
-                    const paramsMatch = this.tableParamsRegex.exec(attributeCode);
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['tableName'] = paramsMatch[1];
+                        binding['tableName'] = paramsMatch[2];
                     }
                     result.push(binding);
 
@@ -236,9 +237,9 @@ export class DotNetBindingsParser {
                 case 'Queue': {
                     const binding: any = { type: 'queue', direction: 'out' };
 
-                    const paramsMatch = this.queueParamsRegex.exec(attributeCode);
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['queueName'] = paramsMatch[1];
+                        binding['queueName'] = paramsMatch[2];
                     }
                     result.push(binding);
 
@@ -247,9 +248,9 @@ export class DotNetBindingsParser {
                 case 'ServiceBus': {
                     const binding: any = { type: 'serviceBus', direction: 'out' };
 
-                    const paramsMatch = this.serviceBusParamsRegex.exec(attributeCode);
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['queueName'] = paramsMatch[1];
+                        binding['queueName'] = paramsMatch[2];
                     }
                     result.push(binding);
 
@@ -292,15 +293,14 @@ export class DotNetBindingsParser {
     }
 
     static readonly bindingAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
+    static readonly singleParamRegex = new RegExp(`("|nameof\\s*\\()?([\\w\.-]+)`);
+    static readonly eventHubParamsRegex = new RegExp(`"([^"]+)"`);
+    static readonly signalRParamsRegex = new RegExp(`"([^"]+)"`);
+    static readonly rabbitMqParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly blobParamsRegex = new RegExp(`"([^"]+)"`);
-    static readonly tableParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
     static readonly signalRConnInfoParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly eventGridParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
-    static readonly eventHubParamsRegex = new RegExp(`"([^"]+)"`);
-    static readonly queueParamsRegex = new RegExp(`"([^"]+)"`);
-    static readonly serviceBusParamsRegex = new RegExp(`"([^"]+)"`);
-    static readonly signalRParamsRegex = new RegExp(`"([^"]+)"`);
-    static readonly rabbitMqParamsRegex = new RegExp(`"([^"]+)"`);
+
     static readonly isOutRegex = new RegExp(`\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
 }

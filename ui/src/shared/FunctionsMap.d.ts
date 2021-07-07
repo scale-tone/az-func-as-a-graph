@@ -11,16 +11,29 @@ export type FunctionsMap = {
     }
 };
 
+export type ProxiesMap = {
+    [name: string]: {
+        matchCondition?: {
+            methods?: string[];
+            route?: string;
+        };
+        backendUri?: string;
+        requestOverrides?: {};
+        responseOverrides?: {};
+    }
+};
+
 export type GitHubInfo = {
     orgUrl: string;
     repoName: string;
     branchName: string;
     relativePath: string;
     gitTempFolder: string;
-}
+};
 
 export type TraverseFunctionResult = {
     functions: FunctionsMap;
+    proxies: ProxiesMap;
     tempFolders: string[];
     gitHubInfo: GitHubInfo;
-}
+};
