@@ -83,23 +83,27 @@ function readProxiesJson(projectFolder, log) {
             if (!proxies) {
                 return {};
             }
-            // Also adding filePath and lineNr
-            for (var proxyName in proxies) {
-                const proxy = proxies[proxyName];
-                proxy.filePath = proxiesJsonPath;
-                const proxyNameRegex = new RegExp(`"${proxyName}"\\s*:`);
-                const match = proxyNameRegex.exec(proxiesJsonString);
-                if (!!match) {
-                    proxy.pos = match.index;
-                    proxy.lineNr = traverseFunctionProjectUtils_1.posToLineNr(proxiesJsonString, proxy.pos);
-                }
-            }
+            var notAddedToCsProjFile = false;
             if (yield traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)) {
                 // Also checking that proxies.json is added to .csproj file
                 const csProjFile = yield findFileRecursivelyAsync(projectFolder, '.+\.csproj$', true);
                 const proxiesJsonEntryRegex = new RegExp(`\\s*=\\s*"proxies.json"\\s*>`);
                 if (!!csProjFile && csProjFile.code && (!proxiesJsonEntryRegex.exec(csProjFile.code))) {
-                    proxies.warningNotAddedToCsProjFile = true;
+                    notAddedToCsProjFile = true;
+                }
+            }
+            // Also adding filePath and lineNr
+            for (var proxyName in proxies) {
+                const proxy = proxies[proxyName];
+                proxy.filePath = proxiesJsonPath;
+                if (notAddedToCsProjFile) {
+                    proxy.warningNotAddedToCsProjFile = true;
+                }
+                const proxyNameRegex = new RegExp(`"${proxyName}"\\s*:`);
+                const match = proxyNameRegex.exec(proxiesJsonString);
+                if (!!match) {
+                    proxy.pos = match.index;
+                    proxy.lineNr = traverseFunctionProjectUtils_1.posToLineNr(proxiesJsonString, proxy.pos);
                 }
             }
             return proxies;

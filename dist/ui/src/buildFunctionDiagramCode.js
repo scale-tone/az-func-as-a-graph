@@ -128,16 +128,11 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings = {}) {
     // Also proxies
     if (!settings.doNotRenderProxies && (Object.keys(proxiesMap).length > 0)) {
         const proxyNodesColor = '#FFE6C8';
-        var nodeTitle = `proxies.json`;
-        var nodeColor = proxyNodesColor;
-        if (!!proxiesMap.warningNotAddedToCsProjFile) {
-            nodeTitle += ` #9888; Not added to .CSPROJ file!`;
-            nodeColor = `#FF8080`;
-        }
-        code += `proxies.json["${space}${nodeTitle}"]:::proxy\n`;
-        code += `style proxies.json fill:${nodeColor}\n`;
+        var nodeTitle = ``;
+        var notAddedToCsProjFile = false;
         for (const name in proxiesMap) {
             const proxy = proxiesMap[name];
+            notAddedToCsProjFile = proxy.warningNotAddedToCsProjFile;
             nodeTitle = '';
             if (!!proxy.matchCondition) {
                 if (!!proxy.matchCondition.methods && !!proxy.matchCondition.methods.length) {
@@ -164,6 +159,14 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings = {}) {
             code += `${nodeName} ${getResponseOverridesArrowCode(proxy.responseOverrides)} ${nextNodeName}(["${space}."]):::http\n`;
             code += `style ${nextNodeName} fill:${proxyNodesColor}\n`;
         }
+        nodeTitle = `proxies.json`;
+        var nodeColor = proxyNodesColor;
+        if (notAddedToCsProjFile) {
+            nodeTitle += ` #9888; Not added to .CSPROJ file!`;
+            nodeColor = `#FF8080`;
+        }
+        code += `proxies.json["${space}${nodeTitle}"]:::proxy\n`;
+        code += `style proxies.json fill:${nodeColor}\n`;
     }
     return code;
 }

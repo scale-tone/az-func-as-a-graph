@@ -22,10 +22,9 @@ export type ProxiesMap = {
         responseOverrides?: {};
         filePath?: string,
         pos?: number,
-        lineNr?: number
+        lineNr?: number,
+        warningNotAddedToCsProjFile?: boolean
     }
-} & {
-    warningNotAddedToCsProjFile?: boolean
 };
 
 export type GitHubInfo = {

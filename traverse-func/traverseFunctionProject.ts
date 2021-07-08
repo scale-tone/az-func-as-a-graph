@@ -102,21 +102,7 @@ async function readProxiesJson(projectFolder: string, log: (s: any) => void): Pr
             return {};
         }
 
-        // Also adding filePath and lineNr
-        for (var proxyName in proxies) {
-
-            const proxy = proxies[proxyName];
-            proxy.filePath = proxiesJsonPath;
-
-            const proxyNameRegex = new RegExp(`"${proxyName}"\\s*:`);
-            const match = proxyNameRegex.exec(proxiesJsonString);
-            if (!!match) {
-                
-                proxy.pos = match.index;
-                proxy.lineNr = posToLineNr(proxiesJsonString, proxy.pos);
-            }
-        }
-
+        var notAddedToCsProjFile = false;
         if (await isDotNetProjectAsync(projectFolder)) {
 
             // Also checking that proxies.json is added to .csproj file
@@ -126,8 +112,26 @@ async function readProxiesJson(projectFolder: string, log: (s: any) => void): Pr
 
             if (!!csProjFile && csProjFile.code && (!proxiesJsonEntryRegex.exec(csProjFile.code))) {
                 
-                proxies.warningNotAddedToCsProjFile = true;
+                notAddedToCsProjFile = true;
             }            
+        }
+
+        // Also adding filePath and lineNr
+        for (var proxyName in proxies) {
+
+            const proxy = proxies[proxyName];
+            proxy.filePath = proxiesJsonPath;
+            if (notAddedToCsProjFile) {
+                proxy.warningNotAddedToCsProjFile = true;
+            }
+
+            const proxyNameRegex = new RegExp(`"${proxyName}"\\s*:`);
+            const match = proxyNameRegex.exec(proxiesJsonString);
+            if (!!match) {
+                
+                proxy.pos = match.index;
+                proxy.lineNr = posToLineNr(proxiesJsonString, proxy.pos);
+            }
         }
 
         return proxies;
