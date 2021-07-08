@@ -40,7 +40,7 @@ This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/m
 * If its extension is `.svg`, the graph will be written to this file in SVG format.
 * If its extension is `.htm`, a static HTML page will be generated. The tool will also try its best to make that page *interactive*, so that e.g. when you click on a graph node, the relevant Function's source code is shown. [Here is an example of such a page](https://scale-tone.github.io/temp/WhatIfDemo-Functions.htm). If the project link contains a branch/tag, the links to sources will be relative to that branch/tag.
 
-`{json-file-with-settings}` is an optional path to an optional JSON file with optional settings. like this one:
+`{json-file-with-settings}` is an optional path to an optional JSON file with optional settings. Like this one:
 ```
 {
     "htmlTemplateFile": "path-to-my-custom-html-template-file",
