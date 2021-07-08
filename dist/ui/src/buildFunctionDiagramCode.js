@@ -126,11 +126,19 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings = {}) {
         }
     }
     // Also proxies
-    if (!settings.doNotRenderProxies) {
-        const proxyNodeColor = '#FFE6C8';
+    if (!settings.doNotRenderProxies && (Object.keys(proxiesMap).length > 0)) {
+        const proxyNodesColor = '#FFE6C8';
+        var nodeTitle = `proxies.json`;
+        var nodeColor = proxyNodesColor;
+        if (!!proxiesMap.warningNotAddedToCsProjFile) {
+            nodeTitle += ` #9888; Not added to .CSPROJ file!`;
+            nodeColor = `#FF8080`;
+        }
+        code += `proxies.json["${space}${nodeTitle}"]:::proxy\n`;
+        code += `style proxies.json fill:${nodeColor}\n`;
         for (const name in proxiesMap) {
             const proxy = proxiesMap[name];
-            var nodeTitle = '';
+            nodeTitle = '';
             if (!!proxy.matchCondition) {
                 if (!!proxy.matchCondition.methods && !!proxy.matchCondition.methods.length) {
                     nodeTitle += (!!nodeTitle ? ':' : '') + `[${proxy.matchCondition.methods.join(',')}]`;
@@ -143,19 +151,18 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings = {}) {
                 nodeTitle = name;
             }
             var nodeName = `proxy.${name}`;
-            code += `proxies.json["${space}proxies.json"]:::proxy -. "${name}" .-> ${nodeName}(["${space}${nodeTitle}"]):::proxy\n`;
-            code += `style proxies.json fill:${proxyNodeColor}\n`;
-            code += `style ${nodeName} fill:${proxyNodeColor}\n`;
+            code += `proxies.json -. "${name}" .-> ${nodeName}(["${space}${nodeTitle}"]):::proxy\n`;
+            code += `style ${nodeName} fill:${proxyNodesColor}\n`;
             if (!!proxy.backendUri) {
                 nodeTitle = proxy.backendUri.replace(/'response./g, `'`);
                 const nextNodeName = `proxy.${name}.backendUri`;
                 code += `${nodeName} ${getRequestOverridesArrowCode(proxy.requestOverrides)} ${nextNodeName}["${space}${nodeTitle}"]:::http\n`;
-                code += `style ${nextNodeName} fill:${proxyNodeColor}\n`;
+                code += `style ${nextNodeName} fill:${proxyNodesColor}\n`;
                 nodeName = nextNodeName;
             }
             const nextNodeName = `proxy.${name}.response`;
             code += `${nodeName} ${getResponseOverridesArrowCode(proxy.responseOverrides)} ${nextNodeName}(["${space}."]):::http\n`;
-            code += `style ${nextNodeName} fill:${proxyNodeColor}\n`;
+            code += `style ${nextNodeName} fill:${proxyNodesColor}\n`;
         }
     }
     return code;

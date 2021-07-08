@@ -75,8 +75,8 @@ export function posToLineNr(code: string, pos: number): number {
 export async function isDotNetProjectAsync(projectFolder: string): Promise<boolean> {
     return (await fs.promises.readdir(projectFolder)).some(fn => {
         fn = fn.toLowerCase();
-        return (fn.endsWith('.sln')) ||
-            (fn.endsWith('.fsproj')) ||
+        return fn.endsWith('.sln') ||
+            fn.endsWith('.fsproj') ||
             (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
     });
 }

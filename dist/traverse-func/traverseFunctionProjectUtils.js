@@ -70,8 +70,8 @@ function isDotNetProjectAsync(projectFolder) {
     return __awaiter(this, void 0, void 0, function* () {
         return (yield fs.promises.readdir(projectFolder)).some(fn => {
             fn = fn.toLowerCase();
-            return (fn.endsWith('.sln')) ||
-                (fn.endsWith('.fsproj')) ||
+            return fn.endsWith('.sln') ||
+                fn.endsWith('.fsproj') ||
                 (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
         });
     });

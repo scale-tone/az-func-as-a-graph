@@ -79,8 +79,30 @@ function readProxiesJson(projectFolder, log) {
         }
         const proxiesJsonString = yield fs.promises.readFile(proxiesJsonPath, { encoding: 'utf8' });
         try {
-            const proxiesJson = JSON.parse(proxiesJsonString);
-            return !proxiesJson.proxies ? {} : proxiesJson.proxies;
+            const proxies = JSON.parse(proxiesJsonString).proxies;
+            if (!proxies) {
+                return {};
+            }
+            // Also adding filePath and lineNr
+            for (var proxyName in proxies) {
+                const proxy = proxies[proxyName];
+                proxy.filePath = proxiesJsonPath;
+                const proxyNameRegex = new RegExp(`"${proxyName}"\\s*:`);
+                const match = proxyNameRegex.exec(proxiesJsonString);
+                if (!!match) {
+                    proxy.pos = match.index;
+                    proxy.lineNr = traverseFunctionProjectUtils_1.posToLineNr(proxiesJsonString, proxy.pos);
+                }
+            }
+            if (yield traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)) {
+                // Also checking that proxies.json is added to .csproj file
+                const csProjFile = yield findFileRecursivelyAsync(projectFolder, '.+\.csproj$', true);
+                const proxiesJsonEntryRegex = new RegExp(`\\s*=\\s*"proxies.json"\\s*>`);
+                if (!!csProjFile && csProjFile.code && (!proxiesJsonEntryRegex.exec(csProjFile.code))) {
+                    proxies.warningNotAddedToCsProjFile = true;
+                }
+            }
+            return proxies;
         }
         catch (err) {
             log(`>>> Failed to parse ${proxiesJsonPath}: ${err}`);

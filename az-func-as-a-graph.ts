@@ -47,16 +47,18 @@ async function applyIcons(svg: string): Promise<string> {
     return svg;
 }
 
+type FunctionsOrProxiesMap = { [name: string]: { filePath?: string, lineNr?: number } };
+
 // Tries to convert local file names to their GitHub URL equivalents
-function convertLocalPathsToGitHub(functions: FunctionsMap, gitHubInfo: GitHubInfo): FunctionsMap {
+function convertLocalPathsToGitHub(map: FunctionsOrProxiesMap, gitHubInfo: GitHubInfo): FunctionsOrProxiesMap {
 
     if (!gitHubInfo || !gitHubInfo.orgUrl || !gitHubInfo.repoName || !gitHubInfo.branchName) {
-        return functions;
+        return map;
     }
 
-    for (const funcName in functions) {
+    for (const funcName in map) {
         
-        const func = functions[funcName];
+        const func = map[funcName];
 
         if (!func.filePath) {
             continue;
@@ -73,7 +75,7 @@ function convertLocalPathsToGitHub(functions: FunctionsMap, gitHubInfo: GitHubIn
         func.filePath = `${gitHubInfo.orgUrl}/${gitHubInfo.repoName}/blob/${gitHubInfo.branchName}/${relativePath.join('/')}#L${func.lineNr}`;
     }
 
-    return functions;
+    return map;
 }
 
 // Does the main job
@@ -142,6 +144,7 @@ async function az_func_as_a_graph(projectFolder: string, outputFile: string, set
             html = html.replace(/{{GRAPH_SVG}}/g, svg);
 
             html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(convertLocalPathsToGitHub(traverseResult.functions, traverseResult.gitHubInfo))}`);
+            html = html.replace(/const proxiesMap = {}/g, `const proxiesMap = ${JSON.stringify(convertLocalPathsToGitHub(traverseResult.proxies, traverseResult.gitHubInfo))}`);
 
             await fs.promises.writeFile(outputFile, html);
 

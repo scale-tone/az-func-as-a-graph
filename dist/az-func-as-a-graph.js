@@ -46,12 +46,12 @@ function applyIcons(svg) {
     });
 }
 // Tries to convert local file names to their GitHub URL equivalents
-function convertLocalPathsToGitHub(functions, gitHubInfo) {
+function convertLocalPathsToGitHub(map, gitHubInfo) {
     if (!gitHubInfo || !gitHubInfo.orgUrl || !gitHubInfo.repoName || !gitHubInfo.branchName) {
-        return functions;
+        return map;
     }
-    for (const funcName in functions) {
-        const func = functions[funcName];
+    for (const funcName in map) {
+        const func = map[funcName];
         if (!func.filePath) {
             continue;
         }
@@ -63,7 +63,7 @@ function convertLocalPathsToGitHub(functions, gitHubInfo) {
         const relativePath = func.filePath.substr(pos + repoNameWithSeparators.length).split(path.sep);
         func.filePath = `${gitHubInfo.orgUrl}/${gitHubInfo.repoName}/blob/${gitHubInfo.branchName}/${relativePath.join('/')}#L${func.lineNr}`;
     }
-    return functions;
+    return map;
 }
 // Does the main job
 function az_func_as_a_graph(projectFolder, outputFile, settingsFile) {
@@ -110,6 +110,7 @@ function az_func_as_a_graph(projectFolder, outputFile, settingsFile) {
                 html = html.replace(/{{PROJECT_NAME}}/g, projectName);
                 html = html.replace(/{{GRAPH_SVG}}/g, svg);
                 html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(convertLocalPathsToGitHub(traverseResult.functions, traverseResult.gitHubInfo))}`);
+                html = html.replace(/const proxiesMap = {}/g, `const proxiesMap = ${JSON.stringify(convertLocalPathsToGitHub(traverseResult.proxies, traverseResult.gitHubInfo))}`);
                 yield fs.promises.writeFile(outputFile, html);
             }
             else if (outputFileExt === '.svg') {

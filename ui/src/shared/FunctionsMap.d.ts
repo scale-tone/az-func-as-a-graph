@@ -20,7 +20,12 @@ export type ProxiesMap = {
         backendUri?: string;
         requestOverrides?: {};
         responseOverrides?: {};
+        filePath?: string,
+        pos?: number,
+        lineNr?: number
     }
+} & {
+    warningNotAddedToCsProjFile?: boolean
 };
 
 export type GitHubInfo = {

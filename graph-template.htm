@@ -30,6 +30,7 @@
 
     // This line will be replaced with the list of Functions by the generator script
     const functionsMap = {};
+    const proxiesMap = {};
 
     function mountClickEventToFunctionNodes(nodes) {
 
@@ -39,9 +40,27 @@
             const match = /flowchart-(.+)-/.exec(el.id);
             if (!!match) {
 
-                const closuredFunctionName = match[1];
-                el.onclick = () => window.open(functionsMap[closuredFunctionName].filePath);
-                el.style.cursor = 'pointer';
+                const name = match[1];
+                var filePath = '';
+
+                if (name.startsWith('proxy.')) {
+
+                    const proxy = proxiesMap[name.substr(6)];
+                    if (!!proxy) {
+                        filePath = proxy.filePath;
+                    }
+                }
+
+                const func = functionsMap[name];
+                if (!!func) {
+                    filePath = func.filePath;
+                }
+
+                if (!!filePath) {
+                    const closuredFilePath = filePath;
+                    el.onclick = () => window.open(closuredFilePath);
+                    el.style.cursor = 'pointer';
+                }
             }
         }
     }
@@ -51,6 +70,7 @@
     mountClickEventToFunctionNodes(document.getElementsByClassName('orchestrator'));
     mountClickEventToFunctionNodes(document.getElementsByClassName('activity'));
     mountClickEventToFunctionNodes(document.getElementsByClassName('entity'));
+    mountClickEventToFunctionNodes(document.getElementsByClassName('proxy'));
 
 </script>
 
