@@ -5,7 +5,7 @@
         "name": "Launch Program",
         "program": "${workspaceFolder}/dist/az-func-as-a-graph.js",
         "args": [
-            "https://github.com/mikhailshilkov/azure-functions-fsharp-examples/tree/master/6b-precompiled-http-to-service-bus-topic", 
+            "https://github.com/scale-tone/WhatIfDemo/tree/20190516.1/WhatIfDemo-Functions", 
             "c:\\temp\\graph.htm"],
         "request": "launch",
         "skipFiles": [
