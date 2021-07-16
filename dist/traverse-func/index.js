@@ -11,13 +11,21 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const rimraf = require("rimraf");
 const traverseFunctionProject_1 = require("./traverseFunctionProject");
+const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 // Main function
 function default_1(context, req) {
     return __awaiter(this, void 0, void 0, function* () {
         var tempFolders = [];
         try {
-            const result = yield traverseFunctionProject_1.traverseFunctionProject(req.body, context.log);
-            tempFolders = result.tempFolders;
+            var projectFolder = req.body;
+            // If it is a git repo, cloning it
+            if (projectFolder.toLowerCase().startsWith('http')) {
+                const gitInfo = yield traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder);
+                tempFolders.push(gitInfo.gitTempFolder);
+                projectFolder = gitInfo.projectFolder;
+            }
+            const result = yield traverseFunctionProject_1.traverseFunctionProject(projectFolder, context.log);
+            tempFolders.push(...result.tempFolders);
             context.res = { body: { functions: result.functions, proxies: result.proxies } };
         }
         catch (err) {

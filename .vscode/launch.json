@@ -2,6 +2,18 @@
     "version": "0.2.0",
     "configurations": [
     {
+        "name": "Launch Program",
+        "program": "${workspaceFolder}/dist/az-func-as-a-graph.js",
+        "args": [
+            "https://github.com/mikhailshilkov/azure-functions-fsharp-examples/tree/master/6b-precompiled-http-to-service-bus-topic", 
+            "c:\\temp\\graph.htm"],
+        "request": "launch",
+        "skipFiles": [
+            "<node_internals>/**"
+        ],
+        "type": "pwa-node"
+    },
+    {
         "name": "Attach by Process ID",
         "processId": "${command:PickProcess}",
         "request": "attach",

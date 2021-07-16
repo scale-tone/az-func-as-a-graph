@@ -16,6 +16,7 @@ const path = require("path");
 const cp = require("child_process");
 const crypto = require("crypto");
 const traverseFunctionProject_1 = require("./traverse-func/traverseFunctionProject");
+const traverseFunctionProjectUtils_1 = require("./traverse-func/traverseFunctionProjectUtils");
 const buildFunctionDiagramCode_1 = require("./ui/src/buildFunctionDiagramCode");
 function runMermaidCli(inputFile, outputFile) {
     // Explicitly installing mermaid-cli. Don't want to add it to package.json, because it is quite heavy.
@@ -46,22 +47,101 @@ function applyIcons(svg) {
     });
 }
 // Tries to convert local file names to their GitHub URL equivalents
-function convertLocalPathsToGitHub(map, gitHubInfo) {
+/*
+function convertLocalPathsToGitHub(map: FunctionsOrProxiesMap, gitHubInfo: GitHubInfo): FunctionsOrProxiesMap {
+
     if (!gitHubInfo || !gitHubInfo.orgUrl || !gitHubInfo.repoName || !gitHubInfo.branchName) {
         return map;
     }
+
+    for (const funcName in map) {
+        
+        const func = map[funcName];
+
+        if (!func.filePath) {
+            continue;
+        }
+
+        const repoNameWithSeparators = path.sep + gitHubInfo.repoName + path.sep;
+
+        const pos = func.filePath.indexOf(repoNameWithSeparators);
+        if (pos < 0) {
+            continue;
+        }
+
+        const relativePath = func.filePath.substr(pos + repoNameWithSeparators.length).split(path.sep);
+        func.filePath = `${gitHubInfo.orgUrl}/${gitHubInfo.repoName}/blob/${gitHubInfo.branchName}/${relativePath.join('/')}#L${func.lineNr}`;
+    }
+
+    return map;
+}
+*/
+function getGitRepoInfo(projectFolder) {
+    // looking for .git folder
+    var localGitFolder = projectFolder;
+    while (!fs.existsSync(path.join(localGitFolder, '.git'))) {
+        const parentFolder = path.dirname(localGitFolder);
+        if (!parentFolder || localGitFolder === parentFolder) {
+            return null;
+        }
+        localGitFolder = parentFolder;
+    }
+    const execSyncParams = { env: { GIT_DIR: path.join(localGitFolder, '.git') } };
+    // trying to get remote origin URL
+    var originUrl;
+    try {
+        originUrl = cp.execSync('git config --get remote.origin.url', execSyncParams)
+            .toString()
+            .replace(/\n+$/, '') // trims end-of-line, if any
+            .replace(/\/+$/, ''); // trims the trailing slash, if any
+    }
+    catch (_a) {
+        return null;
+    }
+    if (originUrl.endsWith('.git')) {
+        originUrl = originUrl.substr(0, originUrl.length - 4);
+    }
+    // expecting repo name to be the last segment of remote origin URL
+    const p = originUrl.lastIndexOf('/');
+    if (p < 0) {
+        return null;
+    }
+    const repoName = originUrl.substr(p + 1);
+    // trying to get branch name (which might be different from default)
+    var branchOrTagName = '';
+    try {
+        branchOrTagName = cp.execSync('git rev-parse --abbrev-ref HEAD', execSyncParams)
+            .toString()
+            .replace(/\n+$/, ''); // trims end-of-line, if any
+        if (branchOrTagName === 'HEAD') { // this indicates that we're on a tag
+            // trying to get that tag name
+            branchOrTagName = cp.execSync('git describe --tags', execSyncParams)
+                .toString()
+                .replace(/\n+$/, ''); // trims end-of-line, if any
+        }
+    }
+    catch (err) {
+        console.warn(`Unable to detect branch/tag name. ${err}`);
+    }
+    // defaulting to master
+    if (!branchOrTagName) {
+        branchOrTagName = 'master';
+    }
+    return { originUrl, repoName, branchOrTagName };
+}
+function convertLocalPathsToRemote(map, repoInfo) {
     for (const funcName in map) {
         const func = map[funcName];
         if (!func.filePath) {
             continue;
         }
-        const repoNameWithSeparators = path.sep + gitHubInfo.repoName + path.sep;
+        const repoNameWithSeparators = path.sep + repoInfo.repoName + path.sep;
         const pos = func.filePath.indexOf(repoNameWithSeparators);
         if (pos < 0) {
             continue;
         }
         const relativePath = func.filePath.substr(pos + repoNameWithSeparators.length).split(path.sep);
-        func.filePath = `${gitHubInfo.orgUrl}/${gitHubInfo.repoName}/blob/${gitHubInfo.branchName}/${relativePath.join('/')}#L${func.lineNr}`;
+        func.filePath = `${repoInfo.originUrl}/blob/${repoInfo.branchOrTagName}/${relativePath.join('/')}#L${func.lineNr}`;
     }
     return map;
 }
@@ -91,8 +171,16 @@ function az_func_as_a_graph(projectFolder, outputFile, settingsFile) {
                     }
                 }
             }
+            // If it is a git repo, cloning it
+            if (projectFolder.toLowerCase().startsWith('http')) {
+                console.log(`Cloning ${projectFolder}`);
+                const gitInfo = yield traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder);
+                console.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
+                tempFilesAndFolders.push(gitInfo.gitTempFolder);
+                projectFolder = gitInfo.projectFolder;
+            }
             const traverseResult = yield traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log);
-            tempFilesAndFolders = traverseResult.tempFolders;
+            tempFilesAndFolders.push(...traverseResult.tempFolders);
             const diagramCode = 'graph LR\n' + (yield buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, graphSettings));
             const tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
             yield fs.promises.writeFile(tempInputFile, diagramCode);
@@ -109,8 +197,12 @@ function az_func_as_a_graph(projectFolder, outputFile, settingsFile) {
                 const projectName = path.basename(projectFolder);
                 html = html.replace(/{{PROJECT_NAME}}/g, projectName);
                 html = html.replace(/{{GRAPH_SVG}}/g, svg);
-                html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(convertLocalPathsToGitHub(traverseResult.functions, traverseResult.gitHubInfo))}`);
-                html = html.replace(/const proxiesMap = {}/g, `const proxiesMap = ${JSON.stringify(convertLocalPathsToGitHub(traverseResult.proxies, traverseResult.gitHubInfo))}`);
+                // Trying to convert local source file paths into links to remote repo
+                const repoInfo = getGitRepoInfo(projectFolder);
+                const functionsMap = !repoInfo ? traverseResult.functions : convertLocalPathsToRemote(traverseResult.functions, repoInfo);
+                const proxiesMap = !repoInfo ? traverseResult.proxies : convertLocalPathsToRemote(traverseResult.proxies, repoInfo);
+                html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(functionsMap)}`);
+                html = html.replace(/const proxiesMap = {}/g, `const proxiesMap = ${JSON.stringify(proxiesMap)}`);
                 yield fs.promises.writeFile(outputFile, html);
             }
             else if (outputFileExt === '.svg') {

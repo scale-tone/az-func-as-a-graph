@@ -9,29 +9,29 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DotNetBindingsParser = exports.TraversalRegexes = exports.getCodeInBrackets = exports.isDotNetProjectAsync = exports.posToLineNr = exports.CloneFromGitHub = void 0;
+exports.DotNetBindingsParser = exports.TraversalRegexes = exports.getCodeInBrackets = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = void 0;
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
 const child_process_1 = require("child_process");
-// Does a git clone into a temp folder and returns info about the repo
-function CloneFromGitHub(url) {
+// Does a git clone into a temp folder and returns info about that cloned code
+function cloneFromGitHub(url) {
     return __awaiter(this, void 0, void 0, function* () {
-        var orgUrl = '', repoName = '', branchName = '', relativePath = '', gitTempFolder = '';
+        var repoName = '', branchName = '', relativePath = '', gitTempFolder = '';
         var restOfUrl = [];
         const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(url);
         if (!match || match.length < 5) {
             url += '.git';
         }
         else {
-            orgUrl = match[1];
+            const orgUrl = match[1];
             repoName = match[2];
             if (repoName.toLowerCase().endsWith('.git')) {
                 repoName = repoName.substr(0, repoName.length - 4);
             }
             url = `${orgUrl}/${repoName}.git`;
             if (!!match[4]) {
-                restOfUrl.push(...match[4].split('/'));
+                restOfUrl = match[4].split('/').filter(s => !!s);
             }
         }
         gitTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
@@ -52,13 +52,11 @@ function CloneFromGitHub(url) {
         if (!branchName) {
             // Just doing a normal git clone
             child_process_1.execSync(`git clone ${url}`, { cwd: gitTempFolder });
-            // And getting the current branch name (it might be different from default)
-            branchName = child_process_1.execSync('git rev-parse --abbrev-ref HEAD', { env: { GIT_DIR: path.join(gitTempFolder, repoName, '.git') } }).toString();
         }
-        return { orgUrl, repoName, branchName, relativePath, gitTempFolder };
+        return { gitTempFolder, projectFolder: path.join(gitTempFolder, repoName, relativePath) };
     });
 }
-exports.CloneFromGitHub = CloneFromGitHub;
+exports.cloneFromGitHub = cloneFromGitHub;
 // Primitive way of getting a line number out of symbol position
 function posToLineNr(code, pos) {
     const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);

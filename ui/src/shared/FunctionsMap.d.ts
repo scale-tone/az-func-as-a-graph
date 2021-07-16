@@ -27,17 +27,8 @@ export type ProxiesMap = {
     }
 };
 
-export type GitHubInfo = {
-    orgUrl: string;
-    repoName: string;
-    branchName: string;
-    relativePath: string;
-    gitTempFolder: string;
-};
-
 export type TraverseFunctionResult = {
     functions: FunctionsMap;
     proxies: ProxiesMap;
     tempFolders: string[];
-    gitHubInfo: GitHubInfo;
 };

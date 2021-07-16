@@ -161,6 +161,7 @@ export function buildFunctionDiagramCode(functionsMap: FunctionsMap, proxiesMap:
 
         for (const name in proxiesMap) {
             const proxy = proxiesMap[name];
+            const proxyPurifiedName = name.replace(/ /g, '');
 
             notAddedToCsProjFile = proxy.warningNotAddedToCsProjFile;
 
@@ -179,7 +180,7 @@ export function buildFunctionDiagramCode(functionsMap: FunctionsMap, proxiesMap:
                 nodeTitle = name;
             }
 
-            var nodeName = `proxy.${name}`;
+            var nodeName = `proxy.${proxyPurifiedName}`;
 
             code += `proxies.json -. "${name}" .-> ${nodeName}(["${space}${nodeTitle}"]):::proxy\n`;
             code += `style ${nodeName} fill:${proxyNodesColor}\n`;
@@ -188,7 +189,7 @@ export function buildFunctionDiagramCode(functionsMap: FunctionsMap, proxiesMap:
 
                 nodeTitle = proxy.backendUri.replace(/'response./g, `'`);
 
-                const nextNodeName = `proxy.${name}.backendUri`;
+                const nextNodeName = `proxy.${proxyPurifiedName}.backendUri`;
 
                 code += `${nodeName} ${getRequestOverridesArrowCode(proxy.requestOverrides)} ${nextNodeName}["${space}${nodeTitle}"]:::http\n`;
                 code += `style ${nextNodeName} fill:${proxyNodesColor}\n`;
@@ -196,7 +197,7 @@ export function buildFunctionDiagramCode(functionsMap: FunctionsMap, proxiesMap:
                 nodeName = nextNodeName;
             }
 
-            const nextNodeName = `proxy.${name}.response`;
+            const nextNodeName = `proxy.${proxyPurifiedName}.response`;
 
             code += `${nodeName} ${getResponseOverridesArrowCode(proxy.responseOverrides)} ${nextNodeName}(["${space}."]):::http\n`;
             code += `style ${nextNodeName} fill:${proxyNodesColor}\n`;

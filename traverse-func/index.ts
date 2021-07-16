@@ -2,6 +2,7 @@ import { Context, HttpRequest } from "@azure/functions"
 import * as rimraf from 'rimraf';
 
 import { traverseFunctionProject } from './traverseFunctionProject';
+import { cloneFromGitHub } from './traverseFunctionProjectUtils';
 
 // Main function
 export default async function (context: Context, req: HttpRequest): Promise<void> {
@@ -9,8 +10,18 @@ export default async function (context: Context, req: HttpRequest): Promise<void
     var tempFolders = [];
     try {
 
-        const result = await traverseFunctionProject(req.body as string, context.log);
-        tempFolders = result.tempFolders;
+        var projectFolder = req.body as string;
+
+        // If it is a git repo, cloning it
+        if (projectFolder.toLowerCase().startsWith('http')) {
+
+            const gitInfo = await cloneFromGitHub(projectFolder);
+            tempFolders.push(gitInfo.gitTempFolder);
+            projectFolder = gitInfo.projectFolder;
+        }
+
+        const result = await traverseFunctionProject(projectFolder, context.log);
+        tempFolders.push(...result.tempFolders);
         context.res = { body: { functions: result.functions, proxies: result.proxies } };
         
     } catch (err) {

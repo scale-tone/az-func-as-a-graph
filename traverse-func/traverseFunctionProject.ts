@@ -3,10 +3,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 
-import { FunctionsMap, ProxiesMap, TraverseFunctionResult, GitHubInfo } from '../ui/src/shared/FunctionsMap';
+import { FunctionsMap, ProxiesMap, TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
 import {
     getCodeInBrackets, TraversalRegexes, DotNetBindingsParser,
-    isDotNetProjectAsync, posToLineNr, CloneFromGitHub
+    isDotNetProjectAsync, posToLineNr
 } from './traverseFunctionProjectUtils';
 
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
@@ -17,21 +17,7 @@ const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.pyth
 export async function traverseFunctionProject(projectFolder: string, log: (s: any) => void)
     : Promise<TraverseFunctionResult> {
 
-    var functions: FunctionsMap = {}, tempFolders = [], gitHubInfo: GitHubInfo;
-
-    // If it is a git repo, cloning it
-    if (projectFolder.toLowerCase().startsWith('http')) {
-
-        log(`>>> Cloning ${projectFolder}`);
-
-        gitHubInfo = await CloneFromGitHub(projectFolder);
-
-        log(`>>> Successfully cloned to ${gitHubInfo.gitTempFolder}`);
-
-        tempFolders.push(gitHubInfo.gitTempFolder);
-
-        projectFolder = path.join(gitHubInfo.gitTempFolder, gitHubInfo.repoName, gitHubInfo.relativePath);
-    }
+    var functions: FunctionsMap = {}, tempFolders = [];
 
     const hostJsonMatch = await findFileRecursivelyAsync(projectFolder, 'host.json', false);
     if (!hostJsonMatch) {
@@ -83,7 +69,7 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
     // Also reading proxies
     const proxies = await readProxiesJson(projectFolder, log);
 
-    return { functions, proxies, tempFolders, gitHubInfo };
+    return { functions, proxies, tempFolders };
 }
 
 // Tries to read proxies.json file from project folder

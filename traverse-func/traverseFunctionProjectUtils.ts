@@ -3,12 +3,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 
-import { GitHubInfo } from '../ui/src/shared/FunctionsMap';
+// Does a git clone into a temp folder and returns info about that cloned code
+export async function cloneFromGitHub(url: string): Promise<{gitTempFolder: string, projectFolder: string}> {
 
-// Does a git clone into a temp folder and returns info about the repo
-export async function CloneFromGitHub(url: string): Promise<GitHubInfo> {
-
-    var orgUrl = '', repoName = '', branchName = '', relativePath = '', gitTempFolder = '';
+    var repoName = '', branchName = '', relativePath = '', gitTempFolder = '';
 
     var restOfUrl = [];
     const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(url);
@@ -19,7 +17,7 @@ export async function CloneFromGitHub(url: string): Promise<GitHubInfo> {
 
     } else {
 
-        orgUrl = match[1];
+        const orgUrl = match[1];
 
         repoName = match[2];
         if (repoName.toLowerCase().endsWith('.git')) {
@@ -29,7 +27,7 @@ export async function CloneFromGitHub(url: string): Promise<GitHubInfo> {
         url = `${orgUrl}/${repoName}.git`;
 
         if (!!match[4]) {
-            restOfUrl.push(...match[4].split('/'));
+            restOfUrl = match[4].split('/').filter(s => !!s);
         }
     }
 
@@ -57,12 +55,9 @@ export async function CloneFromGitHub(url: string): Promise<GitHubInfo> {
 
         // Just doing a normal git clone
         execSync(`git clone ${url}`, { cwd: gitTempFolder });
-
-        // And getting the current branch name (it might be different from default)
-        branchName = execSync('git rev-parse --abbrev-ref HEAD', { env: { GIT_DIR: path.join(gitTempFolder, repoName, '.git') } }).toString();
     }
 
-    return { orgUrl, repoName, branchName, relativePath, gitTempFolder };
+    return { gitTempFolder, projectFolder: path.join(gitTempFolder, repoName, relativePath) };
 }
 
 // Primitive way of getting a line number out of symbol position
