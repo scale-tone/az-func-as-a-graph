@@ -18,6 +18,7 @@ const crypto = require("crypto");
 const traverseFunctionProject_1 = require("./traverse-func/traverseFunctionProject");
 const traverseFunctionProjectUtils_1 = require("./traverse-func/traverseFunctionProjectUtils");
 const buildFunctionDiagramCode_1 = require("./ui/src/buildFunctionDiagramCode");
+// executes mermaid CLI from command line
 function runMermaidCli(inputFile, outputFile) {
     // Explicitly installing mermaid-cli. Don't want to add it to package.json, because it is quite heavy.
     const mermaidCliPath = path.join('.', 'node_modules', '@mermaid-js', 'mermaid-cli', 'index.bundle.js');
@@ -36,6 +37,7 @@ function runMermaidCli(inputFile, outputFile) {
         });
     });
 }
+// injects icons SVG into the resulting SVG
 function applyIcons(svg) {
     return __awaiter(this, void 0, void 0, function* () {
         const iconsSvg = yield fs.promises.readFile(path.join('.', 'ui', 'build', 'static', 'icons', 'all-azure-icons.svg'), { encoding: 'utf8' });
@@ -46,36 +48,7 @@ function applyIcons(svg) {
         return svg;
     });
 }
-// Tries to convert local file names to their GitHub URL equivalents
-/*
-function convertLocalPathsToGitHub(map: FunctionsOrProxiesMap, gitHubInfo: GitHubInfo): FunctionsOrProxiesMap {
-
-    if (!gitHubInfo || !gitHubInfo.orgUrl || !gitHubInfo.repoName || !gitHubInfo.branchName) {
-        return map;
-    }
-
-    for (const funcName in map) {
-        
-        const func = map[funcName];
-
-        if (!func.filePath) {
-            continue;
-        }
-
-        const repoNameWithSeparators = path.sep + gitHubInfo.repoName + path.sep;
-
-        const pos = func.filePath.indexOf(repoNameWithSeparators);
-        if (pos < 0) {
-            continue;
-        }
-
-        const relativePath = func.filePath.substr(pos + repoNameWithSeparators.length).split(path.sep);
-        func.filePath = `${gitHubInfo.orgUrl}/${gitHubInfo.repoName}/blob/${gitHubInfo.branchName}/${relativePath.join('/')}#L${func.lineNr}`;
-    }
-
-    return map;
-}
-*/
+// Tries to get remote origin info from git
 function getGitRepoInfo(projectFolder) {
     // looking for .git folder
     var localGitFolder = projectFolder;
@@ -98,6 +71,8 @@ function getGitRepoInfo(projectFolder) {
     catch (_a) {
         return null;
     }
+    // This tool should never expose any credentials
+    originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
     if (originUrl.endsWith('.git')) {
         originUrl = originUrl.substr(0, originUrl.length - 4);
     }
@@ -108,14 +83,14 @@ function getGitRepoInfo(projectFolder) {
     }
     const repoName = originUrl.substr(p + 1);
     // trying to get branch name (which might be different from default)
-    var branchOrTagName = '';
+    var branchName = '', tagName = '';
     try {
-        branchOrTagName = cp.execSync('git rev-parse --abbrev-ref HEAD', execSyncParams)
+        branchName = cp.execSync('git rev-parse --abbrev-ref HEAD', execSyncParams)
             .toString()
             .replace(/\n+$/, ''); // trims end-of-line, if any
-        if (branchOrTagName === 'HEAD') { // this indicates that we're on a tag
+        if (branchName === 'HEAD') { // this indicates that we're on a tag
             // trying to get that tag name
-            branchOrTagName = cp.execSync('git describe --tags', execSyncParams)
+            tagName = cp.execSync('git describe --tags', execSyncParams)
                 .toString()
                 .replace(/\n+$/, ''); // trims end-of-line, if any
         }
@@ -124,12 +99,16 @@ function getGitRepoInfo(projectFolder) {
         console.warn(`Unable to detect branch/tag name. ${err}`);
     }
     // defaulting to master
-    if (!branchOrTagName) {
-        branchOrTagName = 'master';
+    if (!branchName) {
+        branchName = 'master';
     }
-    return { originUrl, repoName, branchOrTagName };
+    console.log(`Using remote origin: ${originUrl}, repo name: ${repoName}, branch: ${branchName}, tag: ${tagName}`);
+    return { originUrl, repoName, branchName, tagName };
 }
+// tries to point source links to the remote repo
 function convertLocalPathsToRemote(map, repoInfo) {
+    const isGitHub = repoInfo.originUrl.match(/^https:\/\/[^\/]*github.com\//i);
+    const isAzDevOps = repoInfo.originUrl.match(/^https:\/\/[^\/]*dev.azure.com\//i);
     for (const funcName in map) {
         const func = map[funcName];
         if (!func.filePath) {
@@ -141,7 +120,12 @@ function convertLocalPathsToRemote(map, repoInfo) {
             continue;
         }
         const relativePath = func.filePath.substr(pos + repoNameWithSeparators.length).split(path.sep);
-        func.filePath = `${repoInfo.originUrl}/blob/${repoInfo.branchOrTagName}/${relativePath.join('/')}#L${func.lineNr}`;
+        if (!!isGitHub) {
+            func.filePath = `${repoInfo.originUrl}/blob/${!repoInfo.tagName ? repoInfo.branchName : repoInfo.tagName}/${relativePath.join('/')}#L${func.lineNr}`;
+        }
+        else if (!!isAzDevOps) {
+            func.filePath = `${repoInfo.originUrl}?path=${encodeURIComponent('/' + relativePath.join('/'))}&version=${!repoInfo.tagName ? 'GB' + repoInfo.branchName : 'GT' + repoInfo.tagName}&line=${func.lineNr}&lineEnd=${func.lineNr + 1}&lineStartColumn=1`;
+        }
     }
     return map;
 }

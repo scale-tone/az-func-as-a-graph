@@ -13,7 +13,8 @@ export async function cloneFromGitHub(url: string): Promise<{gitTempFolder: stri
 
     if (!match || match.length < 5) {
 
-        url += '.git';
+        // expecting repo name to be the last segment of remote origin URL
+        repoName = url.substr(url.lastIndexOf('/') + 1);
 
     } else {
 

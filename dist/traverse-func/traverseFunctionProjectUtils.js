@@ -21,7 +21,8 @@ function cloneFromGitHub(url) {
         var restOfUrl = [];
         const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(url);
         if (!match || match.length < 5) {
-            url += '.git';
+            // expecting repo name to be the last segment of remote origin URL
+            repoName = url.substr(url.lastIndexOf('/') + 1);
         }
         else {
             const orgUrl = match[1];

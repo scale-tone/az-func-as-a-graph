@@ -52,7 +52,8 @@ async function applyIcons(svg: string): Promise<string> {
 type GitRepositoryInfo = {
     originUrl: string;
     repoName: string;
-    branchOrTagName: string;
+    branchName: string;
+    tagName: string;
 }
 // Tries to get remote origin info from git
 function getGitRepoInfo(projectFolder: string): GitRepositoryInfo {
@@ -85,6 +86,9 @@ function getGitRepoInfo(projectFolder: string): GitRepositoryInfo {
         return null;
     }
 
+    // This tool should never expose any credentials
+    originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
+
     if (originUrl.endsWith('.git')) {
         originUrl = originUrl.substr(0, originUrl.length - 4);
     }
@@ -97,17 +101,17 @@ function getGitRepoInfo(projectFolder: string): GitRepositoryInfo {
     const repoName = originUrl.substr(p + 1);
 
     // trying to get branch name (which might be different from default)
-    var branchOrTagName = '';
+    var branchName = '', tagName = '';
     try {
         
-        branchOrTagName = cp.execSync('git rev-parse --abbrev-ref HEAD', execSyncParams)
+        branchName = cp.execSync('git rev-parse --abbrev-ref HEAD', execSyncParams)
             .toString()
             .replace(/\n+$/, '') // trims end-of-line, if any
         
-        if (branchOrTagName === 'HEAD') { // this indicates that we're on a tag
+        if (branchName === 'HEAD') { // this indicates that we're on a tag
 
             // trying to get that tag name
-            branchOrTagName = cp.execSync('git describe --tags', execSyncParams)
+            tagName = cp.execSync('git describe --tags', execSyncParams)
                 .toString()
                 .replace(/\n+$/, '') // trims end-of-line, if any
         }
@@ -118,16 +122,21 @@ function getGitRepoInfo(projectFolder: string): GitRepositoryInfo {
     }
 
     // defaulting to master
-    if (!branchOrTagName) {
-        branchOrTagName = 'master';
+    if (!branchName) {
+        branchName = 'master';
     }
 
-    return { originUrl, repoName, branchOrTagName };
+    console.log(`Using remote origin: ${originUrl}, repo name: ${repoName}, branch: ${branchName}, tag: ${tagName}`);
+
+    return { originUrl, repoName, branchName, tagName };
 }
 
 type FunctionsOrProxiesMap = { [name: string]: { filePath?: string, lineNr?: number } };
 // tries to point source links to the remote repo
 function convertLocalPathsToRemote(map: FunctionsOrProxiesMap, repoInfo: GitRepositoryInfo): FunctionsOrProxiesMap {
+
+    const isGitHub = repoInfo.originUrl.match(/^https:\/\/[^\/]*github.com\//i);
+    const isAzDevOps = repoInfo.originUrl.match(/^https:\/\/[^\/]*dev.azure.com\//i);
 
     for (const funcName in map) {
         
@@ -145,7 +154,16 @@ function convertLocalPathsToRemote(map: FunctionsOrProxiesMap, repoInfo: GitRepo
         }
 
         const relativePath = func.filePath.substr(pos + repoNameWithSeparators.length).split(path.sep);
-        func.filePath = `${repoInfo.originUrl}/blob/${repoInfo.branchOrTagName}/${relativePath.join('/')}#L${func.lineNr}`;
+
+        if (!!isGitHub) {
+
+            func.filePath = `${repoInfo.originUrl}/blob/${!repoInfo.tagName ? repoInfo.branchName : repoInfo.tagName}/${relativePath.join('/')}#L${func.lineNr}`;
+
+        } else if (!!isAzDevOps) {
+
+            func.filePath = `${repoInfo.originUrl}?path=${encodeURIComponent('/' + relativePath.join('/'))}&version=${!repoInfo.tagName ? 'GB' + repoInfo.branchName : 'GT' + repoInfo.tagName}&line=${func.lineNr}&lineEnd=${func.lineNr + 1}&lineStartColumn=1`;
+            
+        }
     }
 
     return map;
