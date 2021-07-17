@@ -20,6 +20,10 @@ func start
 
 Then navigate to `http://localhost:7071` with your browser, specify either local path or link to a github repo and press 'Visualize'.
 
+## How to run as part of Azure DevOps build pipeline
+
+Install [this extension](https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.az-func-as-a-graph-do-extension) and then add `az-func-as-a-graph` task into your pipeline.
+
 ## How to run from command line
 
 This mode allows to programmatically generate diagrams out of your source code, e.g. as part of your build pipeline.
