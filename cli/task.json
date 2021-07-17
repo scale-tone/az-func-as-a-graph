@@ -1,0 +1,87 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Microsoft/azure-pipelines-task-lib/master/tasks.schema.json",
+    "id": "2D094AB1-ABAF-466C-B940-277FD2620647",
+    "name": "az-func-as-a-graph",
+    "friendlyName": "az-func-as-a-graph",
+    "description": "Generates interactive code diagrams for your Azure Functions",
+    "helpMarkDown": "",
+    "category": "Utility",
+    "author": "DurableFunctionsMonitor",
+    "version": {
+        "Major": 1,
+        "Minor": 0,
+        "Patch": 0
+    },
+    "instanceNameFormat": "az-func-as-a-graph",
+    "inputs": [
+        {
+            "name": "projectFolder",
+            "type": "string",
+            "label": "Project Folder",
+            "defaultValue": "$(System.DefaultWorkingDirectory)",
+            "required": true,
+            "helpMarkDown": "Folder where your host.json file resides. If omitted, defaults to repo's root folder. If your Functions project is not in the root folder, specify the exact path to it here."
+        },
+        {
+            "name": "outputFile",
+            "type": "string",
+            "label": "Output File",
+            "defaultValue": "$(Build.ArtifactStagingDirectory)/$(Build.Repository.Name).diagram.htm",
+            "required": true,
+            "helpMarkDown": "Path to output file. Extension can be either .SVG or .HTM. If it is .HTM, an interactive HTML page is generated - nodes are clickable and lead to source code."
+        },
+        {
+            "name": "repoUri",
+            "type": "string",
+            "label": "Source Repository URI",
+            "defaultValue": "$(Build.Repository.Uri)",
+            "required": true,
+            "helpMarkDown": "Absolute URI of your source code repo (aka remote origin). Used for rendering links to source code. If the default value doesn't work, try explicitly specifying it."
+        },
+        {
+            "name": "repoName",
+            "type": "string",
+            "label": "Source Repository Name",
+            "defaultValue": "$(Build.Repository.Name)",
+            "required": true,
+            "helpMarkDown": "Source code repo name. Used for rendering links to source code. If the default value doesn't work, try explicitly specifying it."
+        },
+        {
+            "name": "branchName",
+            "type": "string",
+            "label": "Branch Name",
+            "defaultValue": "$(Build.SourceBranchName)",
+            "required": true,
+            "helpMarkDown": "Branch name. Used for rendering links to source code. If the default value doesn't work, try explicitly specifying it."
+        },
+        {
+            "name": "htmlTemplateFile",
+            "type": "string",
+            "label": "Custom HTML Template",
+            "defaultValue": "",
+            "required": false,
+            "helpMarkDown": "Full path to a custom HTML template (will only be used, if output file has .HTM extension). If omitted, the default built-in template will be used."
+        },
+        {
+            "name": "doNotRenderFunctions",
+            "type": "boolean",
+            "label": "Hide Functions from the Graph",
+            "defaultValue": false,
+            "required": false,
+            "helpMarkDown": "When set to true, Functions will not be shown on the resulting diagram"
+        },
+        {
+            "name": "doNotRenderProxies",
+            "type": "boolean",
+            "label": "Hide Proxies from the Graph",
+            "defaultValue": false,
+            "required": false,
+            "helpMarkDown": "When set to true, Azure Functions Proxies will not be shown on the resulting diagram"
+        }
+    ],
+    "execution": {
+        "Node10": {
+            "target": "dist/cli/index.js"
+        }
+    }
+}

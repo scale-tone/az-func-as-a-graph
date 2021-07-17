@@ -3,10 +3,10 @@
     "configurations": [
     {
         "name": "Launch Program",
-        "program": "${workspaceFolder}/dist/az-func-as-a-graph.js",
+        "program": "${workspaceFolder}/az-func-as-a-graph.js",
         "args": [
-            "https://github.com/scale-tone/WhatIfDemo/tree/20190516.1/WhatIfDemo-Functions", 
-            "c:\\temp\\graph.htm"],
+            "https://github.com/scale-tone/WhatIfDemo/tree/master/WhatIfDemo-Functions", 
+            "c:\\temp\\graph.htm", "c:\\temp\\graph-settings.json"],
         "request": "launch",
         "skipFiles": [
             "<node_internals>/**"

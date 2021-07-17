@@ -32,4 +32,8 @@ for (const iconFileName of fs.readdirSync(iconFolder)) {
     iconsSvg += iconSvg + '\n';
 }
 
-fs.writeFileSync(path.join(iconFolder, 'all-azure-icons.svg'), `<defs>${iconsSvg}</defs>`);
+const iconsFilePath = path.join(iconFolder, 'all-azure-icons.svg');
+fs.writeFileSync(iconsFilePath, `<defs>${iconsSvg}</defs>`);
+
+// Also copying to cli dist folder
+fs.copyFileSync(iconsFilePath, path.join('..', 'cli', 'dist', 'all-azure-icons.svg'))

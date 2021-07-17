@@ -10,8 +10,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const rimraf = require("rimraf");
-const traverseFunctionProject_1 = require("./traverseFunctionProject");
-const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
+const traverseFunctionProject_1 = require("../cli/traverseFunctionProject");
+const traverseFunctionProjectUtils_1 = require("../cli/traverseFunctionProjectUtils");
 // Main function
 function default_1(context, req) {
     return __awaiter(this, void 0, void 0, function* () {

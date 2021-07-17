@@ -1,0 +1,41 @@
+{
+    "manifestVersion": 1,
+    "id": "az-func-as-a-graph-do-extension",
+    "name": "az-func-as-a-graph",
+    "version": "1.0.0",
+    "publisher": "DurableFunctionsMonitor",
+    "public": true,
+    "targets": [
+        {
+            "id": "Microsoft.VisualStudio.Services"
+        }
+    ],    
+    "description": "Azure DevOps extension, that generates interactive code diagrams for your Azure Functions",
+    "categories": [
+        "Azure Pipelines"
+    ],
+    "icons": {
+        "default": "logo.png"
+    },
+    "repository": {
+        "type": "git",
+        "uri": "https://github.com/scale-tone/az-func-as-a-graph"
+    },    
+    "files": [
+        {
+            "path": "cli"
+        }
+    ],
+    "contributions": [
+        {
+            "id": "custom-build-release-task",
+            "type": "ms.vss-distributed-task.task",
+            "targets": [
+                "ms.vss-distributed-task.tasks"
+            ],
+            "properties": {
+                "name": "cli"
+            }
+        }
+    ]
+}

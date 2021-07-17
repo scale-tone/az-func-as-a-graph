@@ -1,8 +1,8 @@
 import { Context, HttpRequest } from "@azure/functions"
 import * as rimraf from 'rimraf';
 
-import { traverseFunctionProject } from './traverseFunctionProject';
-import { cloneFromGitHub } from './traverseFunctionProjectUtils';
+import { traverseFunctionProject } from '../cli/traverseFunctionProject';
+import { cloneFromGitHub } from '../cli/traverseFunctionProjectUtils';
 
 // Main function
 export default async function (context: Context, req: HttpRequest): Promise<void> {

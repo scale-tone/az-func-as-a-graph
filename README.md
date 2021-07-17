@@ -27,7 +27,7 @@ This mode allows to programmatically generate diagrams out of your source code, 
 Clone this repo, then type the following from the project root folder:
 ```
 npm install
-node dist/az-func-as-a-graph {path-to-my-functions-project-folder} {output-file-name} {json-file-with-settings}
+node az-func-as-a-graph {path-to-my-functions-project-folder} {output-file-name} {json-file-with-settings}
 ```
 
 This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) NPM package (which will be locally installed by [az-func-as-a-graph](https://github.com/scale-tone/az-func-as-a-graph/blob/main/az-func-as-a-graph.ts) script at its first run).
@@ -49,7 +49,7 @@ This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/m
 }
 ```
 
-   `htmlTemplateFile` specifies a custom HTML template to be used, when generating HTML pages. If omitted, [this default one](https://github.com/scale-tone/az-func-as-a-graph/blob/main/graph-template.htm) will be used.
+   `htmlTemplateFile` specifies a custom HTML template to be used, when generating HTML pages. If omitted, [this default one](https://github.com/scale-tone/az-func-as-a-graph/blob/main/cli/graph-template.htm) will be used.
     
    `doNotRenderFunctions` hides functions from the graph.
     

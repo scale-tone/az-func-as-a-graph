@@ -1,0 +1,20 @@
+{
+  "name": "az-func-as-a-graph-az-do-build-task",
+  "version": "1.0.0",
+  "description": "Azure DevOps build/release task to generate interactive code diagrams for your Azure Functions",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "DurableFunctionsMonitor",
+  "license": "MIT",
+  "dependencies": {
+    "azure-pipelines-task-lib": "^3.1.4",
+    "rimraf": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^16.3.2",
+    "@types/q": "^1.5.5",
+    "typescript": "^4.0.2"
+  }
+}
