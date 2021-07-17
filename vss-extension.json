@@ -37,5 +37,11 @@
                 "name": "cli"
             }
         }
-    ]
+    ],
+
+    "content": {
+        "details": {
+            "path": "overview.md"
+        }
+    } 
 }
