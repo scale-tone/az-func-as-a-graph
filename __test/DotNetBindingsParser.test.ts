@@ -1,5 +1,5 @@
 
-import { DotNetBindingsParser } from '../traverse-func/traverseFunctionProjectUtils';
+import { DotNetBindingsParser } from '../cli/traverseFunctionProjectUtils';
 
 test('bindingAttributeRegex', () => {
 

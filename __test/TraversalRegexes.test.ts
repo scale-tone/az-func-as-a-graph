@@ -1,5 +1,5 @@
 
-import { TraversalRegexes } from '../traverse-func/traverseFunctionProjectUtils';
+import { TraversalRegexes } from '../cli/traverseFunctionProjectUtils';
 
 test('getStartNewOrchestrationRegex', () => {
 
