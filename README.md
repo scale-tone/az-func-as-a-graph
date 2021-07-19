@@ -1,7 +1,7 @@
 ![logo](https://raw.githubusercontent.com/scale-tone/az-func-as-a-graph/master/screenshot1.png)
 # az-func-as-a-graph
 
-Visualizes your Azure Functions project in form of a graph. Accepts links to GitHub repos or local paths (in which case you'll need to run the tool on your devbox).
+Visualizes your Azure Functions project in form of a graph. Accepts links to git repos (GitHub, Azure DevOps) or local paths.
 
 UPD: is now also a part of [Durable Functions Monitor VsCode extension](https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.durablefunctionsmonitor).
 **Command Palette -> Visualize Functions as a Graph...**
