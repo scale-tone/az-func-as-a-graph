@@ -22,7 +22,7 @@ Then navigate to `http://localhost:7071` with your browser, specify either local
 
 ## How to run as part of Azure DevOps build pipeline
 
-Install [this extension](https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.az-func-as-a-graph-do-extension) and then add `az-func-as-a-graph` task into your pipeline:
+Install [this Azure DevOps extension](https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.az-func-as-a-graph-do-extension) into your org and then add `az-func-as-a-graph` task into your pipeline:
 
 <img src="https://user-images.githubusercontent.com/5447190/126083277-89e4e9d2-6b13-4d2c-af4c-e2a0a12932c0.png" width="500px"/>
 
