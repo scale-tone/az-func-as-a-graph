@@ -14,7 +14,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -69,7 +69,7 @@ var buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
 function renderDiagramWithCli(projectFolder, outputFile, settings) {
     if (settings === void 0) { settings = {}; }
     return __awaiter(this, void 0, void 0, function () {
-        var outputFolder, htmlTemplateFile, tempFilesAndFolders, gitInfo, traverseResult, diagramCode, tempInputFile, outputFileExt, isHtmlOutput, tempOutputFile, html, svg, repoInfo, functionsMap, proxiesMap, svg, _i, tempFilesAndFolders_1, tempFolder;
+        var outputFolder, tempFilesAndFolders, gitInfo, traverseResult, repoInfo, outputFileExt, diagramCode, tempInputFile, isHtmlOutput, tempOutputFile, _i, tempFilesAndFolders_1, tempFolder;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -85,11 +85,10 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                         console.log("Creating output folder " + outputFolder);
                         fs.promises.mkdir(outputFolder, { recursive: true });
                     }
-                    htmlTemplateFile = !!settings.htmlTemplateFile ? settings.htmlTemplateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
                     tempFilesAndFolders = [];
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, , 19, 20]);
+                    _a.trys.push([1, , 16, 17]);
                     if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 3];
                     console.log("Cloning " + projectFolder);
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder)];
@@ -102,80 +101,122 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                 case 3: return [4 /*yield*/, traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log)];
                 case 4:
                     traverseResult = _a.sent();
+                    repoInfo = !!settings.repoInfo ? settings.repoInfo : getGitRepoInfo(projectFolder);
+                    if (!!repoInfo) {
+                        // This tool should never expose any credentials
+                        repoInfo.originUrl = repoInfo.originUrl.replace(/:\/\/[^\/]*@/i, '://');
+                        console.log("Using repo URI: " + repoInfo.originUrl + ", repo name: " + repoInfo.repoName + ", branch: " + repoInfo.branchName + ", tag: " + repoInfo.tagName);
+                        // changing local paths to remote repo URLs
+                        convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
+                        convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
+                    }
+                    outputFileExt = path.extname(outputFile).toLowerCase();
+                    if (!(outputFileExt === '.json')) return [3 /*break*/, 6];
+                    // just saving the Function Graph as JSON and quitting
+                    return [4 /*yield*/, fs.promises.writeFile(outputFile, JSON.stringify(traverseResult, null, 4))];
+                case 5:
+                    // just saving the Function Graph as JSON and quitting
+                    _a.sent();
+                    console.log("Functions Map saved to " + outputFile);
+                    return [2 /*return*/];
+                case 6:
                     tempFilesAndFolders.push.apply(tempFilesAndFolders, traverseResult.tempFolders);
                     return [4 /*yield*/, buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings)];
-                case 5:
+                case 7:
                     diagramCode = _a.sent();
                     diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');
                     console.log('Diagram code:');
                     console.log(diagramCode);
                     tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
                     return [4 /*yield*/, fs.promises.writeFile(tempInputFile, diagramCode)];
-                case 6:
+                case 8:
                     _a.sent();
                     tempFilesAndFolders.push(tempInputFile);
-                    outputFileExt = path.extname(outputFile).toLowerCase();
                     isHtmlOutput = ['.htm', '.html'].includes(outputFileExt);
                     tempOutputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + (isHtmlOutput ? '.svg' : outputFileExt));
                     tempFilesAndFolders.push(tempOutputFile);
                     return [4 /*yield*/, runMermaidCli(tempInputFile, tempOutputFile)];
-                case 7:
-                    _a.sent();
-                    if (!isHtmlOutput) return [3 /*break*/, 12];
-                    return [4 /*yield*/, fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' })];
-                case 8:
-                    html = _a.sent();
-                    return [4 /*yield*/, fs.promises.readFile(tempOutputFile, { encoding: 'utf8' })];
                 case 9:
-                    svg = _a.sent();
-                    return [4 /*yield*/, applyIcons(svg)];
+                    _a.sent();
+                    if (!isHtmlOutput) return [3 /*break*/, 11];
+                    return [4 /*yield*/, saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings)];
                 case 10:
-                    svg = _a.sent();
-                    html = html.replace(/{{GRAPH_SVG}}/g, svg);
-                    repoInfo = !!settings.repoInfo ? settings.repoInfo : getGitRepoInfo(projectFolder);
-                    // This tool should never expose any credentials
-                    repoInfo.originUrl = repoInfo.originUrl.replace(/:\/\/[^\/]*@/i, '://');
-                    console.log("Using repo URI: " + repoInfo.originUrl + ", repo name: " + repoInfo.repoName + ", branch: " + repoInfo.branchName + ", tag: " + repoInfo.tagName);
-                    html = html.replace(/{{PROJECT_NAME}}/g, repoInfo.repoName);
-                    functionsMap = !repoInfo ? traverseResult.functions : convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
-                    proxiesMap = !repoInfo ? traverseResult.proxies : convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
-                    html = html.replace(/const functionsMap = {}/g, "const functionsMap = " + JSON.stringify(functionsMap));
-                    html = html.replace(/const proxiesMap = {}/g, "const proxiesMap = " + JSON.stringify(proxiesMap));
-                    return [4 /*yield*/, fs.promises.writeFile(outputFile, html)];
+                    _a.sent();
+                    return [3 /*break*/, 15];
                 case 11:
-                    _a.sent();
-                    return [3 /*break*/, 18];
+                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 13];
+                    return [4 /*yield*/, saveOutputAsSvg(outputFile, tempOutputFile)];
                 case 12:
-                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 16];
-                    return [4 /*yield*/, fs.promises.readFile(tempOutputFile, { encoding: 'utf8' })];
-                case 13:
-                    svg = _a.sent();
-                    return [4 /*yield*/, applyIcons(svg)];
+                    _a.sent();
+                    return [3 /*break*/, 15];
+                case 13: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
                 case 14:
-                    svg = _a.sent();
-                    return [4 /*yield*/, fs.promises.writeFile(outputFile, svg)];
+                    _a.sent();
+                    _a.label = 15;
                 case 15:
-                    _a.sent();
-                    return [3 /*break*/, 18];
-                case 16: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
-                case 17:
-                    _a.sent();
-                    _a.label = 18;
-                case 18:
                     console.log("Diagram was successfully generated and saved to " + outputFile);
-                    return [3 /*break*/, 20];
-                case 19:
+                    return [3 /*break*/, 17];
+                case 16:
                     for (_i = 0, tempFilesAndFolders_1 = tempFilesAndFolders; _i < tempFilesAndFolders_1.length; _i++) {
                         tempFolder = tempFilesAndFolders_1[_i];
                         rimraf.sync(tempFolder);
                     }
                     return [7 /*endfinally*/];
-                case 20: return [2 /*return*/];
+                case 17: return [2 /*return*/];
             }
         });
     });
 }
 exports.renderDiagramWithCli = renderDiagramWithCli;
+// saves resulting Function Graph as SVG
+function saveOutputAsSvg(outputFile, tempOutputFile) {
+    return __awaiter(this, void 0, void 0, function () {
+        var svg;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, fs.promises.readFile(tempOutputFile, { encoding: 'utf8' })];
+                case 1:
+                    svg = _a.sent();
+                    return [4 /*yield*/, applyIcons(svg)];
+                case 2:
+                    svg = _a.sent();
+                    return [4 /*yield*/, fs.promises.writeFile(outputFile, svg)];
+                case 3:
+                    _a.sent();
+                    return [2 /*return*/];
+            }
+        });
+    });
+}
+// saves resulting Function Graph as HTML
+function saveOutputAsHtml(projectName, outputFile, tempOutputFile, traverseResult, settings) {
+    return __awaiter(this, void 0, void 0, function () {
+        var htmlTemplateFile, html, svg;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    htmlTemplateFile = !!settings.htmlTemplateFile ? settings.htmlTemplateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
+                    return [4 /*yield*/, fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' })];
+                case 1:
+                    html = _a.sent();
+                    return [4 /*yield*/, fs.promises.readFile(tempOutputFile, { encoding: 'utf8' })];
+                case 2:
+                    svg = _a.sent();
+                    return [4 /*yield*/, applyIcons(svg)];
+                case 3:
+                    svg = _a.sent();
+                    html = html.replace(/{{GRAPH_SVG}}/g, svg);
+                    html = html.replace(/{{PROJECT_NAME}}/g, projectName);
+                    html = html.replace(/const functionsMap = {}/g, "const functionsMap = " + JSON.stringify(traverseResult.functions));
+                    html = html.replace(/const proxiesMap = {}/g, "const proxiesMap = " + JSON.stringify(traverseResult.proxies));
+                    return [4 /*yield*/, fs.promises.writeFile(outputFile, html)];
+                case 4:
+                    _a.sent();
+                    return [2 /*return*/];
+            }
+        });
+    });
+}
 // executes mermaid CLI from command line
 function runMermaidCli(inputFile, outputFile) {
     var packageJsonPath = path.resolve(__dirname, '..', '..');
@@ -302,5 +343,4 @@ function convertLocalPathsToRemote(map, sourcesRootFolder, repoInfo) {
             func.filePath = repoInfo.originUrl + "?path=" + encodeURIComponent('/' + relativePath.join('/')) + "&version=" + (!repoInfo.tagName ? 'GB' + repoInfo.branchName : 'GT' + repoInfo.tagName) + "&line=" + func.lineNr + "&lineEnd=" + (func.lineNr + 1) + "&lineStartColumn=1";
         }
     }
-    return map;
 }

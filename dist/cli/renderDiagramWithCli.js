@@ -34,7 +34,6 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
             console.log(`Creating output folder ${outputFolder}`);
             fs.promises.mkdir(outputFolder, { recursive: true });
         }
-        const htmlTemplateFile = !!settings.htmlTemplateFile ? settings.htmlTemplateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
         var tempFilesAndFolders = [];
         try {
             // If it is a git repo, cloning it
@@ -46,6 +45,23 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
                 projectFolder = gitInfo.projectFolder;
             }
             const traverseResult = yield traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log);
+            // Trying to convert local source file paths into links to remote repo
+            const repoInfo = !!settings.repoInfo ? settings.repoInfo : getGitRepoInfo(projectFolder);
+            if (!!repoInfo) {
+                // This tool should never expose any credentials
+                repoInfo.originUrl = repoInfo.originUrl.replace(/:\/\/[^\/]*@/i, '://');
+                console.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
+                // changing local paths to remote repo URLs
+                convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
+                convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
+            }
+            const outputFileExt = path.extname(outputFile).toLowerCase();
+            if (outputFileExt === '.json') {
+                // just saving the Function Graph as JSON and quitting
+                yield fs.promises.writeFile(outputFile, JSON.stringify(traverseResult, null, 4));
+                console.log(`Functions Map saved to ${outputFile}`);
+                return;
+            }
             tempFilesAndFolders.push(...traverseResult.tempFolders);
             var diagramCode = yield buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings);
             diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');
@@ -54,32 +70,15 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
             const tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
             yield fs.promises.writeFile(tempInputFile, diagramCode);
             tempFilesAndFolders.push(tempInputFile);
-            const outputFileExt = path.extname(outputFile).toLowerCase();
             const isHtmlOutput = ['.htm', '.html'].includes(outputFileExt);
             const tempOutputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + (isHtmlOutput ? '.svg' : outputFileExt));
             tempFilesAndFolders.push(tempOutputFile);
             yield runMermaidCli(tempInputFile, tempOutputFile);
             if (isHtmlOutput) {
-                var html = yield fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' });
-                var svg = yield fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
-                svg = yield applyIcons(svg);
-                html = html.replace(/{{GRAPH_SVG}}/g, svg);
-                // Trying to convert local source file paths into links to remote repo
-                const repoInfo = !!settings.repoInfo ? settings.repoInfo : getGitRepoInfo(projectFolder);
-                // This tool should never expose any credentials
-                repoInfo.originUrl = repoInfo.originUrl.replace(/:\/\/[^\/]*@/i, '://');
-                console.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
-                html = html.replace(/{{PROJECT_NAME}}/g, repoInfo.repoName);
-                const functionsMap = !repoInfo ? traverseResult.functions : convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
-                const proxiesMap = !repoInfo ? traverseResult.proxies : convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
-                html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(functionsMap)}`);
-                html = html.replace(/const proxiesMap = {}/g, `const proxiesMap = ${JSON.stringify(proxiesMap)}`);
-                yield fs.promises.writeFile(outputFile, html);
+                yield saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings);
             }
             else if (outputFileExt === '.svg') {
-                var svg = yield fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
-                svg = yield applyIcons(svg);
-                yield fs.promises.writeFile(outputFile, svg);
+                yield saveOutputAsSvg(outputFile, tempOutputFile);
             }
             else {
                 yield fs.promises.copyFile(tempOutputFile, outputFile);
@@ -94,6 +93,28 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
     });
 }
 exports.renderDiagramWithCli = renderDiagramWithCli;
+// saves resulting Function Graph as SVG
+function saveOutputAsSvg(outputFile, tempOutputFile) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var svg = yield fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
+        svg = yield applyIcons(svg);
+        yield fs.promises.writeFile(outputFile, svg);
+    });
+}
+// saves resulting Function Graph as HTML
+function saveOutputAsHtml(projectName, outputFile, tempOutputFile, traverseResult, settings) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const htmlTemplateFile = !!settings.htmlTemplateFile ? settings.htmlTemplateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
+        var html = yield fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' });
+        var svg = yield fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
+        svg = yield applyIcons(svg);
+        html = html.replace(/{{GRAPH_SVG}}/g, svg);
+        html = html.replace(/{{PROJECT_NAME}}/g, projectName);
+        html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(traverseResult.functions)}`);
+        html = html.replace(/const proxiesMap = {}/g, `const proxiesMap = ${JSON.stringify(traverseResult.proxies)}`);
+        yield fs.promises.writeFile(outputFile, html);
+    });
+}
 // executes mermaid CLI from command line
 function runMermaidCli(inputFile, outputFile) {
     const packageJsonPath = path.resolve(__dirname, '..', '..');
@@ -213,6 +234,5 @@ function convertLocalPathsToRemote(map, sourcesRootFolder, repoInfo) {
             func.filePath = `${repoInfo.originUrl}?path=${encodeURIComponent('/' + relativePath.join('/'))}&version=${!repoInfo.tagName ? 'GB' + repoInfo.branchName : 'GT' + repoInfo.tagName}&line=${func.lineNr}&lineEnd=${func.lineNr + 1}&lineStartColumn=1`;
         }
     }
-    return map;
 }
 //# sourceMappingURL=renderDiagramWithCli.js.map

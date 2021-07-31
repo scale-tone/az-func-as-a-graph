@@ -9,6 +9,7 @@ import * as crypto from 'crypto';
 import { traverseFunctionProject } from './traverseFunctionProject';
 import { cloneFromGitHub } from './traverseFunctionProjectUtils';
 import { buildFunctionDiagramCode, GraphSettings } from '../ui/src/buildFunctionDiagramCode';
+import { TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
 
 export type GraphCliSettings = GraphSettings & {
     htmlTemplateFile?: string;
@@ -34,7 +35,6 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
         fs.promises.mkdir(outputFolder, { recursive: true });
     }
 
-    const htmlTemplateFile = !!settings.htmlTemplateFile ? settings.htmlTemplateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
     var tempFilesAndFolders = [];
 
     try {
@@ -54,6 +54,32 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
 
         const traverseResult = await traverseFunctionProject(projectFolder, console.log);
 
+        // Trying to convert local source file paths into links to remote repo
+        const repoInfo: GitRepositoryInfo = !!settings.repoInfo ? settings.repoInfo : getGitRepoInfo(projectFolder);
+        if (!!repoInfo) {
+            
+            // This tool should never expose any credentials
+            repoInfo.originUrl = repoInfo.originUrl.replace(/:\/\/[^\/]*@/i, '://');
+
+            console.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
+
+            // changing local paths to remote repo URLs
+            convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo) as any;
+            convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo) as any;
+        }    
+
+        const outputFileExt = path.extname(outputFile).toLowerCase();
+
+        if (outputFileExt === '.json') {
+
+            // just saving the Function Graph as JSON and quitting
+            await fs.promises.writeFile(outputFile, JSON.stringify(traverseResult, null, 4));
+
+            console.log(`Functions Map saved to ${outputFile}`);
+
+            return;
+        }
+
         tempFilesAndFolders.push(...traverseResult.tempFolders);
 
         var diagramCode = await buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings);
@@ -66,7 +92,6 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
         await fs.promises.writeFile(tempInputFile, diagramCode);
         tempFilesAndFolders.push(tempInputFile);
 
-        const outputFileExt = path.extname(outputFile).toLowerCase();
         const isHtmlOutput = ['.htm', '.html'].includes(outputFileExt);
 
         const tempOutputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + (isHtmlOutput ? '.svg' : outputFileExt));
@@ -76,35 +101,11 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
 
         if (isHtmlOutput) {
 
-            var html = await fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' });
-
-            var svg = await fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
-            svg = await applyIcons(svg);
-            html = html.replace(/{{GRAPH_SVG}}/g, svg);
-
-            // Trying to convert local source file paths into links to remote repo
-            const repoInfo: GitRepositoryInfo = !!settings.repoInfo ? settings.repoInfo : getGitRepoInfo(projectFolder);
-
-            // This tool should never expose any credentials
-            repoInfo.originUrl = repoInfo.originUrl.replace(/:\/\/[^\/]*@/i, '://');
-
-            console.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
-
-            html = html.replace(/{{PROJECT_NAME}}/g, repoInfo.repoName);
-
-            const functionsMap = !repoInfo ? traverseResult.functions : convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
-            const proxiesMap = !repoInfo ? traverseResult.proxies : convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
-
-            html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(functionsMap)}`);
-            html = html.replace(/const proxiesMap = {}/g, `const proxiesMap = ${JSON.stringify(proxiesMap)}`);
-
-            await fs.promises.writeFile(outputFile, html);
+            await saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings);
 
         } else if (outputFileExt === '.svg') {
 
-            var svg = await fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
-            svg = await applyIcons(svg);
-            await fs.promises.writeFile(outputFile, svg);
+            await saveOutputAsSvg(outputFile, tempOutputFile);
 
         } else {
 
@@ -118,6 +119,33 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
             rimraf.sync(tempFolder)
         }
     }
+}
+
+// saves resulting Function Graph as SVG
+async function saveOutputAsSvg(outputFile: string, tempOutputFile: string) {
+    
+    var svg = await fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
+    svg = await applyIcons(svg);
+    await fs.promises.writeFile(outputFile, svg);
+}
+
+// saves resulting Function Graph as HTML
+async function saveOutputAsHtml(projectName: string, outputFile: string, tempOutputFile: string, traverseResult: TraverseFunctionResult, settings: GraphCliSettings) {
+    
+    const htmlTemplateFile = !!settings.htmlTemplateFile ? settings.htmlTemplateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
+
+    var html = await fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' });
+
+    var svg = await fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
+    svg = await applyIcons(svg);
+    html = html.replace(/{{GRAPH_SVG}}/g, svg);
+
+    html = html.replace(/{{PROJECT_NAME}}/g, projectName);
+
+    html = html.replace(/const functionsMap = {}/g, `const functionsMap = ${JSON.stringify(traverseResult.functions)}`);
+    html = html.replace(/const proxiesMap = {}/g, `const proxiesMap = ${JSON.stringify(traverseResult.proxies)}`);
+
+    await fs.promises.writeFile(outputFile, html);
 }
 
 // executes mermaid CLI from command line
@@ -245,7 +273,7 @@ function getGitRepoInfo(projectFolder: string): GitRepositoryInfo {
 
 type FunctionsOrProxiesMap = { [name: string]: { filePath?: string, lineNr?: number } };
 // tries to point source links to the remote repo
-function convertLocalPathsToRemote(map: FunctionsOrProxiesMap, sourcesRootFolder: string, repoInfo: GitRepositoryInfo): FunctionsOrProxiesMap {
+function convertLocalPathsToRemote(map: FunctionsOrProxiesMap, sourcesRootFolder: string, repoInfo: GitRepositoryInfo) {
 
     const isGitHub = repoInfo.originUrl.match(/^https:\/\/[^\/]*github.com\//i);
     const isAzDevOps = repoInfo.originUrl.match(/^https:\/\/[^\/]*dev.azure.com\//i);
@@ -289,6 +317,4 @@ function convertLocalPathsToRemote(map: FunctionsOrProxiesMap, sourcesRootFolder
             
         }
     }
-
-    return map;
 }

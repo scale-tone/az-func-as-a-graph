@@ -60,6 +60,9 @@ function cloneFromGitHub(url) {
 exports.cloneFromGitHub = cloneFromGitHub;
 // Primitive way of getting a line number out of symbol position
 function posToLineNr(code, pos) {
+    if (!code) {
+        return 0;
+    }
     const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
     return !lineBreaks ? 1 : lineBreaks.length + 1;
 }

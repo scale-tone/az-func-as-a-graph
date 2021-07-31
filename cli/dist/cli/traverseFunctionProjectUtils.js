@@ -14,7 +14,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -114,6 +114,9 @@ function cloneFromGitHub(url) {
 exports.cloneFromGitHub = cloneFromGitHub;
 // Primitive way of getting a line number out of symbol position
 function posToLineNr(code, pos) {
+    if (!code) {
+        return 0;
+    }
     var lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
     return !lineBreaks ? 1 : lineBreaks.length + 1;
 }

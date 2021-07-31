@@ -182,7 +182,7 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings) {
             nodeTitle += " #9888; Not added to .CSPROJ file!";
             nodeColor = "#FF8080";
         }
-        code += "proxies.json[\"" + space + nodeTitle + "\"]:::proxy\n";
+        code += "proxies.json[\"" + space + nodeTitle + "\"]\n";
         code += "style proxies.json fill:" + nodeColor + "\n";
     }
     return code;
