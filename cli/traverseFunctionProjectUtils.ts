@@ -8,7 +8,7 @@ export async function cloneFromGitHub(url: string): Promise<{gitTempFolder: stri
 
     var repoName = '', branchName = '', relativePath = '', gitTempFolder = '';
 
-    var restOfUrl = [];
+    var restOfUrl: string[] = [];
     const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(url);
 
     if (!match || match.length < 5) {
@@ -62,7 +62,10 @@ export async function cloneFromGitHub(url: string): Promise<{gitTempFolder: stri
 }
 
 // Primitive way of getting a line number out of symbol position
-export function posToLineNr(code: string, pos: number): number {
+export function posToLineNr(code: string | undefined, pos: number): number {
+    if (!code) {
+        return 0;
+    }
     const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
     return !lineBreaks ? 1 : lineBreaks.length + 1;
 }
@@ -142,7 +145,7 @@ export class DotNetBindingsParser {
     // Extracts additional bindings info from C#/F# source code
     static tryExtractBindings(funcCode: string): {type: string, direction: string}[] {
 
-        const result = [];
+        const result: {type: string, direction: string}[] = [];
 
         if (!funcCode) {
             return result;

@@ -92,7 +92,7 @@ export default class App extends React.Component<{ state: AppState }> {
             )}
             
             {!!state.error && (<Typography className="error-typography" color="error" variant="h5" >{state.error}</Typography>)}
-
+            
             {!!state.diagramSvg && (<>
                 
                 <div className="diagram-div"
