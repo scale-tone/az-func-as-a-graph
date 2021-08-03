@@ -67,14 +67,23 @@ var ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python
 // (if the project uses Durable Functions)
 function traverseFunctionProject(projectFolder, log) {
     return __awaiter(this, void 0, void 0, function () {
-        var functions, tempFolders, hostJsonMatch, hostJsonFolder, publishTempFolder, promises, proxies;
+        var functions, tempFolders, gitInfo, hostJsonMatch, hostJsonFolder, publishTempFolder, promises, proxies;
         var _this = this;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     functions = {}, tempFolders = [];
-                    return [4 /*yield*/, findFileRecursivelyAsync(projectFolder, 'host.json', false)];
+                    if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 2];
+                    log("Cloning " + projectFolder);
+                    return [4 /*yield*/, traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder)];
                 case 1:
+                    gitInfo = _a.sent();
+                    log("Successfully cloned to " + gitInfo.gitTempFolder);
+                    tempFolders.push(gitInfo.gitTempFolder);
+                    projectFolder = gitInfo.projectFolder;
+                    _a.label = 2;
+                case 2: return [4 /*yield*/, findFileRecursivelyAsync(projectFolder, 'host.json', false)];
+                case 3:
                     hostJsonMatch = _a.sent();
                     if (!hostJsonMatch) {
                         throw new Error('host.json file not found under the provided project path');
@@ -82,18 +91,18 @@ function traverseFunctionProject(projectFolder, log) {
                     log(">>> Found host.json at " + hostJsonMatch.filePath);
                     hostJsonFolder = path.dirname(hostJsonMatch.filePath);
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(hostJsonFolder)];
-                case 2:
-                    if (!_a.sent()) return [3 /*break*/, 4];
+                case 4:
+                    if (!_a.sent()) return [3 /*break*/, 6];
                     return [4 /*yield*/, fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'))];
-                case 3:
+                case 5:
                     publishTempFolder = _a.sent();
                     tempFolders.push(publishTempFolder);
                     log(">>> Publishing " + hostJsonFolder + " to " + publishTempFolder + "...");
                     child_process_1.execSync("dotnet publish -o " + publishTempFolder, { cwd: hostJsonFolder });
                     hostJsonFolder = publishTempFolder;
-                    _a.label = 4;
-                case 4: return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
-                case 5:
+                    _a.label = 6;
+                case 6: return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
+                case 7:
                     promises = (_a.sent()).map(function (functionName) { return __awaiter(_this, void 0, void 0, function () {
                         var fullPath, functionJsonFilePath, isDirectory, functionJsonExists, functionJsonString, functionJson, err_1;
                         return __generator(this, function (_a) {
@@ -124,16 +133,16 @@ function traverseFunctionProject(projectFolder, log) {
                         });
                     }); });
                     return [4 /*yield*/, Promise.all(promises)];
-                case 6:
+                case 8:
                     _a.sent();
                     return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder)];
-                case 7:
+                case 9:
                     // Now enriching data from function.json with more info extracted from code
                     functions = _a.sent();
                     return [4 /*yield*/, readProxiesJson(projectFolder, log)];
-                case 8:
+                case 10:
                     proxies = _a.sent();
-                    return [2 /*return*/, { functions: functions, proxies: proxies, tempFolders: tempFolders }];
+                    return [2 /*return*/, { functions: functions, proxies: proxies, tempFolders: tempFolders, projectFolder: projectFolder }];
             }
         });
     });

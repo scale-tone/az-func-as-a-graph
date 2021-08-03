@@ -11,21 +11,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const rimraf = require("rimraf");
 const traverseFunctionProject_1 = require("../cli/traverseFunctionProject");
-const traverseFunctionProjectUtils_1 = require("../cli/traverseFunctionProjectUtils");
+const renderDiagramWithCli_1 = require("../cli/renderDiagramWithCli");
 // Main function
 function default_1(context, req) {
     return __awaiter(this, void 0, void 0, function* () {
         var tempFolders = [];
         try {
             var projectFolder = req.body;
-            // If it is a git repo, cloning it
-            if (projectFolder.toLowerCase().startsWith('http')) {
-                const gitInfo = yield traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder);
-                tempFolders.push(gitInfo.gitTempFolder);
-                projectFolder = gitInfo.projectFolder;
-            }
             const result = yield traverseFunctionProject_1.traverseFunctionProject(projectFolder, context.log);
+            projectFolder = result.projectFolder;
             tempFolders.push(...result.tempFolders);
+            // Trying to convert local source file paths into links to remote repo
+            const repoInfo = renderDiagramWithCli_1.getGitRepoInfo(projectFolder);
+            if (!!repoInfo) {
+                context.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
+                // changing local paths to remote repo URLs
+                renderDiagramWithCli_1.convertLocalPathsToRemote(result.functions, null, repoInfo);
+                renderDiagramWithCli_1.convertLocalPathsToRemote(result.proxies, null, repoInfo);
+            }
             context.res = { body: { functions: result.functions, proxies: result.proxies } };
         }
         catch (err) {

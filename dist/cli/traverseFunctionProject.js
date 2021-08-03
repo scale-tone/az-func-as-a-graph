@@ -22,6 +22,14 @@ const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.pyth
 function traverseFunctionProject(projectFolder, log) {
     return __awaiter(this, void 0, void 0, function* () {
         var functions = {}, tempFolders = [];
+        // If it is a git repo, cloning it
+        if (projectFolder.toLowerCase().startsWith('http')) {
+            log(`Cloning ${projectFolder}`);
+            const gitInfo = yield traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder);
+            log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
+            tempFolders.push(gitInfo.gitTempFolder);
+            projectFolder = gitInfo.projectFolder;
+        }
         const hostJsonMatch = yield findFileRecursivelyAsync(projectFolder, 'host.json', false);
         if (!hostJsonMatch) {
             throw new Error('host.json file not found under the provided project path');
@@ -58,7 +66,7 @@ function traverseFunctionProject(projectFolder, log) {
         functions = yield mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
         // Also reading proxies
         const proxies = yield readProxiesJson(projectFolder, log);
-        return { functions, proxies, tempFolders };
+        return { functions, proxies, tempFolders, projectFolder };
     });
 }
 exports.traverseFunctionProject = traverseFunctionProject;

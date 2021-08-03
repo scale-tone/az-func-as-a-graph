@@ -2,7 +2,7 @@ import { Context, HttpRequest } from "@azure/functions"
 import * as rimraf from 'rimraf';
 
 import { traverseFunctionProject } from '../cli/traverseFunctionProject';
-import { cloneFromGitHub } from '../cli/traverseFunctionProjectUtils';
+import { getGitRepoInfo, convertLocalPathsToRemote } from '../cli/renderDiagramWithCli';
 
 // Main function
 export default async function (context: Context, req: HttpRequest): Promise<void> {
@@ -12,16 +12,21 @@ export default async function (context: Context, req: HttpRequest): Promise<void
 
         var projectFolder = req.body as string;
 
-        // If it is a git repo, cloning it
-        if (projectFolder.toLowerCase().startsWith('http')) {
-
-            const gitInfo = await cloneFromGitHub(projectFolder);
-            tempFolders.push(gitInfo.gitTempFolder);
-            projectFolder = gitInfo.projectFolder;
-        }
-
         const result = await traverseFunctionProject(projectFolder, context.log);
+        projectFolder = result.projectFolder;
         tempFolders.push(...result.tempFolders);
+
+        // Trying to convert local source file paths into links to remote repo
+        const repoInfo = getGitRepoInfo(projectFolder);
+        if (!!repoInfo) {
+            
+            context.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
+
+            // changing local paths to remote repo URLs
+            convertLocalPathsToRemote(result.functions, null, repoInfo) as any;
+            convertLocalPathsToRemote(result.proxies, null, repoInfo) as any;
+        }    
+
         context.res = { body: { functions: result.functions, proxies: result.proxies } };
         
     } catch (err) {

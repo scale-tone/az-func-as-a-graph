@@ -7,7 +7,6 @@ import * as cp from 'child_process';
 import * as crypto from 'crypto';
 
 import { traverseFunctionProject } from './traverseFunctionProject';
-import { cloneFromGitHub } from './traverseFunctionProjectUtils';
 import { buildFunctionDiagramCode, GraphSettings } from '../ui/src/buildFunctionDiagramCode';
 import { TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
 
@@ -39,26 +38,14 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
 
     try {
 
-        // If it is a git repo, cloning it
-        if (projectFolder.toLowerCase().startsWith('http')) {
-
-            console.log(`Cloning ${projectFolder}`);
-
-            const gitInfo = await cloneFromGitHub(projectFolder);
-
-            console.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
-
-            tempFilesAndFolders.push(gitInfo.gitTempFolder);
-            projectFolder = gitInfo.projectFolder;
-        }
-
         const traverseResult = await traverseFunctionProject(projectFolder, console.log);
+        projectFolder = traverseResult.projectFolder;
 
         // Trying to convert local source file paths into links to remote repo
         const repoInfo: GitRepositoryInfo = !!settings.repoInfo ? settings.repoInfo : getGitRepoInfo(projectFolder);
         if (!!repoInfo) {
             
-            // This tool should never expose any credentials
+            // This tool should never expose any credentials, even if those come with input settings
             repoInfo.originUrl = repoInfo.originUrl.replace(/:\/\/[^\/]*@/i, '://');
 
             console.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
@@ -73,7 +60,10 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
         if (outputFileExt === '.json') {
 
             // just saving the Function Graph as JSON and quitting
-            await fs.promises.writeFile(outputFile, JSON.stringify(traverseResult, null, 4));
+            await fs.promises.writeFile(outputFile, JSON.stringify({
+                functions: traverseResult.functions,
+                proxies: traverseResult.proxies
+            }, null, 4));
 
             console.log(`Functions Map saved to ${outputFile}`);
 
@@ -201,7 +191,7 @@ export type GitRepositoryInfo = {
     tagName?: string;
 }
 // Tries to get remote origin info from git
-function getGitRepoInfo(projectFolder: string): GitRepositoryInfo {
+export function getGitRepoInfo(projectFolder: string): GitRepositoryInfo {
 
     // looking for .git folder
     var localGitFolder = projectFolder;
@@ -227,6 +217,9 @@ function getGitRepoInfo(projectFolder: string): GitRepositoryInfo {
             .replace(/\n+$/, '') // trims end-of-line, if any
             .replace(/\/+$/, ''); // trims the trailing slash, if any
     
+        // This tool should never expose any credentials
+        originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
+        
     } catch {
         return null;
     }
@@ -273,7 +266,7 @@ function getGitRepoInfo(projectFolder: string): GitRepositoryInfo {
 
 type FunctionsOrProxiesMap = { [name: string]: { filePath?: string, lineNr?: number } };
 // tries to point source links to the remote repo
-function convertLocalPathsToRemote(map: FunctionsOrProxiesMap, sourcesRootFolder: string, repoInfo: GitRepositoryInfo) {
+export function convertLocalPathsToRemote(map: FunctionsOrProxiesMap, sourcesRootFolder: string, repoInfo: GitRepositoryInfo) {
 
     const isGitHub = repoInfo.originUrl.match(/^https:\/\/[^\/]*github.com\//i);
     const isAzDevOps = repoInfo.originUrl.match(/^https:\/\/[^\/]*dev.azure.com\//i);

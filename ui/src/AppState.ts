@@ -23,7 +23,7 @@ export class AppState {
     get inProgress(): boolean { return this._inProgress; };
 
     @computed
-    get functionsLoaded(): boolean { return !!this._traverseResult; };
+    get functionsLoaded(): boolean { return !!this._traversalResult; };
 
     @computed
     get renderFunctions(): boolean { return this._renderFunctions; };
@@ -57,14 +57,14 @@ export class AppState {
         this._diagramSvg = '';
         this._error = '';
 
-        if (!this._traverseResult) {
+        if (!this._traversalResult) {
             return;
         }
 
         this._inProgress = true;
         try {
 
-            const diagramCode = buildFunctionDiagramCode(this._traverseResult.functions, this._traverseResult.proxies,
+            const diagramCode = buildFunctionDiagramCode(this._traversalResult.functions, this._traversalResult.proxies,
                 {
                     doNotRenderFunctions: !this._renderFunctions,
                     doNotRenderProxies: !this._renderProxies
@@ -99,7 +99,7 @@ export class AppState {
         this._diagramCode = '';
         this._diagramSvg = '';
         this._error = '';
-        this._traverseResult = null;
+        this._traversalResult = null;
 
         const projectPath = this.pathText;
         window.history.replaceState(null, null, `?path=${encodeURIComponent(projectPath)}`);
@@ -109,7 +109,7 @@ export class AppState {
 
         Promise.all([traversedFunctionsPromise, this._iconsSvgPromise]).then(responses => {
 
-            this._traverseResult = responses[0].data
+            this._traversalResult = responses[0].data
             this._iconsSvg = responses[1].data;
 
             this.render();
@@ -118,6 +118,24 @@ export class AppState {
             this._error = `Parsing failed: ${err.message}.${(!!err.response ? err.response.data : '')}`;
             this._inProgress = false;
         });
+    }
+
+    gotoFunctionCode(functionName: string): void {
+
+        var functionOrProxy = null;
+
+        if (functionName.startsWith('proxy.')) {
+            
+            functionOrProxy = this._traversalResult.proxies[functionName.substr(6)];
+
+        } else {
+
+            functionOrProxy = this._traversalResult.functions[functionName];
+        }
+
+        if (!!functionOrProxy && !!functionOrProxy.filePath) {
+            window.open(functionOrProxy.filePath);
+        }
     }
 
     private applyIcons(svg: string): string {
@@ -145,7 +163,7 @@ export class AppState {
     @observable
     private _renderProxies: boolean = true;
     @observable
-    private _traverseResult: { functions: FunctionsMap, proxies: ProxiesMap };
+    private _traversalResult: { functions: FunctionsMap, proxies: ProxiesMap };
     private _iconsSvg: string;
 
     private _iconsSvgPromise = axios.get('static/icons/all-azure-icons.svg');

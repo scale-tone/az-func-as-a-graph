@@ -21,6 +21,21 @@ export default class App extends React.Component<{ state: AppState }> {
         }
     }
 
+    componentDidUpdate() {
+
+        // Mounting click handlers to diagram nodes
+        const svgElement = document.getElementById('mermaidSvgId');
+
+        if (!!svgElement) {
+
+            this.mountClickEventToFunctionNodes(svgElement.getElementsByClassName('function'));
+            this.mountClickEventToFunctionNodes(svgElement.getElementsByClassName('orchestrator'));
+            this.mountClickEventToFunctionNodes(svgElement.getElementsByClassName('activity'));
+            this.mountClickEventToFunctionNodes(svgElement.getElementsByClassName('entity'));
+            this.mountClickEventToFunctionNodes(svgElement.getElementsByClassName('proxy'));
+        }
+    }
+
     render(): JSX.Element {
         const state = this.props.state;
 
@@ -143,6 +158,23 @@ export default class App extends React.Component<{ state: AppState }> {
             event.preventDefault();
 
             this.props.state.load();
+        }
+    }
+
+    private mountClickEventToFunctionNodes(nodes: HTMLCollection): void {
+
+        const state = this.props.state;
+
+        for (var i = 0; i < nodes.length; i++) {
+            const el = nodes[i] as HTMLElement;
+
+            const match = /flowchart-(.+)-/.exec(el.id);
+            if (!!match) {
+
+                const closuredFunctionName = match[1];
+                el.onclick = () => state.gotoFunctionCode(closuredFunctionName);
+                el.style.cursor = 'pointer';
+            }
         }
     }
 }

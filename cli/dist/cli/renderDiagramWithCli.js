@@ -55,7 +55,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderDiagramWithCli = void 0;
+exports.convertLocalPathsToRemote = exports.getGitRepoInfo = exports.renderDiagramWithCli = void 0;
 var rimraf = __importStar(require("rimraf"));
 var os = __importStar(require("os"));
 var fs = __importStar(require("fs"));
@@ -63,13 +63,12 @@ var path = __importStar(require("path"));
 var cp = __importStar(require("child_process"));
 var crypto = __importStar(require("crypto"));
 var traverseFunctionProject_1 = require("./traverseFunctionProject");
-var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 var buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings) {
     if (settings === void 0) { settings = {}; }
     return __awaiter(this, void 0, void 0, function () {
-        var outputFolder, tempFilesAndFolders, gitInfo, traverseResult, repoInfo, outputFileExt, diagramCode, tempInputFile, isHtmlOutput, tempOutputFile, _i, tempFilesAndFolders_1, tempFolder;
+        var outputFolder, tempFilesAndFolders, traverseResult, repoInfo, outputFileExt, diagramCode, tempInputFile, isHtmlOutput, tempOutputFile, _i, tempFilesAndFolders_1, tempFolder;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -88,22 +87,14 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                     tempFilesAndFolders = [];
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, , 16, 17]);
-                    if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 3];
-                    console.log("Cloning " + projectFolder);
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder)];
+                    _a.trys.push([1, , 14, 15]);
+                    return [4 /*yield*/, traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log)];
                 case 2:
-                    gitInfo = _a.sent();
-                    console.log("Successfully cloned to " + gitInfo.gitTempFolder);
-                    tempFilesAndFolders.push(gitInfo.gitTempFolder);
-                    projectFolder = gitInfo.projectFolder;
-                    _a.label = 3;
-                case 3: return [4 /*yield*/, traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log)];
-                case 4:
                     traverseResult = _a.sent();
+                    projectFolder = traverseResult.projectFolder;
                     repoInfo = !!settings.repoInfo ? settings.repoInfo : getGitRepoInfo(projectFolder);
                     if (!!repoInfo) {
-                        // This tool should never expose any credentials
+                        // This tool should never expose any credentials, even if those come with input settings
                         repoInfo.originUrl = repoInfo.originUrl.replace(/:\/\/[^\/]*@/i, '://');
                         console.log("Using repo URI: " + repoInfo.originUrl + ", repo name: " + repoInfo.repoName + ", branch: " + repoInfo.branchName + ", tag: " + repoInfo.tagName);
                         // changing local paths to remote repo URLs
@@ -111,58 +102,61 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                         convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
                     }
                     outputFileExt = path.extname(outputFile).toLowerCase();
-                    if (!(outputFileExt === '.json')) return [3 /*break*/, 6];
+                    if (!(outputFileExt === '.json')) return [3 /*break*/, 4];
                     // just saving the Function Graph as JSON and quitting
-                    return [4 /*yield*/, fs.promises.writeFile(outputFile, JSON.stringify(traverseResult, null, 4))];
-                case 5:
+                    return [4 /*yield*/, fs.promises.writeFile(outputFile, JSON.stringify({
+                            functions: traverseResult.functions,
+                            proxies: traverseResult.proxies
+                        }, null, 4))];
+                case 3:
                     // just saving the Function Graph as JSON and quitting
                     _a.sent();
                     console.log("Functions Map saved to " + outputFile);
                     return [2 /*return*/];
-                case 6:
+                case 4:
                     tempFilesAndFolders.push.apply(tempFilesAndFolders, traverseResult.tempFolders);
                     return [4 /*yield*/, buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings)];
-                case 7:
+                case 5:
                     diagramCode = _a.sent();
                     diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');
                     console.log('Diagram code:');
                     console.log(diagramCode);
                     tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
                     return [4 /*yield*/, fs.promises.writeFile(tempInputFile, diagramCode)];
-                case 8:
+                case 6:
                     _a.sent();
                     tempFilesAndFolders.push(tempInputFile);
                     isHtmlOutput = ['.htm', '.html'].includes(outputFileExt);
                     tempOutputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + (isHtmlOutput ? '.svg' : outputFileExt));
                     tempFilesAndFolders.push(tempOutputFile);
                     return [4 /*yield*/, runMermaidCli(tempInputFile, tempOutputFile)];
-                case 9:
+                case 7:
                     _a.sent();
-                    if (!isHtmlOutput) return [3 /*break*/, 11];
+                    if (!isHtmlOutput) return [3 /*break*/, 9];
                     return [4 /*yield*/, saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings)];
+                case 8:
+                    _a.sent();
+                    return [3 /*break*/, 13];
+                case 9:
+                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 11];
+                    return [4 /*yield*/, saveOutputAsSvg(outputFile, tempOutputFile)];
                 case 10:
                     _a.sent();
-                    return [3 /*break*/, 15];
-                case 11:
-                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 13];
-                    return [4 /*yield*/, saveOutputAsSvg(outputFile, tempOutputFile)];
+                    return [3 /*break*/, 13];
+                case 11: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
                 case 12:
                     _a.sent();
-                    return [3 /*break*/, 15];
-                case 13: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
-                case 14:
-                    _a.sent();
-                    _a.label = 15;
-                case 15:
+                    _a.label = 13;
+                case 13:
                     console.log("Diagram was successfully generated and saved to " + outputFile);
-                    return [3 /*break*/, 17];
-                case 16:
+                    return [3 /*break*/, 15];
+                case 14:
                     for (_i = 0, tempFilesAndFolders_1 = tempFilesAndFolders; _i < tempFilesAndFolders_1.length; _i++) {
                         tempFolder = tempFilesAndFolders_1[_i];
                         rimraf.sync(tempFolder);
                     }
                     return [7 /*endfinally*/];
-                case 17: return [2 /*return*/];
+                case 15: return [2 /*return*/];
             }
         });
     });
@@ -277,6 +271,8 @@ function getGitRepoInfo(projectFolder) {
             .toString()
             .replace(/\n+$/, '') // trims end-of-line, if any
             .replace(/\/+$/, ''); // trims the trailing slash, if any
+        // This tool should never expose any credentials
+        originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
     }
     catch (_a) {
         return null;
@@ -312,6 +308,7 @@ function getGitRepoInfo(projectFolder) {
     }
     return { originUrl: originUrl, repoName: repoName, branchName: branchName, tagName: tagName };
 }
+exports.getGitRepoInfo = getGitRepoInfo;
 // tries to point source links to the remote repo
 function convertLocalPathsToRemote(map, sourcesRootFolder, repoInfo) {
     var isGitHub = repoInfo.originUrl.match(/^https:\/\/[^\/]*github.com\//i);
@@ -344,3 +341,4 @@ function convertLocalPathsToRemote(map, sourcesRootFolder, repoInfo) {
         }
     }
 }
+exports.convertLocalPathsToRemote = convertLocalPathsToRemote;

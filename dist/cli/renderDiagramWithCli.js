@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderDiagramWithCli = void 0;
+exports.convertLocalPathsToRemote = exports.getGitRepoInfo = exports.renderDiagramWithCli = void 0;
 const rimraf = require("rimraf");
 const os = require("os");
 const fs = require("fs");
@@ -17,7 +17,6 @@ const path = require("path");
 const cp = require("child_process");
 const crypto = require("crypto");
 const traverseFunctionProject_1 = require("./traverseFunctionProject");
-const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 const buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
@@ -36,19 +35,12 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
         }
         var tempFilesAndFolders = [];
         try {
-            // If it is a git repo, cloning it
-            if (projectFolder.toLowerCase().startsWith('http')) {
-                console.log(`Cloning ${projectFolder}`);
-                const gitInfo = yield traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder);
-                console.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
-                tempFilesAndFolders.push(gitInfo.gitTempFolder);
-                projectFolder = gitInfo.projectFolder;
-            }
             const traverseResult = yield traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log);
+            projectFolder = traverseResult.projectFolder;
             // Trying to convert local source file paths into links to remote repo
             const repoInfo = !!settings.repoInfo ? settings.repoInfo : getGitRepoInfo(projectFolder);
             if (!!repoInfo) {
-                // This tool should never expose any credentials
+                // This tool should never expose any credentials, even if those come with input settings
                 repoInfo.originUrl = repoInfo.originUrl.replace(/:\/\/[^\/]*@/i, '://');
                 console.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
                 // changing local paths to remote repo URLs
@@ -58,7 +50,10 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
             const outputFileExt = path.extname(outputFile).toLowerCase();
             if (outputFileExt === '.json') {
                 // just saving the Function Graph as JSON and quitting
-                yield fs.promises.writeFile(outputFile, JSON.stringify(traverseResult, null, 4));
+                yield fs.promises.writeFile(outputFile, JSON.stringify({
+                    functions: traverseResult.functions,
+                    proxies: traverseResult.proxies
+                }, null, 4));
                 console.log(`Functions Map saved to ${outputFile}`);
                 return;
             }
@@ -168,6 +163,8 @@ function getGitRepoInfo(projectFolder) {
             .toString()
             .replace(/\n+$/, '') // trims end-of-line, if any
             .replace(/\/+$/, ''); // trims the trailing slash, if any
+        // This tool should never expose any credentials
+        originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
     }
     catch (_a) {
         return null;
@@ -203,6 +200,7 @@ function getGitRepoInfo(projectFolder) {
     }
     return { originUrl, repoName, branchName, tagName };
 }
+exports.getGitRepoInfo = getGitRepoInfo;
 // tries to point source links to the remote repo
 function convertLocalPathsToRemote(map, sourcesRootFolder, repoInfo) {
     const isGitHub = repoInfo.originUrl.match(/^https:\/\/[^\/]*github.com\//i);
@@ -235,4 +233,5 @@ function convertLocalPathsToRemote(map, sourcesRootFolder, repoInfo) {
         }
     }
 }
+exports.convertLocalPathsToRemote = convertLocalPathsToRemote;
 //# sourceMappingURL=renderDiagramWithCli.js.map
