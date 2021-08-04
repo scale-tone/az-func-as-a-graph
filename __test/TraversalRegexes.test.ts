@@ -159,7 +159,9 @@ test('getCallActivityRegex', () => {
         
         `yield context.call_activity ( "${activityName}", y)`,
 
-        `backupContext.CallActivityAsync<string[]>("${activityName}", rootDirectory)`
+        `backupContext.CallActivityAsync<string[]>("${activityName}", rootDirectory)`,
+
+        `await context.CallActivityAsync<List<(long id, string name)>>("${activityName}", organizationName);`
     ];
 
     const regex = TraversalRegexes.getCallActivityRegex(activityName);
