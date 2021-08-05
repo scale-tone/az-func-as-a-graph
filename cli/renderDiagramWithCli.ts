@@ -220,7 +220,9 @@ export function getGitRepoInfo(projectFolder: string): GitRepositoryInfo {
         // This tool should never expose any credentials
         originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
         
-    } catch {
+    } catch (err) {
+        
+        console.warn(`Unable to get remote origin URL. ${err}`);
         return null;
     }
 
