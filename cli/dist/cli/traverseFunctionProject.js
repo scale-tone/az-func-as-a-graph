@@ -173,7 +173,7 @@ function readProxiesJson(projectFolder, log) {
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)];
                 case 3:
                     if (!_a.sent()) return [3 /*break*/, 5];
-                    return [4 /*yield*/, findFileRecursivelyAsync(projectFolder, '.+\.csproj$', true)];
+                    return [4 /*yield*/, findFileRecursivelyAsync(projectFolder, '.+\\.csproj$', true)];
                 case 4:
                     csProjFile = _a.sent();
                     proxiesJsonEntryRegex = new RegExp("\\s*=\\s*\"proxies.json\"\\s*>");
@@ -396,8 +396,8 @@ function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, 
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0: return [4 /*yield*/, (isDotNet ?
-                                        findFileRecursivelyAsync(projectFolder, '.+\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
-                                        findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true))];
+                                        findFileRecursivelyAsync(projectFolder, '.+\\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
+                                        findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true))];
                                 case 1:
                                     match = _a.sent();
                                     if (!match) {

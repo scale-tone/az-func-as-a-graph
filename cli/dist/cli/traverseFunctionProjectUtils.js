@@ -316,7 +316,7 @@ var DotNetBindingsParser = /** @class */ (function () {
         return result;
     };
     DotNetBindingsParser.bindingAttributeRegex = new RegExp("\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(", 'g');
-    DotNetBindingsParser.singleParamRegex = new RegExp("(\"|nameof\\s*\\()?([\\w.-]+)");
+    DotNetBindingsParser.singleParamRegex = new RegExp("(\"|nameof\\s*\\()?([\\w\\.-]+)");
     DotNetBindingsParser.eventHubParamsRegex = new RegExp("\"([^\"]+)\"");
     DotNetBindingsParser.signalRParamsRegex = new RegExp("\"([^\"]+)\"");
     DotNetBindingsParser.rabbitMqParamsRegex = new RegExp("\"([^\"]+)\"");

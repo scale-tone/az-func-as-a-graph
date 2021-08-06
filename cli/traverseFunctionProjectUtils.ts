@@ -292,7 +292,7 @@ export class DotNetBindingsParser {
     }
 
     static readonly bindingAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
-    static readonly singleParamRegex = new RegExp(`("|nameof\\s*\\()?([\\w\.-]+)`);
+    static readonly singleParamRegex = new RegExp(`("|nameof\\s*\\()?([\\w\\.-]+)`);
     static readonly eventHubParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly signalRParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly rabbitMqParamsRegex = new RegExp(`"([^"]+)"`);

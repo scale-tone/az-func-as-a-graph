@@ -86,7 +86,7 @@ function readProxiesJson(projectFolder, log) {
             var notAddedToCsProjFile = false;
             if (yield traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)) {
                 // Also checking that proxies.json is added to .csproj file
-                const csProjFile = yield findFileRecursivelyAsync(projectFolder, '.+\.csproj$', true);
+                const csProjFile = yield findFileRecursivelyAsync(projectFolder, '.+\\.csproj$', true);
                 const proxiesJsonEntryRegex = new RegExp(`\\s*=\\s*"proxies.json"\\s*>`);
                 if (!!csProjFile && csProjFile.code && (!proxiesJsonEntryRegex.exec(csProjFile.code))) {
                     notAddedToCsProjFile = true;
@@ -245,8 +245,8 @@ function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, 
     return __awaiter(this, void 0, void 0, function* () {
         const promises = functionNames.map((name) => __awaiter(this, void 0, void 0, function* () {
             const match = yield (isDotNet ?
-                findFileRecursivelyAsync(projectFolder, '.+\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
-                findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\.ts|index\.js|__init__\.py)$', true));
+                findFileRecursivelyAsync(projectFolder, '.+\\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
+                findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true));
             if (!match) {
                 return undefined;
             }
