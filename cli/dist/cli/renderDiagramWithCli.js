@@ -274,7 +274,8 @@ function getGitRepoInfo(projectFolder) {
         // This tool should never expose any credentials
         originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
     }
-    catch (_a) {
+    catch (err) {
+        console.warn("Unable to get remote origin URL. " + err);
         return null;
     }
     if (originUrl.endsWith('.git')) {

@@ -169,10 +169,10 @@ var TraversalRegexes = /** @class */ (function () {
     function TraversalRegexes() {
     }
     TraversalRegexes.getStartNewOrchestrationRegex = function (orchName) {
-        return new RegExp("(StartNew|StartNewAsync|start_new)(\\s*<[\\w.-\\[\\]]+>)?\\s*\\(\\s*([\"'`]|nameof\\s*\\(\\s*[\\w.-]*)" + orchName + "\\s*[\"'\\)]{1}", 'i');
+        return new RegExp("(StartNew|StartNewAsync|start_new)(\\s*<[\\w\\.-\\[\\]]+>)?\\s*\\(\\s*([\"'`]|nameof\\s*\\(\\s*[\\w\\.-]*)" + orchName + "\\s*[\"'\\)]{1}", 'i');
     };
     TraversalRegexes.getCallSubOrchestratorRegex = function (subOrchName) {
-        return new RegExp("(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(\\s*<[\\w.-\\[\\]]+>)?\\s*\\(\\s*([\"'`]|nameof\\s*\\(\\s*[\\w.-]*)" + subOrchName + "\\s*[\"'\\)]{1}", 'i');
+        return new RegExp("(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(\\s*<[\\w\\.-\\[\\]]+>)?\\s*\\(\\s*([\"'`]|nameof\\s*\\(\\s*[\\w\\.-]*)" + subOrchName + "\\s*[\"'\\)]{1}", 'i');
     };
     TraversalRegexes.getRaiseEventRegex = function (eventName) {
         return new RegExp("(RaiseEvent|raise_event)(Async)?(.|\r|\n)*" + eventName, 'i');
@@ -181,13 +181,13 @@ var TraversalRegexes = /** @class */ (function () {
         return new RegExp(entityName + "\\s*[\"'>]{1}");
     };
     TraversalRegexes.getDotNetFunctionNameRegex = function (funcName) {
-        return new RegExp("FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`])" + funcName + "\\s*[\"'`\\)]{1}");
+        return new RegExp("FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)" + funcName + "\\s*[\"'`\\)]{1}");
     };
     TraversalRegexes.getCallActivityRegex = function (activityName) {
-        return new RegExp("(CallActivity|call_activity)[\\s\\w.-<>\\[\\]\\(]*\\([\\s\\w.-]*[\"'`]?" + activityName + "\\s*[\"'`\\)]{1}", 'i');
+        return new RegExp("(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)]*\\([\\s\\w\\.-]*[\"'`]?" + activityName + "\\s*[\"'`\\)]{1}", 'i');
     };
     TraversalRegexes.continueAsNewRegex = new RegExp("ContinueAsNew\\s*\\(", 'i');
-    TraversalRegexes.waitForExternalEventRegex = new RegExp("(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w.-\\[\\]]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`])?([\\s\\w.-]+)\\s*[\"'`\\),]{1}", 'gi');
+    TraversalRegexes.waitForExternalEventRegex = new RegExp("(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w\\.-\\[\\]]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`])?([\\s\\w\\.-]+)\\s*[\"'`\\),]{1}", 'gi');
     return TraversalRegexes;
 }());
 exports.TraversalRegexes = TraversalRegexes;

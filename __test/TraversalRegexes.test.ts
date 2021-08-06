@@ -136,8 +136,12 @@ test('getDotNetFunctionNameRegex', () => {
         `[FunctionNameAttribute("${functionName}")]`,
         
         ` [<FunctionName("${functionName}")>]
-  let Run([<OrchestrationTrigger>] backupContext: DurableOrchestrationContext) = task {`
-        
+  let Run([<OrchestrationTrigger>] backupContext: DurableOrchestrationContext) = task {`,
+
+      `[FunctionName( My.Class. With.  Constants.   ${functionName})]`,
+
+      `[FunctionNameAttribute(\`${functionName}\`)]`,
+      
     ];
 
     const regex = TraversalRegexes.getDotNetFunctionNameRegex(functionName);
