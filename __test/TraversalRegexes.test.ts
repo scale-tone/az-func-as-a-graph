@@ -15,7 +15,11 @@ test('getStartNewOrchestrationRegex', () => {
 
         `await client.startNew('${orchId}', instanceId, repka);`,
 
-        `await client.start_new('${orchId}', None, None)`
+        `await client.start_new('${orchId}', None, None)`,
+
+        `await starter.StartNewAsync<Dictionary<string, int>>( nameof(My.Namespace.${orchId}) );`,
+
+        `await starter.StartNewAsync( My.Constants.${orchId}, instanceId, checkpointTimestamp);`
     ];
 
     const regex = TraversalRegexes.getStartNewOrchestrationRegex(orchId);
@@ -39,7 +43,11 @@ test('getCallSubOrchestratorRegex', () => {
 
         `await client.callSubOrchestrator('${orchId}', instanceId, repka);`,
 
-        `await client.call_sub_orchestrator  ('${orchId}', None, None)`
+        `await client.call_sub_orchestrator  ('${orchId}', None, None)`,
+
+        `var result = await context.CallSubOrchestratorAsync< Tuple<int, int> >(nameof(My.Namespace.${orchId}), null, null);`,
+
+        `c.CallSubOrchestratorWithRetry(My.Constants.${orchId}, " some , string ", someParam);`,
     ];
 
     const regex = TraversalRegexes.getCallSubOrchestratorRegex(orchId);
@@ -73,8 +81,10 @@ test('getRaiseEventRegex', () => {
        
         `.raiseEvent(instanceId, "${eventName}", eventData);`,
         
-        `client.raise_event ( instance_id, '${eventName}', event_data)`
-    ];
+        `client.raise_event ( instance_id, '${eventName}', event_data)`,
+
+        `c.RaiseEventAsync(p1, "p2", My.Constants.${eventName} );`,
+   ];
 
     const regex = TraversalRegexes.getRaiseEventRegex(eventName);
     for (const sample of samples) {
@@ -111,6 +121,10 @@ test('waitForExternalEventRegex', () => {
 
         gate3 = context.wait_for_external_event
             ( '${eventName}')
+
+        c.WaitForExternalEvent( My.Constants. ${eventName})
+
+        c.WaitForExternalEvent<MyGeneric<MyType1,MyType2>>( "${eventName}" )
     `;
 
     const regex = TraversalRegexes.waitForExternalEventRegex;
@@ -122,7 +136,7 @@ test('waitForExternalEventRegex', () => {
         count++;
     }
 
-    expect(count).toBe(4);
+    expect(count).toBe(6);
 });
 
 test('getDotNetFunctionNameRegex', () => {
@@ -165,7 +179,9 @@ test('getCallActivityRegex', () => {
 
         `backupContext.CallActivityAsync<string[]>("${activityName}", rootDirectory)`,
 
-        `await context.CallActivityAsync<List<(long id, string name)>>("${activityName}", organizationName);`
+        `await context.CallActivityAsync<List<(long id, string name)>>("${activityName}", organizationName);`,
+
+        `c.CallActivityWithRetryAsync( My.Constants.${activityName}, param1, param2);`,
     ];
 
     const regex = TraversalRegexes.getCallActivityRegex(activityName);
