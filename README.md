@@ -51,13 +51,21 @@ This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/m
 ```
 {
     "htmlTemplateFile": "path-to-my-custom-html-template-file",
+    "repoInfo": {
+        "originUrl": "e.g. https://github.com/scale-tone/repeating-map-reduce-sample",
+        "repoName": "e.g. repeating-map-reduce-sample",
+        "branchName": "e.g. main",
+        "tagName": "e.g. v1.2.3"
+    },
     "doNotRenderFunctions": true,
     "doNotRenderProxies": true
 }
 ```
 
    `htmlTemplateFile` specifies a custom HTML template to be used, when generating HTML pages. If omitted, [this default one](https://github.com/scale-tone/az-func-as-a-graph/blob/main/cli/graph-template.htm) will be used.
-    
+
+   `repoInfo` setting provides a way to customize source code repo information, when needed. It is only used for mapping and rendering links to source code. If omitted, this data will be retrieved automatically with relevant git commands. E.g. you might want to explicitly specify `repoInfo.originUrl` to point source code links to GitHub CodeSpaces (https://github.dev) instead of https://github.com.
+
    `doNotRenderFunctions` hides functions from the graph.
     
    `doNotRenderProxies` hides proxies from the graph.
