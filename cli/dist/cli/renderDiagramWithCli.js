@@ -92,10 +92,8 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                 case 2:
                     traverseResult = _a.sent();
                     projectFolder = traverseResult.projectFolder;
-                    repoInfo = !!settings.repoInfo ? settings.repoInfo : getGitRepoInfo(projectFolder);
+                    repoInfo = getGitRepoInfo(projectFolder, settings.repoInfo);
                     if (!!repoInfo) {
-                        // This tool should never expose any credentials, even if those come with input settings
-                        repoInfo.originUrl = repoInfo.originUrl.replace(/:\/\/[^\/]*@/i, '://');
                         console.log("Using repo URI: " + repoInfo.originUrl + ", repo name: " + repoInfo.repoName + ", branch: " + repoInfo.branchName + ", tag: " + repoInfo.tagName);
                         // changing local paths to remote repo URLs
                         convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
@@ -253,7 +251,8 @@ function applyIcons(svg) {
     });
 }
 // Tries to get remote origin info from git
-function getGitRepoInfo(projectFolder) {
+function getGitRepoInfo(projectFolder, repoInfoFromSettings) {
+    if (repoInfoFromSettings === void 0) { repoInfoFromSettings = null; }
     // looking for .git folder
     var localGitFolder = projectFolder;
     while (!fs.existsSync(path.join(localGitFolder, '.git'))) {
@@ -264,55 +263,62 @@ function getGitRepoInfo(projectFolder) {
         localGitFolder = parentFolder;
     }
     var execSyncParams = { env: { GIT_DIR: path.join(localGitFolder, '.git') } };
-    // trying to get remote origin URL
-    var originUrl;
-    try {
-        originUrl = cp.execSync('git config --get remote.origin.url', execSyncParams)
-            .toString()
-            .replace(/\n+$/, '') // trims end-of-line, if any
-            .replace(/\/+$/, ''); // trims the trailing slash, if any
-        // This tool should never expose any credentials
-        originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
+    var originUrl = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.originUrl;
+    if (!originUrl) {
+        // trying to get remote origin URL via git
+        try {
+            originUrl = cp.execSync('git config --get remote.origin.url', execSyncParams)
+                .toString()
+                .replace(/\n+$/, '') // trims end-of-line, if any
+                .replace(/\/+$/, ''); // trims the trailing slash, if any
+        }
+        catch (err) {
+            console.warn("Unable to get remote origin URL. " + err);
+            return null;
+        }
     }
-    catch (err) {
-        console.warn("Unable to get remote origin URL. " + err);
-        return null;
-    }
+    // This tool should never expose any credentials
+    originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
     if (originUrl.endsWith('.git')) {
         originUrl = originUrl.substr(0, originUrl.length - 4);
     }
-    // expecting repo name to be the last segment of remote origin URL
-    var p = originUrl.lastIndexOf('/');
-    if (p < 0) {
-        return null;
-    }
-    var repoName = originUrl.substr(p + 1);
-    // trying to get branch name (which might be different from default)
-    var branchName = '', tagName = '';
-    try {
-        branchName = cp.execSync('git rev-parse --abbrev-ref HEAD', execSyncParams)
-            .toString()
-            .replace(/\n+$/, ''); // trims end-of-line, if any
-        if (branchName === 'HEAD') { // this indicates that we're on a tag
-            // trying to get that tag name
-            tagName = cp.execSync('git describe --tags', execSyncParams)
+    var branchName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.branchName, tagName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.tagName;
+    if (!branchName && !tagName) {
+        // trying to get branch/tag name (which might be different from default) via git
+        try {
+            branchName = cp.execSync('git rev-parse --abbrev-ref HEAD', execSyncParams)
                 .toString()
                 .replace(/\n+$/, ''); // trims end-of-line, if any
+            if (branchName === 'HEAD') { // this indicates that we're on a tag
+                // trying to get that tag name
+                tagName = cp.execSync('git describe --tags', execSyncParams)
+                    .toString()
+                    .replace(/\n+$/, ''); // trims end-of-line, if any
+            }
+        }
+        catch (err) {
+            console.warn("Unable to detect branch/tag name. " + err);
+        }
+        // defaulting to master
+        if (!branchName) {
+            branchName = 'master';
         }
     }
-    catch (err) {
-        console.warn("Unable to detect branch/tag name. " + err);
-    }
-    // defaulting to master
-    if (!branchName) {
-        branchName = 'master';
+    var repoName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.repoName;
+    if (!repoName) {
+        // expecting repo name to be the last segment of remote origin URL
+        var p = originUrl.lastIndexOf('/');
+        if (p < 0) {
+            return null;
+        }
+        repoName = originUrl.substr(p + 1);
     }
     return { originUrl: originUrl, repoName: repoName, branchName: branchName, tagName: tagName };
 }
 exports.getGitRepoInfo = getGitRepoInfo;
 // tries to point source links to the remote repo
 function convertLocalPathsToRemote(map, sourcesRootFolder, repoInfo) {
-    var isGitHub = repoInfo.originUrl.match(/^https:\/\/[^\/]*github.com\//i);
+    var isGitHub = repoInfo.originUrl.match(/^https:\/\/[^\/]*github.(com|dev)\//i);
     var isAzDevOps = repoInfo.originUrl.match(/^https:\/\/[^\/]*dev.azure.com\//i);
     for (var funcName in map) {
         var func = map[funcName];
