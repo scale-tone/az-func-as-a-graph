@@ -39,10 +39,6 @@ body {
     height: 100% !important;
 }
 
-.label > g > text {
-    transform: translateX(25px);
-}
-
 .error-typography {
     padding: 30px !important;
 }
