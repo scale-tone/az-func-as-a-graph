@@ -36,7 +36,7 @@ npm install
 node az-func-as-a-graph {path-to-my-functions-project-folder} {output-file-name} {json-file-with-settings}
 ```
 
-This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) NPM package (which will be locally installed by [az-func-as-a-graph](https://github.com/scale-tone/az-func-as-a-graph/blob/main/az-func-as-a-graph.ts) script at its first run).
+This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) NPM package (which will be locally installed by [az-func-as-a-graph](https://github.com/scale-tone/az-func-as-a-graph/blob/main/az-func-as-a-graph.js) script at its first run).
 
 `npm install` is only needed once, of course.
 
