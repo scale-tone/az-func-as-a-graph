@@ -9,6 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const path = require('path');
 const fs = require('fs');
 const util = require('util');
 const readFileAsync = util.promisify(fs.readFile);
@@ -20,7 +21,7 @@ function default_1(context) {
     return __awaiter(this, void 0, void 0, function* () {
         const p1 = context.bindingData.p1;
         const p2 = context.bindingData.p2;
-        const p3 = context.bindingData.p3;
+        const p3 = !!context.bindingData.p3 ? path.basename(context.bindingData.p3) : '';
         const fileMap = {
             'static/css': {
                 fileName: `${wwwroot}/static/css/${p3}`,
