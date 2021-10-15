@@ -47,6 +47,8 @@ test('getCallSubOrchestratorRegex', () => {
 
         `var result = await context.CallSubOrchestratorAsync< Tuple<int, int> >(nameof(My.Namespace.${orchId}), null, null);`,
 
+        `await client.callSubOrchestrator<DateTime?>('${orchId}');`,
+
         `c.CallSubOrchestratorWithRetry(My.Constants.${orchId}, " some , string ", someParam);`,
     ];
 
@@ -125,6 +127,8 @@ test('waitForExternalEventRegex', () => {
         c.WaitForExternalEvent( My.Constants. ${eventName})
 
         c.WaitForExternalEvent<MyGeneric<MyType1,MyType2>>( "${eventName}" )
+
+        c.WaitForExternalEvent< DateTime?  >( "${eventName}" )
     `;
 
     const regex = TraversalRegexes.waitForExternalEventRegex;
@@ -136,7 +140,7 @@ test('waitForExternalEventRegex', () => {
         count++;
     }
 
-    expect(count).toBe(6);
+    expect(count).toBe(7);
 });
 
 test('getDotNetFunctionNameRegex', () => {
@@ -178,6 +182,8 @@ test('getCallActivityRegex', () => {
         `yield context.call_activity ( "${activityName}", y)`,
 
         `backupContext.CallActivityAsync<string[]>("${activityName}", rootDirectory)`,
+
+        `ctx.CallActivity<DateTime?>("${activityName}")`,
 
         `await context.CallActivityAsync<List<(long id, string name)>>("${activityName}", organizationName);`,
 
