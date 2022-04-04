@@ -145,7 +145,8 @@ function runMermaidCli(inputFile: string, outputFile: string): Promise<void> {
 
     if (!fs.existsSync(mermaidCliPath)) {
         console.log(`installing mermaid-cli in ${packageJsonPath}...`)
-        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli', { cwd: packageJsonPath });
+        // Something got broken in the latest mermaid-cli, so need to lock down the version here
+        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli@8.13.0', { cwd: packageJsonPath });
         console.log('mermaid-cli installed')
     }
 
