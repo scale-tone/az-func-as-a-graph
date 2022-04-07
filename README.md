@@ -46,11 +46,13 @@ This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/m
 * If its extension is `.svg`, the graph will be written to this file in SVG format.
 * If its extension is `.htm`, a static HTML page will be generated. The tool will also try its best to make that page *interactive*, so that e.g. when you click on a graph node, the relevant Function's source code is shown. [Here is an example of such a page](https://scale-tone.github.io/temp/WhatIfDemo-Functions.htm). If the project link contains a branch/tag, the links to sources will be relative to that branch/tag.
 * If its extension is `.json`, a Functions Map file will be generated and saved as JSON. Then you can upload this file to your [Durable Functions Monitor](https://github.com/scale-tone/DurableFunctionsMonitor) standalone/injected instance, to make it show you an interactive animated Functions Graph.
+* If its extension is `.md`, a [Markdown file with embedded graph](https://github.blog/2022-02-14-include-diagrams-markdown-files-mermaid/) will be generated.
+
 
 `{json-file-with-settings}` is an optional path to an optional JSON file with optional settings. Like this one:
 ```
 {
-    "htmlTemplateFile": "path-to-my-custom-html-template-file",
+    "templateFile": "path-to-my-custom-template-file",
     "repoInfo": {
         "originUrl": "e.g. https://github.com/scale-tone/repeating-map-reduce-sample",
         "repoName": "e.g. repeating-map-reduce-sample",
@@ -62,7 +64,7 @@ This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/m
 }
 ```
 
-   `htmlTemplateFile` specifies a custom HTML template to be used, when generating HTML pages. If omitted, [this default one](https://github.com/scale-tone/az-func-as-a-graph/blob/main/cli/graph-template.htm) will be used.
+   `templateFile` specifies a custom HTML or Markdown template to be used, when generating HTML pages or Markdown files. If omitted, [this default one](https://github.com/scale-tone/az-func-as-a-graph/blob/main/cli/graph-template.htm) will be used for HTML and [this default one](https://github.com/scale-tone/az-func-as-a-graph/blob/main/cli/graph-template.md) will be used for Markdown.
 
    `repoInfo` setting provides a way to customize source code repo information, when needed. It is only used for mapping and rendering links to source code. If omitted, this data will be retrieved automatically with relevant git commands. E.g. you might want to explicitly specify `repoInfo.originUrl` to point source code links to GitHub CodeSpaces (https://github.dev) instead of https://github.com.
 
