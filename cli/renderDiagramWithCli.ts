@@ -11,7 +11,8 @@ import { buildFunctionDiagramCode, GraphSettings } from '../ui/src/buildFunction
 import { TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
 
 export type GraphCliSettings = GraphSettings & {
-    htmlTemplateFile?: string;
+    templateFile?: string;
+    htmlTemplateFile?: string; // obsolete, but still supported
     repoInfo?: GitRepositoryInfo;
     sourcesRootFolder?: string;
 };
@@ -22,6 +23,11 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
     if (!projectFolder) {
         console.error('Path to an Azure Functions project not specified');
         return;
+    }
+
+    // To support both old and new property names
+    if (!!settings.htmlTemplateFile && !settings.templateFile) {
+        settings.templateFile = settings.htmlTemplateFile;
     }
 
     if (!outputFile) {
@@ -75,6 +81,18 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
         console.log('Diagram code:');
         console.log(diagramCode);
         
+        if (outputFileExt === '.md') {
+
+            // just saving the diagram as a Markdown file and quitting
+            await saveOutputAsMarkdown(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, diagramCode, settings);
+
+            console.log(`Diagram was successfully generated and saved to ${outputFile}`);
+
+            console.log(tempFilesAndFolders);
+
+            return;
+        }
+
         const tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
         await fs.promises.writeFile(tempInputFile, diagramCode);
         tempFilesAndFolders.push(tempInputFile);
@@ -119,7 +137,7 @@ async function saveOutputAsSvg(outputFile: string, tempOutputFile: string) {
 // saves resulting Function Graph as HTML
 async function saveOutputAsHtml(projectName: string, outputFile: string, tempOutputFile: string, traverseResult: TraverseFunctionResult, settings: GraphCliSettings) {
     
-    const htmlTemplateFile = !!settings.htmlTemplateFile ? settings.htmlTemplateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
+    const htmlTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
 
     var html = await fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' });
 
@@ -133,6 +151,19 @@ async function saveOutputAsHtml(projectName: string, outputFile: string, tempOut
     html = html.replace(/const proxiesMap = {}/g, `const proxiesMap = ${JSON.stringify(traverseResult.proxies)}`);
 
     await fs.promises.writeFile(outputFile, html);
+}
+
+// saves resulting Function Graph as .md file
+async function saveOutputAsMarkdown(projectName: string, outputFile: string, diagramCode: string, settings: GraphCliSettings) {
+    
+    const markdownTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', '..', 'graph-template.md');
+
+    var markdown = await fs.promises.readFile(markdownTemplateFile, { encoding: 'utf8' });
+
+    markdown = markdown.replace(/{{GRAPH_CODE}}/g, diagramCode);
+    markdown = markdown.replace(/{{PROJECT_NAME}}/g, projectName);
+
+    await fs.promises.writeFile(outputFile, markdown);
 }
 
 // executes mermaid CLI from command line

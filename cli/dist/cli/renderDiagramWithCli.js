@@ -76,6 +76,10 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                         console.error('Path to an Azure Functions project not specified');
                         return [2 /*return*/];
                     }
+                    // To support both old and new property names
+                    if (!!settings.htmlTemplateFile && !settings.templateFile) {
+                        settings.templateFile = settings.htmlTemplateFile;
+                    }
                     if (!outputFile) {
                         outputFile = 'function-graph.svg';
                     }
@@ -87,7 +91,7 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                     tempFilesAndFolders = [];
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, , 14, 15]);
+                    _a.trys.push([1, , 16, 17]);
                     return [4 /*yield*/, traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log)];
                 case 2:
                     traverseResult = _a.sent();
@@ -119,42 +123,52 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                     diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');
                     console.log('Diagram code:');
                     console.log(diagramCode);
+                    if (!(outputFileExt === '.md')) return [3 /*break*/, 7];
+                    // just saving the diagram as a Markdown file and quitting
+                    return [4 /*yield*/, saveOutputAsMarkdown(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, diagramCode, settings)];
+                case 6:
+                    // just saving the diagram as a Markdown file and quitting
+                    _a.sent();
+                    console.log("Diagram was successfully generated and saved to " + outputFile);
+                    console.log(tempFilesAndFolders);
+                    return [2 /*return*/];
+                case 7:
                     tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
                     return [4 /*yield*/, fs.promises.writeFile(tempInputFile, diagramCode)];
-                case 6:
+                case 8:
                     _a.sent();
                     tempFilesAndFolders.push(tempInputFile);
                     isHtmlOutput = ['.htm', '.html'].includes(outputFileExt);
                     tempOutputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + (isHtmlOutput ? '.svg' : outputFileExt));
                     tempFilesAndFolders.push(tempOutputFile);
                     return [4 /*yield*/, runMermaidCli(tempInputFile, tempOutputFile)];
-                case 7:
-                    _a.sent();
-                    if (!isHtmlOutput) return [3 /*break*/, 9];
-                    return [4 /*yield*/, saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings)];
-                case 8:
-                    _a.sent();
-                    return [3 /*break*/, 13];
                 case 9:
-                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 11];
-                    return [4 /*yield*/, saveOutputAsSvg(outputFile, tempOutputFile)];
+                    _a.sent();
+                    if (!isHtmlOutput) return [3 /*break*/, 11];
+                    return [4 /*yield*/, saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings)];
                 case 10:
                     _a.sent();
-                    return [3 /*break*/, 13];
-                case 11: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
+                    return [3 /*break*/, 15];
+                case 11:
+                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 13];
+                    return [4 /*yield*/, saveOutputAsSvg(outputFile, tempOutputFile)];
                 case 12:
                     _a.sent();
-                    _a.label = 13;
-                case 13:
-                    console.log("Diagram was successfully generated and saved to " + outputFile);
                     return [3 /*break*/, 15];
+                case 13: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
                 case 14:
+                    _a.sent();
+                    _a.label = 15;
+                case 15:
+                    console.log("Diagram was successfully generated and saved to " + outputFile);
+                    return [3 /*break*/, 17];
+                case 16:
                     for (_i = 0, tempFilesAndFolders_1 = tempFilesAndFolders; _i < tempFilesAndFolders_1.length; _i++) {
                         tempFolder = tempFilesAndFolders_1[_i];
                         rimraf.sync(tempFolder);
                     }
                     return [7 /*endfinally*/];
-                case 15: return [2 /*return*/];
+                case 17: return [2 /*return*/];
             }
         });
     });
@@ -187,7 +201,7 @@ function saveOutputAsHtml(projectName, outputFile, tempOutputFile, traverseResul
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    htmlTemplateFile = !!settings.htmlTemplateFile ? settings.htmlTemplateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
+                    htmlTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
                     return [4 /*yield*/, fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' })];
                 case 1:
                     html = _a.sent();
@@ -203,6 +217,27 @@ function saveOutputAsHtml(projectName, outputFile, tempOutputFile, traverseResul
                     html = html.replace(/const proxiesMap = {}/g, "const proxiesMap = " + JSON.stringify(traverseResult.proxies));
                     return [4 /*yield*/, fs.promises.writeFile(outputFile, html)];
                 case 4:
+                    _a.sent();
+                    return [2 /*return*/];
+            }
+        });
+    });
+}
+// saves resulting Function Graph as .md file
+function saveOutputAsMarkdown(projectName, outputFile, diagramCode, settings) {
+    return __awaiter(this, void 0, void 0, function () {
+        var markdownTemplateFile, markdown;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    markdownTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', '..', 'graph-template.md');
+                    return [4 /*yield*/, fs.promises.readFile(markdownTemplateFile, { encoding: 'utf8' })];
+                case 1:
+                    markdown = _a.sent();
+                    markdown = markdown.replace(/{{GRAPH_CODE}}/g, diagramCode);
+                    markdown = markdown.replace(/{{PROJECT_NAME}}/g, projectName);
+                    return [4 /*yield*/, fs.promises.writeFile(outputFile, markdown)];
+                case 2:
                     _a.sent();
                     return [2 /*return*/];
             }

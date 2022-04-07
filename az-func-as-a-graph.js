@@ -11,9 +11,9 @@ var settings = {};
 
 if (!!settingsFile) {
 
-    if (['.htm', '.html'].includes(path.extname(settingsFile).toLowerCase())) {
+    if (['.htm', '.html', '.md'].includes(path.extname(settingsFile).toLowerCase())) {
 
-        settings = { htmlTemplateFile: settingsFile };
+        settings = { templateFile: settingsFile };
 
     } else {
         

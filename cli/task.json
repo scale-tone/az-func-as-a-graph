@@ -55,12 +55,12 @@
             "helpMarkDown": "Branch name. Used for rendering links to source code. If the default value doesn't work, try explicitly specifying it."
         },
         {
-            "name": "htmlTemplateFile",
+            "name": "templateFile",
             "type": "string",
-            "label": "Custom HTML Template",
+            "label": "Custom HTML or Markdown Template",
             "defaultValue": "",
             "required": false,
-            "helpMarkDown": "Full path to a custom HTML template (will only be used, if output file has .HTM extension). If omitted, the default built-in template will be used."
+            "helpMarkDown": "Full path to a custom template (will only be used, if output file has .HTM or .MD extension). If omitted, the default built-in template will be used."
         },
         {
             "name": "doNotRenderFunctions",

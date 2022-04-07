@@ -82,6 +82,7 @@ function run() {
                     return [4 /*yield*/, renderDiagramWithCli_1.renderDiagramWithCli(projectFolder, outputFile, {
                             repoInfo: repoInfo,
                             sourcesRootFolder: tl.getVariable('System.DefaultWorkingDirectory'),
+                            templateFile: tl.getInput("templateFile"),
                             doNotRenderFunctions: tl.getBoolInput("doNotRenderFunctions"),
                             doNotRenderProxies: tl.getBoolInput("doNotRenderProxies")
                         })];
