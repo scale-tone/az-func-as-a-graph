@@ -32,6 +32,7 @@ function run() {
             yield renderDiagramWithCli_1.renderDiagramWithCli(projectFolder, outputFile, {
                 repoInfo,
                 sourcesRootFolder: tl.getVariable('System.DefaultWorkingDirectory'),
+                templateFile: tl.getInput("templateFile"),
                 doNotRenderFunctions: tl.getBoolInput("doNotRenderFunctions"),
                 doNotRenderProxies: tl.getBoolInput("doNotRenderProxies")
             });

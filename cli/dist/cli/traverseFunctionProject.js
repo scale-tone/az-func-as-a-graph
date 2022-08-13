@@ -14,7 +14,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -210,8 +210,7 @@ function readProxiesJson(projectFolder, log) {
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
 function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
     return __awaiter(this, void 0, void 0, function () {
-        var fileNameRegex, _i, _a, name_1, fullPath, result, _b, code, match;
-        var _c;
+        var fileNameRegex, _i, _a, name_1, fullPath, result, _b, _c, code, match;
         return __generator(this, function (_d) {
             switch (_d.label) {
                 case 0:
@@ -241,19 +240,19 @@ function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern)
                 case 5:
                     if (!!!fileNameRegex.exec(name_1)) return [3 /*break*/, 11];
                     if (!!pattern) return [3 /*break*/, 9];
-                    _c = {
+                    _b = {
                         filePath: fullPath
                     };
                     if (!returnFileContents) return [3 /*break*/, 7];
                     return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
                 case 6:
-                    _b = (_d.sent());
+                    _c = (_d.sent());
                     return [3 /*break*/, 8];
                 case 7:
-                    _b = undefined;
+                    _c = undefined;
                     _d.label = 8;
-                case 8: return [2 /*return*/, (_c.code = _b,
-                        _c)];
+                case 8: return [2 /*return*/, (_b.code = _c,
+                        _b)];
                 case 9: return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
                 case 10:
                     code = _d.sent();
