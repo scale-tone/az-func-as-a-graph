@@ -130,7 +130,15 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
 async function saveOutputAsSvg(outputFile: string, tempOutputFile: string) {
     
     var svg = await fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
+
     svg = await applyIcons(svg);
+
+    // Adding some indent to node labels, so that icons fit in
+    svg = svg.replace('</style>',
+        '.label > g > text { transform: translateX(25px); }' +
+        '</style>'
+    );
+    
     await fs.promises.writeFile(outputFile, svg);
 }
 
@@ -177,7 +185,7 @@ function runMermaidCli(inputFile: string, outputFile: string): Promise<void> {
     if (!fs.existsSync(mermaidCliPath)) {
         console.log(`installing mermaid-cli in ${packageJsonPath}...`)
         // Something got broken in the latest mermaid-cli, so need to lock down the version here
-        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli@8.13.0', { cwd: packageJsonPath });
+        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath });
         console.log('mermaid-cli installed')
     }
 
@@ -207,8 +215,8 @@ async function applyIcons(svg: string): Promise<string> {
     svg = svg.replace(`><style>`, `>\n<defs>\n${iconsSvg}</defs>\n<style>`);
 
     // Adding <use> blocks referencing relevant icons
-    svg = svg.replace(/<g class="node (\w+).*?<g class="label" transform="translate\([0-9,.-]+\)"><g transform="translate\([0-9,.-]+\)">/g,
-    `$&<use href="#az-icon-$1" width="20px" height="20px"/>`);
+    svg = svg.replace(/<g style="opacity: [0-9.]+;" transform="translate\([0-9,.-]+\)" id="[^"]+" class="node (\w+).*?<g transform="translate\([0-9,.-]+\)" class="label"><g transform="translate\([0-9,.-]+\)">/g,
+        `$&<use href="#az-icon-$1" width="20px" height="20px"/>`);
 
     return svg;
 }

@@ -147,6 +147,12 @@ export class AppState {
         svg = svg.replace(/<g style="opacity: [0-9.]+;" transform="translate\([0-9,.-]+\)" id="[^"]+" class="node (\w+).*?<g transform="translate\([0-9,.-]+\)" class="label"><g transform="translate\([0-9,.-]+\)">/g,
             `$&<use href="#az-icon-$1" width="20px" height="20px"/>`);
 
+        // Adding some indent to node labels, so that icons fit in
+        svg = svg.replace('</style>',
+            '.label > g > text { transform: translateX(25px); }' +
+            '</style>'
+        );
+        
         return svg;
     }
 

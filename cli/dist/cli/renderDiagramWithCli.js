@@ -186,6 +186,9 @@ function saveOutputAsSvg(outputFile, tempOutputFile) {
                     return [4 /*yield*/, applyIcons(svg)];
                 case 2:
                     svg = _a.sent();
+                    // Adding some indent to node labels, so that icons fit in
+                    svg = svg.replace('</style>', '.label > g > text { transform: translateX(25px); }' +
+                        '</style>');
                     return [4 /*yield*/, fs.promises.writeFile(outputFile, svg)];
                 case 3:
                     _a.sent();
@@ -252,7 +255,7 @@ function runMermaidCli(inputFile, outputFile) {
     if (!fs.existsSync(mermaidCliPath)) {
         console.log("installing mermaid-cli in " + packageJsonPath + "...");
         // Something got broken in the latest mermaid-cli, so need to lock down the version here
-        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli@8.13.0', { cwd: packageJsonPath });
+        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath });
         console.log('mermaid-cli installed');
     }
     var mermaidConfigPath = path.resolve(__dirname, '..', '..', 'mermaid.config.json');
@@ -280,7 +283,7 @@ function applyIcons(svg) {
                     // Placing icons code into a <defs> block at the top
                     svg = svg.replace("><style>", ">\n<defs>\n" + iconsSvg + "</defs>\n<style>");
                     // Adding <use> blocks referencing relevant icons
-                    svg = svg.replace(/<g class="node (\w+).*?<g class="label" transform="translate\([0-9,.-]+\)"><g transform="translate\([0-9,.-]+\)">/g, "$&<use href=\"#az-icon-$1\" width=\"20px\" height=\"20px\"/>");
+                    svg = svg.replace(/<g style="opacity: [0-9.]+;" transform="translate\([0-9,.-]+\)" id="[^"]+" class="node (\w+).*?<g transform="translate\([0-9,.-]+\)" class="label"><g transform="translate\([0-9,.-]+\)">/g, "$&<use href=\"#az-icon-$1\" width=\"20px\" height=\"20px\"/>");
                     return [2 /*return*/, svg];
             }
         });

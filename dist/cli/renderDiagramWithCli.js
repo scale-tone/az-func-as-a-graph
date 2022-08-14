@@ -102,6 +102,9 @@ function saveOutputAsSvg(outputFile, tempOutputFile) {
     return __awaiter(this, void 0, void 0, function* () {
         var svg = yield fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
         svg = yield applyIcons(svg);
+        // Adding some indent to node labels, so that icons fit in
+        svg = svg.replace('</style>', '.label > g > text { transform: translateX(25px); }' +
+            '</style>');
         yield fs.promises.writeFile(outputFile, svg);
     });
 }
@@ -137,7 +140,7 @@ function runMermaidCli(inputFile, outputFile) {
     if (!fs.existsSync(mermaidCliPath)) {
         console.log(`installing mermaid-cli in ${packageJsonPath}...`);
         // Something got broken in the latest mermaid-cli, so need to lock down the version here
-        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli@8.13.0', { cwd: packageJsonPath });
+        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath });
         console.log('mermaid-cli installed');
     }
     const mermaidConfigPath = path.resolve(__dirname, '..', '..', 'mermaid.config.json');
@@ -160,7 +163,7 @@ function applyIcons(svg) {
         // Placing icons code into a <defs> block at the top
         svg = svg.replace(`><style>`, `>\n<defs>\n${iconsSvg}</defs>\n<style>`);
         // Adding <use> blocks referencing relevant icons
-        svg = svg.replace(/<g class="node (\w+).*?<g class="label" transform="translate\([0-9,.-]+\)"><g transform="translate\([0-9,.-]+\)">/g, `$&<use href="#az-icon-$1" width="20px" height="20px"/>`);
+        svg = svg.replace(/<g style="opacity: [0-9.]+;" transform="translate\([0-9,.-]+\)" id="[^"]+" class="node (\w+).*?<g transform="translate\([0-9,.-]+\)" class="label"><g transform="translate\([0-9,.-]+\)">/g, `$&<use href="#az-icon-$1" width="20px" height="20px"/>`);
         return svg;
     });
 }

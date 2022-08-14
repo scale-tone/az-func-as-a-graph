@@ -111,7 +111,7 @@ export default class App extends React.Component<{ state: AppState }> {
             {!!state.diagramSvg && (<>
                 
                 <div className="diagram-div"
-                    dangerouslySetInnerHTML={{ __html: this.getStyledSvg(state.diagramSvg) }}
+                    dangerouslySetInnerHTML={{ __html: state.diagramSvg }}
                 />
 
                 <Toolbar variant="dense" className="bottom-toolbar">
@@ -133,7 +133,7 @@ export default class App extends React.Component<{ state: AppState }> {
                         variant="outlined"
                         color="default"
                         disabled={state.inProgress}
-                        href={URL.createObjectURL(new Blob([this.getStyledSvg(state.diagramSvg)], { type: 'image/svg+xml' }))}
+                        href={URL.createObjectURL(new Blob([state.diagramSvg], { type: 'image/svg+xml' }))}
                         download={'functions.svg'}
                     >
                         <SaveIcon />
@@ -176,14 +176,5 @@ export default class App extends React.Component<{ state: AppState }> {
                 el.style.cursor = 'pointer';
             }
         }
-    }
-
-    // Appends some styling to SVG code, so it can also be saved as file
-    private getStyledSvg(svg: string): string {
-
-        return svg.replace('</style>',
-            '.label > g > text { transform: translateX(25px); }' +
-            '</style>'
-        );
     }
 }
