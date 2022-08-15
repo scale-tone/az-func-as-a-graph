@@ -273,7 +273,7 @@ async function mapOrchestratorsAndActivitiesAsync(functions: FunctionsMap, proje
     if (isDotNet) {
         
         // Trying to extract extra binding info from C# code
-        for (const func of otherFunctions) {
+        for (const func of activities.concat(otherFunctions)) {
 
             const bindingsFromFunctionJson = functions[func.name].bindings;
             const bindingsFromCode = DotNetBindingsParser.tryExtractBindings(func.code);
