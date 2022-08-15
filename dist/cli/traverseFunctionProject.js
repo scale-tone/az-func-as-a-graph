@@ -219,10 +219,11 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
             for (const func of otherFunctions) {
                 const existingBindings = functions[func.name].bindings;
                 const moreBindings = traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(func.code);
+                const existingBindingTypes = existingBindings.map(b => b.type);
                 for (let binding of moreBindings) {
                     // Only pushing extracted binding, if a binding with that type doesn't exist yet in function.json,
                     // so that no duplicates are produced
-                    if (!existingBindings.some(b => b.type === binding.type)) {
+                    if (!existingBindingTypes.includes(binding.type)) {
                         existingBindings.push(binding);
                     }
                 }
