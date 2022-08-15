@@ -277,8 +277,7 @@ function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern)
 // Tries to match orchestrations and their activities by parsing source code
 function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function () {
-        var isDotNet, functionNames, orchestratorNames, orchestrators, activityNames, activities, entityNames, entities, otherFunctionNames, otherFunctions, _i, orchestrators_1, orch, regex, _a, otherFunctions_1, func, _b, orchestrators_2, subOrch, regex_1, eventNames, _c, eventNames_1, eventName, regex_2, _d, otherFunctions_2, func, _e, entities_1, entity, _f, otherFunctions_3, func, regex, _g, otherFunctions_4, func, moreBindings, _h, _j, func;
-        var _k;
+        var isDotNet, functionNames, orchestratorNames, orchestrators, activityNames, activities, entityNames, entities, otherFunctionNames, otherFunctions, _i, orchestrators_1, orch, regex, _a, otherFunctions_1, func, _b, orchestrators_2, subOrch, regex_1, eventNames, _c, eventNames_1, eventName, regex_2, _d, otherFunctions_2, func, _e, entities_1, entity, _f, otherFunctions_3, func, regex, _g, otherFunctions_4, func, existingBindings, moreBindings, _loop_1, _h, moreBindings_1, binding, _j, _k, func;
         return __generator(this, function (_l) {
             switch (_l.label) {
                 case 0: return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)];
@@ -357,13 +356,24 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                         // Trying to extract extra binding info from C# code
                         for (_g = 0, otherFunctions_4 = otherFunctions; _g < otherFunctions_4.length; _g++) {
                             func = otherFunctions_4[_g];
+                            existingBindings = functions[func.name].bindings;
                             moreBindings = traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(func.code);
-                            (_k = functions[func.name].bindings).push.apply(_k, moreBindings);
+                            _loop_1 = function (binding) {
+                                // Only pushing extracted binding, if a binding with that type doesn't exist yet in function.json,
+                                // so that no duplicates are produced
+                                if (!existingBindings.some(function (b) { return b.type === binding.type; })) {
+                                    existingBindings.push(binding);
+                                }
+                            };
+                            for (_h = 0, moreBindings_1 = moreBindings; _h < moreBindings_1.length; _h++) {
+                                binding = moreBindings_1[_h];
+                                _loop_1(binding);
+                            }
                         }
                     }
                     // Also adding file paths and code positions
-                    for (_h = 0, _j = otherFunctions.concat(orchestrators).concat(activities).concat(entities); _h < _j.length; _h++) {
-                        func = _j[_h];
+                    for (_j = 0, _k = otherFunctions.concat(orchestrators).concat(activities).concat(entities); _j < _k.length; _j++) {
+                        func = _k[_j];
                         functions[func.name].filePath = func.filePath;
                         functions[func.name].pos = func.pos;
                         functions[func.name].lineNr = func.lineNr;

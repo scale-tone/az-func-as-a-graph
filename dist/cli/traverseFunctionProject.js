@@ -217,8 +217,15 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
         if (isDotNet) {
             // Trying to extract extra binding info from C# code
             for (const func of otherFunctions) {
+                const existingBindings = functions[func.name].bindings;
                 const moreBindings = traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(func.code);
-                functions[func.name].bindings.push(...moreBindings);
+                for (let binding of moreBindings) {
+                    // Only pushing extracted binding, if a binding with that type doesn't exist yet in function.json,
+                    // so that no duplicates are produced
+                    if (!existingBindings.some(b => b.type === binding.type)) {
+                        existingBindings.push(binding);
+                    }
+                }
             }
         }
         // Also adding file paths and code positions

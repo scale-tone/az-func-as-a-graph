@@ -275,8 +275,18 @@ async function mapOrchestratorsAndActivitiesAsync(functions: FunctionsMap, proje
         // Trying to extract extra binding info from C# code
         for (const func of otherFunctions) {
 
+            const existingBindings = functions[func.name].bindings;
             const moreBindings = DotNetBindingsParser.tryExtractBindings(func.code);
-            functions[func.name].bindings.push(...moreBindings);
+
+            for (let binding of moreBindings) {
+
+                // Only pushing extracted binding, if a binding with that type doesn't exist yet in function.json,
+                // so that no duplicates are produced
+                if (!existingBindings.some(b => b.type === binding.type)) {
+                 
+                    existingBindings.push(binding);
+                }
+            }
         }
     }
 
