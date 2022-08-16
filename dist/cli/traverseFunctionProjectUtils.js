@@ -16,6 +16,7 @@ const path = require("path");
 const util = require("util");
 const child_process_1 = require("child_process");
 const execAsync = util.promisify(child_process_1.exec);
+const gitCloneTimeoutInSeconds = 60;
 // Does a git clone into a temp folder and returns info about that cloned code
 function cloneFromGitHub(url) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -38,12 +39,17 @@ function cloneFromGitHub(url) {
             }
         }
         gitTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
+        let getGitTimeoutPromise = () => {
+            return new Promise((resolve, reject) => setTimeout(() => reject(new Error(`git clone timed out after ${gitCloneTimeoutInSeconds} sec.`)), gitCloneTimeoutInSeconds * 1000));
+        };
         // The provided URL might contain both branch name and relative path. The only way to separate one from another
         // is to repeatedly try cloning assumed branch names, until we finally succeed.
         for (let i = restOfUrl.length; i > 0; i--) {
             try {
                 const assumedBranchName = restOfUrl.slice(0, i).join('/');
-                child_process_1.execSync(`git clone ${url} --branch ${assumedBranchName}`, { cwd: gitTempFolder });
+                const clonePromise = execAsync(`git clone ${url} --branch ${assumedBranchName}`, { cwd: gitTempFolder });
+                // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
+                yield Promise.race([clonePromise, getGitTimeoutPromise()]);
                 branchName = assumedBranchName;
                 relativePath = path.join(...restOfUrl.slice(i, restOfUrl.length));
                 break;
@@ -56,9 +62,7 @@ function cloneFromGitHub(url) {
             // Just doing a normal git clone
             const clonePromise = execAsync(`git clone ${url}`, { cwd: gitTempFolder });
             // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
-            const gitCloneTimeoutInSeconds = 60;
-            const timeoutPromise = new Promise((resolve, reject) => setTimeout(() => reject(new Error(`git clone timed out after ${gitCloneTimeoutInSeconds} sec.`)), gitCloneTimeoutInSeconds * 1000));
-            yield Promise.race([clonePromise, timeoutPromise]);
+            yield Promise.race([clonePromise, getGitTimeoutPromise()]);
         }
         return { gitTempFolder, projectFolder: path.join(gitTempFolder, repoName, relativePath) };
     });

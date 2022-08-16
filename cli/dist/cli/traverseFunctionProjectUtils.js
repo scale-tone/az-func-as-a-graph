@@ -62,12 +62,13 @@ var path = __importStar(require("path"));
 var util = __importStar(require("util"));
 var child_process_1 = require("child_process");
 var execAsync = util.promisify(child_process_1.exec);
+var gitCloneTimeoutInSeconds = 60;
 // Does a git clone into a temp folder and returns info about that cloned code
 function cloneFromGitHub(url) {
     return __awaiter(this, void 0, void 0, function () {
-        var repoName, branchName, relativePath, gitTempFolder, restOfUrl, match, orgUrl, i, assumedBranchName, clonePromise, gitCloneTimeoutInSeconds_1, timeoutPromise;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
+        var repoName, branchName, relativePath, gitTempFolder, restOfUrl, match, orgUrl, getGitTimeoutPromise, i, assumedBranchName, clonePromise, _a, clonePromise;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
                 case 0:
                     repoName = '', branchName = '', relativePath = '', gitTempFolder = '';
                     restOfUrl = [];
@@ -89,30 +90,43 @@ function cloneFromGitHub(url) {
                     }
                     return [4 /*yield*/, fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'))];
                 case 1:
-                    gitTempFolder = _a.sent();
-                    // The provided URL might contain both branch name and relative path. The only way to separate one from another
-                    // is to repeatedly try cloning assumed branch names, until we finally succeed.
-                    for (i = restOfUrl.length; i > 0; i--) {
-                        try {
-                            assumedBranchName = restOfUrl.slice(0, i).join('/');
-                            child_process_1.execSync("git clone " + url + " --branch " + assumedBranchName, { cwd: gitTempFolder });
-                            branchName = assumedBranchName;
-                            relativePath = path.join.apply(path, restOfUrl.slice(i, restOfUrl.length));
-                            break;
-                        }
-                        catch (_b) {
-                            continue;
-                        }
-                    }
-                    if (!!branchName) return [3 /*break*/, 3];
-                    clonePromise = execAsync("git clone " + url, { cwd: gitTempFolder });
-                    gitCloneTimeoutInSeconds_1 = 60;
-                    timeoutPromise = new Promise(function (resolve, reject) { return setTimeout(function () { return reject(new Error("git clone timed out after " + gitCloneTimeoutInSeconds_1 + " sec.")); }, gitCloneTimeoutInSeconds_1 * 1000); });
-                    return [4 /*yield*/, Promise.race([clonePromise, timeoutPromise])];
+                    gitTempFolder = _b.sent();
+                    getGitTimeoutPromise = function () {
+                        return new Promise(function (resolve, reject) { return setTimeout(function () { return reject(new Error("git clone timed out after " + gitCloneTimeoutInSeconds + " sec.")); }, gitCloneTimeoutInSeconds * 1000); });
+                    };
+                    i = restOfUrl.length;
+                    _b.label = 2;
                 case 2:
-                    _a.sent();
-                    _a.label = 3;
-                case 3: return [2 /*return*/, { gitTempFolder: gitTempFolder, projectFolder: path.join(gitTempFolder, repoName, relativePath) }];
+                    if (!(i > 0)) return [3 /*break*/, 7];
+                    _b.label = 3;
+                case 3:
+                    _b.trys.push([3, 5, , 6]);
+                    assumedBranchName = restOfUrl.slice(0, i).join('/');
+                    clonePromise = execAsync("git clone " + url + " --branch " + assumedBranchName, { cwd: gitTempFolder });
+                    // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
+                    return [4 /*yield*/, Promise.race([clonePromise, getGitTimeoutPromise()])];
+                case 4:
+                    // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
+                    _b.sent();
+                    branchName = assumedBranchName;
+                    relativePath = path.join.apply(path, restOfUrl.slice(i, restOfUrl.length));
+                    return [3 /*break*/, 7];
+                case 5:
+                    _a = _b.sent();
+                    return [3 /*break*/, 6];
+                case 6:
+                    i--;
+                    return [3 /*break*/, 2];
+                case 7:
+                    if (!!branchName) return [3 /*break*/, 9];
+                    clonePromise = execAsync("git clone " + url, { cwd: gitTempFolder });
+                    // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
+                    return [4 /*yield*/, Promise.race([clonePromise, getGitTimeoutPromise()])];
+                case 8:
+                    // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
+                    _b.sent();
+                    _b.label = 9;
+                case 9: return [2 /*return*/, { gitTempFolder: gitTempFolder, projectFolder: path.join(gitTempFolder, repoName, relativePath) }];
             }
         });
     });
