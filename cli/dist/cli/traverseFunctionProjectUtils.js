@@ -59,11 +59,13 @@ exports.DotNetBindingsParser = exports.TraversalRegexes = exports.getCodeInBrack
 var os = __importStar(require("os"));
 var fs = __importStar(require("fs"));
 var path = __importStar(require("path"));
+var util = __importStar(require("util"));
 var child_process_1 = require("child_process");
+var execAsync = util.promisify(child_process_1.exec);
 // Does a git clone into a temp folder and returns info about that cloned code
 function cloneFromGitHub(url) {
     return __awaiter(this, void 0, void 0, function () {
-        var repoName, branchName, relativePath, gitTempFolder, restOfUrl, match, orgUrl, i, assumedBranchName;
+        var repoName, branchName, relativePath, gitTempFolder, restOfUrl, match, orgUrl, i, assumedBranchName, clonePromise, gitCloneTimeoutInSeconds_1, timeoutPromise;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -102,11 +104,15 @@ function cloneFromGitHub(url) {
                             continue;
                         }
                     }
-                    if (!branchName) {
-                        // Just doing a normal git clone
-                        child_process_1.execSync("git clone " + url, { cwd: gitTempFolder });
-                    }
-                    return [2 /*return*/, { gitTempFolder: gitTempFolder, projectFolder: path.join(gitTempFolder, repoName, relativePath) }];
+                    if (!!branchName) return [3 /*break*/, 3];
+                    clonePromise = execAsync("git clone " + url, { cwd: gitTempFolder });
+                    gitCloneTimeoutInSeconds_1 = 60;
+                    timeoutPromise = new Promise(function (resolve, reject) { return setTimeout(function () { return reject(new Error("git clone timed out after " + gitCloneTimeoutInSeconds_1 + " sec.")); }, gitCloneTimeoutInSeconds_1 * 1000); });
+                    return [4 /*yield*/, Promise.race([clonePromise, timeoutPromise])];
+                case 2:
+                    _a.sent();
+                    _a.label = 3;
+                case 3: return [2 /*return*/, { gitTempFolder: gitTempFolder, projectFolder: path.join(gitTempFolder, repoName, relativePath) }];
             }
         });
     });
