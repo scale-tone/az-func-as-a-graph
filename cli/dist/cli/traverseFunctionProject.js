@@ -277,7 +277,7 @@ function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern)
 // Tries to match orchestrations and their activities by parsing source code
 function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function () {
-        var isDotNet, functionNames, orchestratorNames, orchestrators, activityNames, activities, entityNames, entities, otherFunctionNames, otherFunctions, _i, orchestrators_1, orch, regex, _a, otherFunctions_1, func, _b, orchestrators_2, subOrch, regex_1, eventNames, _c, eventNames_1, eventName, regex_2, _d, otherFunctions_2, func, _e, entities_1, entity, _f, otherFunctions_3, func, regex, _g, _h, func, bindingsFromFunctionJson, bindingsFromCode, existingBindingTypes, _j, bindingsFromCode_1, binding, _k, bindingsFromFunctionJson_1, binding, _l, _m, func;
+        var isDotNet, functionNames, orchestratorNames, orchestrators, activityNames, activities, entityNames, entities, otherFunctionNames, otherFunctions, _i, orchestrators_1, orch, regex, _a, otherFunctions_1, func, _b, orchestrators_2, subOrch, regex_1, eventNames, _c, eventNames_1, eventName, regex_2, _d, otherFunctions_2, func, _e, entities_1, entity, _f, otherFunctions_3, func, regex, _g, _h, func, bindingsFromFunctionJson, bindingsFromCode, existingBindingTypes, _j, bindingsFromCode_1, binding, _loop_1, _k, bindingsFromFunctionJson_1, binding, _l, _m, func;
         return __generator(this, function (_o) {
             switch (_o.label) {
                 case 0: return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)];
@@ -367,12 +367,19 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                                     bindingsFromFunctionJson.push(binding);
                                 }
                             }
+                            _loop_1 = function (binding) {
+                                if (!binding.direction) {
+                                    var bindingsOfThisTypeFromCode = bindingsFromCode.filter(function (b) { return b.type === binding.type; });
+                                    // If we were able to unambiguosly detect the binding of this type
+                                    if (bindingsOfThisTypeFromCode.length === 1) {
+                                        binding.direction = bindingsOfThisTypeFromCode[0].direction;
+                                    }
+                                }
+                            };
                             // Also setting default direction
                             for (_k = 0, bindingsFromFunctionJson_1 = bindingsFromFunctionJson; _k < bindingsFromFunctionJson_1.length; _k++) {
                                 binding = bindingsFromFunctionJson_1[_k];
-                                if (!binding.direction) {
-                                    binding.direction = 'in';
-                                }
+                                _loop_1(binding);
                             }
                         }
                     }

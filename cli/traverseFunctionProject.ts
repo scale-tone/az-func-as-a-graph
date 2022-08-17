@@ -294,7 +294,13 @@ async function mapOrchestratorsAndActivitiesAsync(functions: FunctionsMap, proje
             for (let binding of bindingsFromFunctionJson) {
                 
                 if (!binding.direction) {
-                    binding.direction = 'in';
+
+                    const bindingsOfThisTypeFromCode = bindingsFromCode.filter(b => b.type === binding.type);
+                    // If we were able to unambiguosly detect the binding of this type
+                    if (bindingsOfThisTypeFromCode.length === 1) {
+                        
+                        binding.direction = bindingsOfThisTypeFromCode[0].direction;
+                    }
                 }
             }
         }
