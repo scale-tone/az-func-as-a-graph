@@ -3,41 +3,47 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildFunctionDiagramCode = void 0;
 const space = '#32;';
 function getTriggerBindingText(binding) {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
     switch (binding.type) {
         case 'httpTrigger':
             return `${binding.authLevel === 'anonymous' ? '#127760;' : '#128274;'} http${!binding.methods ? '' : ':[' + binding.methods.join(',') + ']'}${!binding.route ? '' : ':' + binding.route}`;
         case 'blobTrigger':
-            return `${space}blob:${(_a = binding.path) !== null && _a !== void 0 ? _a : ''}`;
+            const blobPath = (_a = binding.blobPath) !== null && _a !== void 0 ? _a : ((_b = binding.path) !== null && _b !== void 0 ? _b : '');
+            return `${space}blob:${blobPath}`;
         case 'cosmosDBTrigger':
-            return `${space}cosmosDB:${(_b = binding.databaseName) !== null && _b !== void 0 ? _b : ''}:${(_c = binding.collectionName) !== null && _c !== void 0 ? _c : ''}`;
+            return `${space}cosmosDB:${(_c = binding.databaseName) !== null && _c !== void 0 ? _c : ''}:${(_d = binding.collectionName) !== null && _d !== void 0 ? _d : ''}`;
         case 'eventHubTrigger':
-            return `${space}eventHub:${(_d = binding.eventHubName) !== null && _d !== void 0 ? _d : ''}`;
+            return `${space}eventHub:${(_e = binding.eventHubName) !== null && _e !== void 0 ? _e : ''}`;
         case 'serviceBusTrigger':
-            return `${space}serviceBus:${!binding.queueName ? ((_e = binding.topicName) !== null && _e !== void 0 ? _e : '') : binding.queueName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
+            const queueOrTopicName = (_f = binding.queueOrTopicName) !== null && _f !== void 0 ? _f : ((_g = binding.queueName) !== null && _g !== void 0 ? _g : ((_h = binding.topicName) !== null && _h !== void 0 ? _h : ''));
+            return `${space}serviceBus:${queueOrTopicName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
         case 'queueTrigger':
-            return `${space}queue:${(_f = binding.queueName) !== null && _f !== void 0 ? _f : ''}`;
+            return `${space}queue:${(_j = binding.queueName) !== null && _j !== void 0 ? _j : ''}`;
         case 'timerTrigger':
-            return `${space}timer:${(_g = binding.schedule) !== null && _g !== void 0 ? _g : ''}`;
+            return `${space}timer:${(_k = binding.schedule) !== null && _k !== void 0 ? _k : ''}`;
         default:
             return `${space}${binding.type}`;
     }
 }
 function getBindingText(binding) {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
     switch (binding.type) {
         case 'table':
             return `${space}table:${(_a = binding.tableName) !== null && _a !== void 0 ? _a : ''}`;
         case 'blob':
-            return `${space}blob:${(_b = binding.path) !== null && _b !== void 0 ? _b : ''}`;
+            const blobPath = (_b = binding.blobPath) !== null && _b !== void 0 ? _b : ((_c = binding.path) !== null && _c !== void 0 ? _c : '');
+            return `${space}blob:${blobPath}`;
         case 'cosmosDB':
-            return `${space}cosmosDB:${(_c = binding.databaseName) !== null && _c !== void 0 ? _c : ''}:${(_d = binding.collectionName) !== null && _d !== void 0 ? _d : ''}`;
+            return `${space}cosmosDB:${(_d = binding.databaseName) !== null && _d !== void 0 ? _d : ''}:${(_e = binding.collectionName) !== null && _e !== void 0 ? _e : ''}`;
         case 'eventHub':
-            return `${space}eventHub:${(_e = binding.eventHubName) !== null && _e !== void 0 ? _e : ''}`;
+            return `${space}eventHub:${(_f = binding.eventHubName) !== null && _f !== void 0 ? _f : ''}`;
+        case 'eventGrid':
+            return `${space}eventGrid:${(_g = binding.topicEndpointUri) !== null && _g !== void 0 ? _g : ''}`;
         case 'serviceBus':
-            return `${space}serviceBus:${!binding.queueName ? ((_f = binding.topicName) !== null && _f !== void 0 ? _f : '') : binding.queueName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
+            const queueOrTopicName = (_h = binding.queueOrTopicName) !== null && _h !== void 0 ? _h : ((_j = binding.queueName) !== null && _j !== void 0 ? _j : ((_k = binding.topicName) !== null && _k !== void 0 ? _k : ''));
+            return `${space}serviceBus:${queueOrTopicName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
         case 'queue':
-            return `${space}queue:${(_g = binding.queueName) !== null && _g !== void 0 ? _g : ''}`;
+            return `${space}queue:${(_l = binding.queueName) !== null && _l !== void 0 ? _l : ''}`;
         default:
             return `${space}${binding.type}`;
     }
