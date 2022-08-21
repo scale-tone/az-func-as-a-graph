@@ -1,29 +1,25 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.238.1/containers/azure-functions-node
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.238.1/containers/azure-functions-dotnetcore-3.1
 {
-	"name": "Azure Functions & Node.js",
-	"build": {
-		"dockerfile": "Dockerfile",
-		// Update 'VARIANT' to pick a Node.js version: 14, 16
-		"args": { "VARIANT": "14" }
-	},
+	"name": "Azure Functions & C# - .NET Core 3.1",
+	"dockerFile": "Dockerfile",
 	"forwardPorts": [ 7071 ],
 
 	// Configure tool-specific properties.
 	"customizations": {
 		// Configure properties specific to VS Code.
-		"vscode": {			
+		"vscode": {		
 			// Add the IDs of extensions you want installed when the container is created.
 			"extensions": [
 				"ms-azuretools.vscode-azurefunctions",
-				"dbaeumer.vscode-eslint"
+				"ms-dotnettools.csharp"
 			]
 		}
 	},
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "bash ./.devcontainer/post-create-command.sh",
+	// "postCreateCommand": "dotnet restore",
 
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-	"remoteUser": "node"
+	"remoteUser": "vscode"
 }
