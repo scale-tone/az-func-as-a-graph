@@ -12,6 +12,8 @@ ENV PATH $NODE_HOME/bin:$PATH
 
 RUN curl https://nodejs.org/dist/v$NODE_VERSION/$NODE_PACKAGE.tar.gz | tar -xzC /opt/
 
+# Installing .net 6
+RUN apt-get update && apt-get install -y dotnet-sdk-6.0
 
 # Uncomment following lines If you want to enable Development Container Script
 # For more details https://github.com/microsoft/vscode-dev-containers/tree/main/script-library
