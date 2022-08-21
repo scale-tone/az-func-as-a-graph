@@ -6,6 +6,25 @@ Visualizes your Azure Functions project in form of a graph. Accepts links to git
 UPD: is now also a part of [Durable Functions Monitor VsCode extension](https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.durablefunctionsmonitor).
 **Command Palette -> Visualize Functions as a Graph...**
 
+## How to run as a GitHub Codespace
+
+This is the quickest way to get this tool operational, but you'll need to have [GitHub Codespaces](https://github.com/features/codespaces) enabled for your org.
+
+* Click on this button:
+
+  <img src="https://user-images.githubusercontent.com/5447190/185810992-a8b131fa-0d50-4adf-bc80-426b33ef8cdd.png" width="500px"/>
+
+    (If you don't see it, it means that [GitHub Codespaces](https://github.com/features/codespaces) are not enabled)
+
+* Once a Codespace instance is started, type `func start` in Terminal window.
+* Click on this button:
+
+  <img src="https://user-images.githubusercontent.com/5447190/185811296-383cd0e7-bdec-4886-bac6-3c048c9095da.png" width="300px"/>
+
+    az-func-as-a-graph's UI will be opened in a separate browser tab. 
+
+* Enter a link to any Azure Functions project (e.g. `https://github.com/scale-tone/az-func-as-a-graph`) into there and press 'Visualize'.
+
 ## How to run locally
 
 This tool is itself an Azure Function (written in TypeScript), so to run it you'll need:
