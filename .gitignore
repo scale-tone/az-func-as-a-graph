@@ -1,6 +1,9 @@
 # Visual Studio
 .vs
 
+# VSIX packages
+*.vsix
+
 # Logs
 logs
 *.log
