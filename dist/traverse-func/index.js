@@ -22,7 +22,7 @@ function default_1(context, req) {
             projectFolder = result.projectFolder;
             tempFolders.push(...result.tempFolders);
             // Trying to convert local source file paths into links to remote repo
-            const repoInfo = renderDiagramWithCli_1.getGitRepoInfo(projectFolder);
+            const repoInfo = yield renderDiagramWithCli_1.getGitRepoInfo(projectFolder);
             if (!!repoInfo) {
                 context.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
                 // changing local paths to remote repo URLs

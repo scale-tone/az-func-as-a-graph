@@ -13,7 +13,9 @@ exports.traverseFunctionProject = void 0;
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
+const util = require("util");
 const child_process_1 = require("child_process");
+const execAsync = util.promisify(child_process_1.exec);
 const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
@@ -41,7 +43,7 @@ function traverseFunctionProject(projectFolder, log) {
             const publishTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
             tempFolders.push(publishTempFolder);
             log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
-            child_process_1.execSync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
+            yield execAsync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
             hostJsonFolder = publishTempFolder;
         }
         // Reading function.json files, in parallel

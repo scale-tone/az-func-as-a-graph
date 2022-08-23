@@ -1,7 +1,9 @@
 import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import * as util from 'util';
+import { exec } from 'child_process';
+const execAsync = util.promisify(exec);
 
 import { FunctionsMap, ProxiesMap, TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
 import {
@@ -48,7 +50,7 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
         tempFolders.push(publishTempFolder);
 
         log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
-        execSync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
+        await execAsync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
         hostJsonFolder = publishTempFolder;
     }
 

@@ -17,7 +17,7 @@ export default async function (context: Context, req: HttpRequest): Promise<void
         tempFolders.push(...result.tempFolders);
 
         // Trying to convert local source file paths into links to remote repo
-        const repoInfo = getGitRepoInfo(projectFolder);
+        const repoInfo = await getGitRepoInfo(projectFolder);
         if (!!repoInfo) {
             
             context.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);

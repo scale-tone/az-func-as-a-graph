@@ -16,6 +16,8 @@ const fs = require("fs");
 const path = require("path");
 const cp = require("child_process");
 const crypto = require("crypto");
+const util = require("util");
+const execAsync = util.promisify(cp.exec);
 const traverseFunctionProject_1 = require("./traverseFunctionProject");
 const buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
 // Does the main job
@@ -42,7 +44,7 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
             const traverseResult = yield traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log);
             projectFolder = traverseResult.projectFolder;
             // Trying to convert local source file paths into links to remote repo
-            const repoInfo = getGitRepoInfo(projectFolder, settings.repoInfo);
+            const repoInfo = yield getGitRepoInfo(projectFolder, settings.repoInfo);
             if (!!repoInfo) {
                 console.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
                 // changing local paths to remote repo URLs
@@ -134,25 +136,27 @@ function saveOutputAsMarkdown(projectName, outputFile, diagramCode, settings) {
 }
 // executes mermaid CLI from command line
 function runMermaidCli(inputFile, outputFile) {
-    const packageJsonPath = path.resolve(__dirname, '..', '..');
-    // Explicitly installing mermaid-cli. Don't want to add it to package.json, because it is quite heavy.
-    const mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'index.bundle.js');
-    if (!fs.existsSync(mermaidCliPath)) {
-        console.log(`installing mermaid-cli in ${packageJsonPath}...`);
-        // Something got broken in the latest mermaid-cli, so need to lock down the version here
-        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath });
-        console.log('mermaid-cli installed');
-    }
-    const mermaidConfigPath = path.resolve(__dirname, '..', '..', 'mermaid.config.json');
-    return new Promise((resolve, reject) => {
-        const proc = cp.fork(mermaidCliPath, ['-i', inputFile, '-o', outputFile, '-c', mermaidConfigPath]);
-        proc.on('exit', (exitCode) => {
-            if (exitCode === 0) {
-                resolve();
-            }
-            else {
-                reject(new Error(`Mermaid failed with status code ${exitCode}`));
-            }
+    return __awaiter(this, void 0, void 0, function* () {
+        const packageJsonPath = path.resolve(__dirname, '..', '..');
+        // Explicitly installing mermaid-cli. Don't want to add it to package.json, because it is quite heavy.
+        const mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'index.bundle.js');
+        if (!fs.existsSync(mermaidCliPath)) {
+            console.log(`installing mermaid-cli in ${packageJsonPath}...`);
+            // Something got broken in the latest mermaid-cli, so need to lock down the version here
+            yield execAsync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath });
+            console.log('mermaid-cli installed');
+        }
+        const mermaidConfigPath = path.resolve(__dirname, '..', '..', 'mermaid.config.json');
+        yield new Promise((resolve, reject) => {
+            const proc = cp.fork(mermaidCliPath, ['-i', inputFile, '-o', outputFile, '-c', mermaidConfigPath]);
+            proc.on('exit', (exitCode) => {
+                if (exitCode === 0) {
+                    resolve();
+                }
+                else {
+                    reject(new Error(`Mermaid failed with status code ${exitCode}`));
+                }
+            });
         });
     });
 }
@@ -169,67 +173,72 @@ function applyIcons(svg) {
 }
 // Tries to get remote origin info from git
 function getGitRepoInfo(projectFolder, repoInfoFromSettings = null) {
-    // looking for .git folder
-    var localGitFolder = projectFolder;
-    while (!fs.existsSync(path.join(localGitFolder, '.git'))) {
-        const parentFolder = path.dirname(localGitFolder);
-        if (!parentFolder || localGitFolder === parentFolder) {
-            return null;
+    return __awaiter(this, void 0, void 0, function* () {
+        // looking for .git folder
+        var localGitFolder = projectFolder;
+        while (!fs.existsSync(path.join(localGitFolder, '.git'))) {
+            const parentFolder = path.dirname(localGitFolder);
+            if (!parentFolder || localGitFolder === parentFolder) {
+                return null;
+            }
+            localGitFolder = parentFolder;
         }
-        localGitFolder = parentFolder;
-    }
-    const execSyncParams = { env: { GIT_DIR: path.join(localGitFolder, '.git') } };
-    var originUrl = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.originUrl;
-    if (!originUrl) {
-        // trying to get remote origin URL via git
-        try {
-            originUrl = cp.execSync('git config --get remote.origin.url', execSyncParams)
-                .toString()
-                .replace(/\n+$/, '') // trims end-of-line, if any
-                .replace(/\/+$/, ''); // trims the trailing slash, if any
-        }
-        catch (err) {
-            console.warn(`Unable to get remote origin URL. ${err}`);
-            return null;
-        }
-    }
-    // This tool should never expose any credentials
-    originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
-    if (originUrl.endsWith('.git')) {
-        originUrl = originUrl.substr(0, originUrl.length - 4);
-    }
-    var branchName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.branchName, tagName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.tagName;
-    if (!branchName && !tagName) {
-        // trying to get branch/tag name (which might be different from default) via git
-        try {
-            branchName = cp.execSync('git rev-parse --abbrev-ref HEAD', execSyncParams)
-                .toString()
-                .replace(/\n+$/, ''); // trims end-of-line, if any
-            if (branchName === 'HEAD') { // this indicates that we're on a tag
-                // trying to get that tag name
-                tagName = cp.execSync('git describe --tags', execSyncParams)
+        const execParams = { env: { GIT_DIR: path.join(localGitFolder, '.git') } };
+        var originUrl = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.originUrl;
+        if (!originUrl) {
+            // trying to get remote origin URL via git
+            try {
+                originUrl = (yield execAsync('git config --get remote.origin.url', execParams))
+                    .stdout
                     .toString()
-                    .replace(/\n+$/, ''); // trims end-of-line, if any
+                    .replace(/\n+$/, '') // trims end-of-line, if any
+                    .replace(/\/+$/, ''); // trims the trailing slash, if any
+            }
+            catch (err) {
+                console.warn(`Unable to get remote origin URL. ${err}`);
+                return null;
             }
         }
-        catch (err) {
-            console.warn(`Unable to detect branch/tag name. ${err}`);
+        // This tool should never expose any credentials
+        originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
+        if (originUrl.endsWith('.git')) {
+            originUrl = originUrl.substr(0, originUrl.length - 4);
         }
-        // defaulting to master
-        if (!branchName) {
-            branchName = 'master';
+        var branchName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.branchName, tagName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.tagName;
+        if (!branchName && !tagName) {
+            // trying to get branch/tag name (which might be different from default) via git
+            try {
+                branchName = (yield execAsync('git rev-parse --abbrev-ref HEAD', execParams))
+                    .stdout
+                    .toString()
+                    .replace(/\n+$/, ''); // trims end-of-line, if any
+                if (branchName === 'HEAD') { // this indicates that we're on a tag
+                    // trying to get that tag name
+                    tagName = (yield execAsync('git describe --tags', execParams))
+                        .stdout
+                        .toString()
+                        .replace(/\n+$/, ''); // trims end-of-line, if any
+                }
+            }
+            catch (err) {
+                console.warn(`Unable to detect branch/tag name. ${err}`);
+            }
+            // defaulting to master
+            if (!branchName) {
+                branchName = 'master';
+            }
         }
-    }
-    var repoName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.repoName;
-    if (!repoName) {
-        // expecting repo name to be the last segment of remote origin URL
-        const p = originUrl.lastIndexOf('/');
-        if (p < 0) {
-            return null;
+        var repoName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.repoName;
+        if (!repoName) {
+            // expecting repo name to be the last segment of remote origin URL
+            const p = originUrl.lastIndexOf('/');
+            if (p < 0) {
+                return null;
+            }
+            repoName = originUrl.substr(p + 1);
         }
-        repoName = originUrl.substr(p + 1);
-    }
-    return { originUrl, repoName, branchName, tagName };
+        return { originUrl, repoName, branchName, tagName };
+    });
 }
 exports.getGitRepoInfo = getGitRepoInfo;
 // tries to point source links to the remote repo

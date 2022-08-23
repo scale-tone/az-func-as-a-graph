@@ -59,7 +59,9 @@ exports.traverseFunctionProject = void 0;
 var os = __importStar(require("os"));
 var fs = __importStar(require("fs"));
 var path = __importStar(require("path"));
+var util = __importStar(require("util"));
 var child_process_1 = require("child_process");
+var execAsync = util.promisify(child_process_1.exec);
 var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 var ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
@@ -92,17 +94,19 @@ function traverseFunctionProject(projectFolder, log) {
                     hostJsonFolder = path.dirname(hostJsonMatch.filePath);
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(hostJsonFolder)];
                 case 4:
-                    if (!_a.sent()) return [3 /*break*/, 6];
+                    if (!_a.sent()) return [3 /*break*/, 7];
                     return [4 /*yield*/, fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'))];
                 case 5:
                     publishTempFolder = _a.sent();
                     tempFolders.push(publishTempFolder);
                     log(">>> Publishing " + hostJsonFolder + " to " + publishTempFolder + "...");
-                    child_process_1.execSync("dotnet publish -o " + publishTempFolder, { cwd: hostJsonFolder });
+                    return [4 /*yield*/, execAsync("dotnet publish -o " + publishTempFolder, { cwd: hostJsonFolder })];
+                case 6:
+                    _a.sent();
                     hostJsonFolder = publishTempFolder;
-                    _a.label = 6;
-                case 6: return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
-                case 7:
+                    _a.label = 7;
+                case 7: return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
+                case 8:
                     promises = (_a.sent()).map(function (functionName) { return __awaiter(_this, void 0, void 0, function () {
                         var fullPath, functionJsonFilePath, isDirectory, functionJsonExists, functionJsonString, functionJson, err_1;
                         return __generator(this, function (_a) {
@@ -133,14 +137,14 @@ function traverseFunctionProject(projectFolder, log) {
                         });
                     }); });
                     return [4 /*yield*/, Promise.all(promises)];
-                case 8:
+                case 9:
                     _a.sent();
                     return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder)];
-                case 9:
+                case 10:
                     // Now enriching data from function.json with more info extracted from code
                     functions = _a.sent();
                     return [4 /*yield*/, readProxiesJson(projectFolder, log)];
-                case 10:
+                case 11:
                     proxies = _a.sent();
                     return [2 /*return*/, { functions: functions, proxies: proxies, tempFolders: tempFolders, projectFolder: projectFolder }];
             }

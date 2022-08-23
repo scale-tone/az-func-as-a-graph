@@ -5,6 +5,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as cp from 'child_process';
 import * as crypto from 'crypto';
+import * as util from 'util';
+const execAsync = util.promisify(cp.exec);
 
 import { traverseFunctionProject } from './traverseFunctionProject';
 import { buildFunctionDiagramCode, GraphSettings } from '../ui/src/buildFunctionDiagramCode';
@@ -48,7 +50,7 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
         projectFolder = traverseResult.projectFolder;
 
         // Trying to convert local source file paths into links to remote repo
-        const repoInfo = getGitRepoInfo(projectFolder, settings.repoInfo);
+        const repoInfo = await getGitRepoInfo(projectFolder, settings.repoInfo);
         if (!!repoInfo) {
             
             console.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
@@ -175,7 +177,7 @@ async function saveOutputAsMarkdown(projectName: string, outputFile: string, dia
 }
 
 // executes mermaid CLI from command line
-function runMermaidCli(inputFile: string, outputFile: string): Promise<void> {
+async function runMermaidCli(inputFile: string, outputFile: string): Promise<void> {
 
     const packageJsonPath = path.resolve(__dirname, '..', '..');
 
@@ -185,13 +187,13 @@ function runMermaidCli(inputFile: string, outputFile: string): Promise<void> {
     if (!fs.existsSync(mermaidCliPath)) {
         console.log(`installing mermaid-cli in ${packageJsonPath}...`)
         // Something got broken in the latest mermaid-cli, so need to lock down the version here
-        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath });
+        await execAsync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath });
         console.log('mermaid-cli installed')
     }
 
     const mermaidConfigPath = path.resolve(__dirname, '..', '..', 'mermaid.config.json');
 
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
 
         const proc = cp.fork(mermaidCliPath, ['-i', inputFile, '-o', outputFile, '-c', mermaidConfigPath]);
 
@@ -228,7 +230,7 @@ export type GitRepositoryInfo = {
     tagName?: string;
 }
 // Tries to get remote origin info from git
-export function getGitRepoInfo(projectFolder: string, repoInfoFromSettings: GitRepositoryInfo = null): GitRepositoryInfo {
+export async function getGitRepoInfo(projectFolder: string, repoInfoFromSettings: GitRepositoryInfo = null): Promise<GitRepositoryInfo> {
 
     // looking for .git folder
     var localGitFolder = projectFolder;
@@ -243,7 +245,7 @@ export function getGitRepoInfo(projectFolder: string, repoInfoFromSettings: GitR
         localGitFolder = parentFolder;
     }
 
-    const execSyncParams = { env: { GIT_DIR: path.join(localGitFolder, '.git') } };
+    const execParams = { env: { GIT_DIR: path.join(localGitFolder, '.git') } };
 
     var originUrl = repoInfoFromSettings?.originUrl;
     if (!originUrl) {
@@ -251,7 +253,8 @@ export function getGitRepoInfo(projectFolder: string, repoInfoFromSettings: GitR
         // trying to get remote origin URL via git
         try {
 
-            originUrl = cp.execSync('git config --get remote.origin.url', execSyncParams)
+            originUrl = (await execAsync('git config --get remote.origin.url', execParams))
+                .stdout
                 .toString()
                 .replace(/\n+$/, '') // trims end-of-line, if any
                 .replace(/\/+$/, ''); // trims the trailing slash, if any
@@ -276,14 +279,16 @@ export function getGitRepoInfo(projectFolder: string, repoInfoFromSettings: GitR
         // trying to get branch/tag name (which might be different from default) via git
         try {
         
-            branchName = cp.execSync('git rev-parse --abbrev-ref HEAD', execSyncParams)
+            branchName = (await execAsync('git rev-parse --abbrev-ref HEAD', execParams))
+                .stdout
                 .toString()
                 .replace(/\n+$/, '') // trims end-of-line, if any
             
             if (branchName === 'HEAD') { // this indicates that we're on a tag
     
                 // trying to get that tag name
-                tagName = cp.execSync('git describe --tags', execSyncParams)
+                tagName = (await execAsync('git describe --tags', execParams))
+                    .stdout
                     .toString()
                     .replace(/\n+$/, '') // trims end-of-line, if any
             }

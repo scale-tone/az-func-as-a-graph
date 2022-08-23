@@ -62,6 +62,8 @@ var fs = __importStar(require("fs"));
 var path = __importStar(require("path"));
 var cp = __importStar(require("child_process"));
 var crypto = __importStar(require("crypto"));
+var util = __importStar(require("util"));
+var execAsync = util.promisify(cp.exec);
 var traverseFunctionProject_1 = require("./traverseFunctionProject");
 var buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
 // Does the main job
@@ -91,12 +93,14 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                     tempFilesAndFolders = [];
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, , 16, 17]);
+                    _a.trys.push([1, , 17, 18]);
                     return [4 /*yield*/, traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log)];
                 case 2:
                     traverseResult = _a.sent();
                     projectFolder = traverseResult.projectFolder;
-                    repoInfo = getGitRepoInfo(projectFolder, settings.repoInfo);
+                    return [4 /*yield*/, getGitRepoInfo(projectFolder, settings.repoInfo)];
+                case 3:
+                    repoInfo = _a.sent();
                     if (!!repoInfo) {
                         console.log("Using repo URI: " + repoInfo.originUrl + ", repo name: " + repoInfo.repoName + ", branch: " + repoInfo.branchName + ", tag: " + repoInfo.tagName);
                         // changing local paths to remote repo URLs
@@ -104,71 +108,71 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                         convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
                     }
                     outputFileExt = path.extname(outputFile).toLowerCase();
-                    if (!(outputFileExt === '.json')) return [3 /*break*/, 4];
+                    if (!(outputFileExt === '.json')) return [3 /*break*/, 5];
                     // just saving the Function Graph as JSON and quitting
                     return [4 /*yield*/, fs.promises.writeFile(outputFile, JSON.stringify({
                             functions: traverseResult.functions,
                             proxies: traverseResult.proxies
                         }, null, 4))];
-                case 3:
+                case 4:
                     // just saving the Function Graph as JSON and quitting
                     _a.sent();
                     console.log("Functions Map saved to " + outputFile);
                     return [2 /*return*/];
-                case 4:
+                case 5:
                     tempFilesAndFolders.push.apply(tempFilesAndFolders, traverseResult.tempFolders);
                     return [4 /*yield*/, buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings)];
-                case 5:
+                case 6:
                     diagramCode = _a.sent();
                     diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');
                     console.log('Diagram code:');
                     console.log(diagramCode);
-                    if (!(outputFileExt === '.md')) return [3 /*break*/, 7];
+                    if (!(outputFileExt === '.md')) return [3 /*break*/, 8];
                     // just saving the diagram as a Markdown file and quitting
                     return [4 /*yield*/, saveOutputAsMarkdown(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, diagramCode, settings)];
-                case 6:
+                case 7:
                     // just saving the diagram as a Markdown file and quitting
                     _a.sent();
                     console.log("Diagram was successfully generated and saved to " + outputFile);
                     console.log(tempFilesAndFolders);
                     return [2 /*return*/];
-                case 7:
+                case 8:
                     tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
                     return [4 /*yield*/, fs.promises.writeFile(tempInputFile, diagramCode)];
-                case 8:
+                case 9:
                     _a.sent();
                     tempFilesAndFolders.push(tempInputFile);
                     isHtmlOutput = ['.htm', '.html'].includes(outputFileExt);
                     tempOutputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + (isHtmlOutput ? '.svg' : outputFileExt));
                     tempFilesAndFolders.push(tempOutputFile);
                     return [4 /*yield*/, runMermaidCli(tempInputFile, tempOutputFile)];
-                case 9:
-                    _a.sent();
-                    if (!isHtmlOutput) return [3 /*break*/, 11];
-                    return [4 /*yield*/, saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings)];
                 case 10:
                     _a.sent();
-                    return [3 /*break*/, 15];
+                    if (!isHtmlOutput) return [3 /*break*/, 12];
+                    return [4 /*yield*/, saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings)];
                 case 11:
-                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 13];
-                    return [4 /*yield*/, saveOutputAsSvg(outputFile, tempOutputFile)];
+                    _a.sent();
+                    return [3 /*break*/, 16];
                 case 12:
+                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 14];
+                    return [4 /*yield*/, saveOutputAsSvg(outputFile, tempOutputFile)];
+                case 13:
                     _a.sent();
-                    return [3 /*break*/, 15];
-                case 13: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
-                case 14:
-                    _a.sent();
-                    _a.label = 15;
+                    return [3 /*break*/, 16];
+                case 14: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
                 case 15:
-                    console.log("Diagram was successfully generated and saved to " + outputFile);
-                    return [3 /*break*/, 17];
+                    _a.sent();
+                    _a.label = 16;
                 case 16:
+                    console.log("Diagram was successfully generated and saved to " + outputFile);
+                    return [3 /*break*/, 18];
+                case 17:
                     for (_i = 0, tempFilesAndFolders_1 = tempFilesAndFolders; _i < tempFilesAndFolders_1.length; _i++) {
                         tempFolder = tempFilesAndFolders_1[_i];
                         rimraf.sync(tempFolder);
                     }
                     return [7 /*endfinally*/];
-                case 17: return [2 /*return*/];
+                case 18: return [2 /*return*/];
             }
         });
     });
@@ -249,24 +253,38 @@ function saveOutputAsMarkdown(projectName, outputFile, diagramCode, settings) {
 }
 // executes mermaid CLI from command line
 function runMermaidCli(inputFile, outputFile) {
-    var packageJsonPath = path.resolve(__dirname, '..', '..');
-    // Explicitly installing mermaid-cli. Don't want to add it to package.json, because it is quite heavy.
-    var mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'index.bundle.js');
-    if (!fs.existsSync(mermaidCliPath)) {
-        console.log("installing mermaid-cli in " + packageJsonPath + "...");
-        // Something got broken in the latest mermaid-cli, so need to lock down the version here
-        cp.execSync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath });
-        console.log('mermaid-cli installed');
-    }
-    var mermaidConfigPath = path.resolve(__dirname, '..', '..', 'mermaid.config.json');
-    return new Promise(function (resolve, reject) {
-        var proc = cp.fork(mermaidCliPath, ['-i', inputFile, '-o', outputFile, '-c', mermaidConfigPath]);
-        proc.on('exit', function (exitCode) {
-            if (exitCode === 0) {
-                resolve();
-            }
-            else {
-                reject(new Error("Mermaid failed with status code " + exitCode));
+    return __awaiter(this, void 0, void 0, function () {
+        var packageJsonPath, mermaidCliPath, mermaidConfigPath;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    packageJsonPath = path.resolve(__dirname, '..', '..');
+                    mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'index.bundle.js');
+                    if (!!fs.existsSync(mermaidCliPath)) return [3 /*break*/, 2];
+                    console.log("installing mermaid-cli in " + packageJsonPath + "...");
+                    // Something got broken in the latest mermaid-cli, so need to lock down the version here
+                    return [4 /*yield*/, execAsync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath })];
+                case 1:
+                    // Something got broken in the latest mermaid-cli, so need to lock down the version here
+                    _a.sent();
+                    console.log('mermaid-cli installed');
+                    _a.label = 2;
+                case 2:
+                    mermaidConfigPath = path.resolve(__dirname, '..', '..', 'mermaid.config.json');
+                    return [4 /*yield*/, new Promise(function (resolve, reject) {
+                            var proc = cp.fork(mermaidCliPath, ['-i', inputFile, '-o', outputFile, '-c', mermaidConfigPath]);
+                            proc.on('exit', function (exitCode) {
+                                if (exitCode === 0) {
+                                    resolve();
+                                }
+                                else {
+                                    reject(new Error("Mermaid failed with status code " + exitCode));
+                                }
+                            });
+                        })];
+                case 3:
+                    _a.sent();
+                    return [2 /*return*/];
             }
         });
     });
@@ -292,67 +310,87 @@ function applyIcons(svg) {
 // Tries to get remote origin info from git
 function getGitRepoInfo(projectFolder, repoInfoFromSettings) {
     if (repoInfoFromSettings === void 0) { repoInfoFromSettings = null; }
-    // looking for .git folder
-    var localGitFolder = projectFolder;
-    while (!fs.existsSync(path.join(localGitFolder, '.git'))) {
-        var parentFolder = path.dirname(localGitFolder);
-        if (!parentFolder || localGitFolder === parentFolder) {
-            return null;
-        }
-        localGitFolder = parentFolder;
-    }
-    var execSyncParams = { env: { GIT_DIR: path.join(localGitFolder, '.git') } };
-    var originUrl = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.originUrl;
-    if (!originUrl) {
-        // trying to get remote origin URL via git
-        try {
-            originUrl = cp.execSync('git config --get remote.origin.url', execSyncParams)
-                .toString()
-                .replace(/\n+$/, '') // trims end-of-line, if any
-                .replace(/\/+$/, ''); // trims the trailing slash, if any
-        }
-        catch (err) {
-            console.warn("Unable to get remote origin URL. " + err);
-            return null;
-        }
-    }
-    // This tool should never expose any credentials
-    originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
-    if (originUrl.endsWith('.git')) {
-        originUrl = originUrl.substr(0, originUrl.length - 4);
-    }
-    var branchName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.branchName, tagName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.tagName;
-    if (!branchName && !tagName) {
-        // trying to get branch/tag name (which might be different from default) via git
-        try {
-            branchName = cp.execSync('git rev-parse --abbrev-ref HEAD', execSyncParams)
-                .toString()
-                .replace(/\n+$/, ''); // trims end-of-line, if any
-            if (branchName === 'HEAD') { // this indicates that we're on a tag
-                // trying to get that tag name
-                tagName = cp.execSync('git describe --tags', execSyncParams)
-                    .toString()
-                    .replace(/\n+$/, ''); // trims end-of-line, if any
+    return __awaiter(this, void 0, void 0, function () {
+        var localGitFolder, parentFolder, execParams, originUrl, err_1, branchName, tagName, err_2, repoName, p;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    localGitFolder = projectFolder;
+                    while (!fs.existsSync(path.join(localGitFolder, '.git'))) {
+                        parentFolder = path.dirname(localGitFolder);
+                        if (!parentFolder || localGitFolder === parentFolder) {
+                            return [2 /*return*/, null];
+                        }
+                        localGitFolder = parentFolder;
+                    }
+                    execParams = { env: { GIT_DIR: path.join(localGitFolder, '.git') } };
+                    originUrl = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.originUrl;
+                    if (!!originUrl) return [3 /*break*/, 4];
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, 3, , 4]);
+                    return [4 /*yield*/, execAsync('git config --get remote.origin.url', execParams)];
+                case 2:
+                    originUrl = (_a.sent())
+                        .stdout
+                        .toString()
+                        .replace(/\n+$/, '') // trims end-of-line, if any
+                        .replace(/\/+$/, ''); // trims the trailing slash, if any
+                    return [3 /*break*/, 4];
+                case 3:
+                    err_1 = _a.sent();
+                    console.warn("Unable to get remote origin URL. " + err_1);
+                    return [2 /*return*/, null];
+                case 4:
+                    // This tool should never expose any credentials
+                    originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
+                    if (originUrl.endsWith('.git')) {
+                        originUrl = originUrl.substr(0, originUrl.length - 4);
+                    }
+                    branchName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.branchName, tagName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.tagName;
+                    if (!(!branchName && !tagName)) return [3 /*break*/, 11];
+                    _a.label = 5;
+                case 5:
+                    _a.trys.push([5, 9, , 10]);
+                    return [4 /*yield*/, execAsync('git rev-parse --abbrev-ref HEAD', execParams)];
+                case 6:
+                    branchName = (_a.sent())
+                        .stdout
+                        .toString()
+                        .replace(/\n+$/, ''); // trims end-of-line, if any
+                    if (!(branchName === 'HEAD')) return [3 /*break*/, 8];
+                    return [4 /*yield*/, execAsync('git describe --tags', execParams)];
+                case 7:
+                    // trying to get that tag name
+                    tagName = (_a.sent())
+                        .stdout
+                        .toString()
+                        .replace(/\n+$/, ''); // trims end-of-line, if any
+                    _a.label = 8;
+                case 8: return [3 /*break*/, 10];
+                case 9:
+                    err_2 = _a.sent();
+                    console.warn("Unable to detect branch/tag name. " + err_2);
+                    return [3 /*break*/, 10];
+                case 10:
+                    // defaulting to master
+                    if (!branchName) {
+                        branchName = 'master';
+                    }
+                    _a.label = 11;
+                case 11:
+                    repoName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.repoName;
+                    if (!repoName) {
+                        p = originUrl.lastIndexOf('/');
+                        if (p < 0) {
+                            return [2 /*return*/, null];
+                        }
+                        repoName = originUrl.substr(p + 1);
+                    }
+                    return [2 /*return*/, { originUrl: originUrl, repoName: repoName, branchName: branchName, tagName: tagName }];
             }
-        }
-        catch (err) {
-            console.warn("Unable to detect branch/tag name. " + err);
-        }
-        // defaulting to master
-        if (!branchName) {
-            branchName = 'master';
-        }
-    }
-    var repoName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.repoName;
-    if (!repoName) {
-        // expecting repo name to be the last segment of remote origin URL
-        var p = originUrl.lastIndexOf('/');
-        if (p < 0) {
-            return null;
-        }
-        repoName = originUrl.substr(p + 1);
-    }
-    return { originUrl: originUrl, repoName: repoName, branchName: branchName, tagName: tagName };
+        });
+    });
 }
 exports.getGitRepoInfo = getGitRepoInfo;
 // tries to point source links to the remote repo
