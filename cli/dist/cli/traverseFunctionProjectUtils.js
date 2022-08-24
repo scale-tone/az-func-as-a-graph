@@ -344,7 +344,7 @@ var DotNetBindingsParser = /** @class */ (function () {
     DotNetBindingsParser.cosmosDbParamsRegex = new RegExp("\"([^\"]+)\"(.|\r|\n)+?\"([^\"]+)\"");
     DotNetBindingsParser.signalRConnInfoParamsRegex = new RegExp("\"([^\"]+)\"");
     DotNetBindingsParser.eventGridParamsRegex = new RegExp("\"([^\"]+)\"(.|\r|\n)+?\"([^\"]+)\"");
-    DotNetBindingsParser.isOutRegex = new RegExp("\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()", 'g');
+    DotNetBindingsParser.isOutRegex = new RegExp("^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()", 'g');
     return DotNetBindingsParser;
 }());
 exports.DotNetBindingsParser = DotNetBindingsParser;

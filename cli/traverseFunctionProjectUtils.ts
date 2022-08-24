@@ -317,5 +317,5 @@ export class DotNetBindingsParser {
     static readonly signalRConnInfoParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly eventGridParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
 
-    static readonly isOutRegex = new RegExp(`\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
+    static readonly isOutRegex = new RegExp(`^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
 }
