@@ -71,8 +71,9 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings) {
             var func = functionsMap[name_1];
             var triggerBinding = undefined, inputBindings = [], outputBindings = [], otherBindings = [];
             var nodeCode = name_1 + "{{\"" + space + name_1 + "\"}}:::function";
-            for (var _i = 0, _c = func.bindings; _i < _c.length; _i++) {
-                var binding = _c[_i];
+            for (var i = 0; i < func.bindings.length; i++) {
+                var binding = func.bindings[i];
+                binding.index = i;
                 if (binding.type === 'orchestrationTrigger') {
                     nodeCode = name_1 + "[[\"" + space + name_1 + "\"]]:::orchestrator";
                 }
@@ -110,35 +111,35 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings) {
             return (s1 > s2) ? 1 : ((s2 > s1) ? -1 : 0);
         });
         // Rendering
-        for (var _d = 0, functions_1 = functions; _d < functions_1.length; _d++) {
-            var func = functions_1[_d];
+        for (var _i = 0, functions_1 = functions; _i < functions_1.length; _i++) {
+            var func = functions_1[_i];
             code += func.nodeCode + "\n";
             // Making Functions nodes a bit darker
             code += "style " + func.name + " fill:#D9D9FF,stroke-width:2px\n";
             if (!!((_a = func.isCalledBy) === null || _a === void 0 ? void 0 : _a.length)) {
-                for (var _e = 0, _f = func.isCalledBy; _e < _f.length; _e++) {
-                    var calledBy = _f[_e];
+                for (var _c = 0, _d = func.isCalledBy; _c < _d.length; _c++) {
+                    var calledBy = _d[_c];
                     code += calledBy + " ---> " + func.name + "\n";
                 }
             }
             else if (!!func.triggerBinding) {
-                code += func.name + "." + func.triggerBinding.type + ">\"" + getTriggerBindingText(func.triggerBinding) + "\"]:::" + func.triggerBinding.type + " --> " + func.name + "\n";
+                code += func.name + ".binding" + func.triggerBinding.index + "." + func.triggerBinding.type + ">\"" + getTriggerBindingText(func.triggerBinding) + "\"]:::" + func.triggerBinding.type + " --> " + func.name + "\n";
             }
             for (var i = 0; i < func.inputBindings.length; i++) {
                 var inputBinding = func.inputBindings[i];
-                code += func.name + "." + i + "." + inputBinding.type + "([\"" + getBindingText(inputBinding) + "\"]):::" + inputBinding.type + " -.-> " + func.name + "\n";
+                code += func.name + ".binding" + inputBinding.index + "." + inputBinding.type + "([\"" + getBindingText(inputBinding) + "\"]):::" + inputBinding.type + " -.-> " + func.name + "\n";
             }
             for (var i = 0; i < func.outputBindings.length; i++) {
                 var outputBinding = func.outputBindings[i];
-                code += func.name + " -.-> " + func.name + "." + i + "." + outputBinding.type + "([\"" + getBindingText(outputBinding) + "\"]):::" + outputBinding.type + "\n";
+                code += func.name + " -.-> " + func.name + ".binding" + outputBinding.index + "." + outputBinding.type + "([\"" + getBindingText(outputBinding) + "\"]):::" + outputBinding.type + "\n";
             }
             for (var i = 0; i < func.otherBindings.length; i++) {
                 var otherBinding = func.otherBindings[i];
-                code += func.name + " -.- " + func.name + "." + i + "." + otherBinding.type + "([\"" + getBindingText(otherBinding) + "\"]):::" + otherBinding.type + "\n";
+                code += func.name + " -.- " + func.name + ".binding" + otherBinding.index + "." + otherBinding.type + "([\"" + getBindingText(otherBinding) + "\"]):::" + otherBinding.type + "\n";
             }
             if (!!((_b = func.isSignalledBy) === null || _b === void 0 ? void 0 : _b.length)) {
-                for (var _g = 0, _h = func.isSignalledBy; _g < _h.length; _g++) {
-                    var signalledBy = _h[_g];
+                for (var _e = 0, _f = func.isSignalledBy; _e < _f.length; _e++) {
+                    var signalledBy = _f[_e];
                     code += signalledBy.name + " -- \"#9889; " + signalledBy.signalName + "\" ---> " + func.name + "\n";
                 }
             }

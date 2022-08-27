@@ -51,15 +51,17 @@ function getBindingText(binding) {
 // Translates functions and their bindings into a Mermaid Flowchart diagram code
 function buildFunctionDiagramCode(functionsMap, proxiesMap, settings = {}) {
     var _a, _b;
-    var code = '';
+    let code = '';
     if (!settings.doNotRenderFunctions) {
         const functions = [];
         // Determine what kind of function this one is
         for (const name in functionsMap) {
             const func = functionsMap[name];
-            var triggerBinding = undefined, inputBindings = [], outputBindings = [], otherBindings = [];
-            var nodeCode = `${name}{{"${space}${name}"}}:::function`;
-            for (const binding of func.bindings) {
+            let triggerBinding = undefined, inputBindings = [], outputBindings = [], otherBindings = [];
+            let nodeCode = `${name}{{"${space}${name}"}}:::function`;
+            for (let i = 0; i < func.bindings.length; i++) {
+                const binding = func.bindings[i];
+                binding.index = i;
                 if (binding.type === 'orchestrationTrigger') {
                     nodeCode = `${name}[["${space}${name}"]]:::orchestrator`;
                 }
@@ -87,13 +89,13 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings = {}) {
         // Sorting by trigger type, then by name. Moving the ones that are being called to the bottom.
         const getFunctionHash = (f) => {
             var _a;
-            var hash = (!!((_a = f.isCalledBy) === null || _a === void 0 ? void 0 : _a.length) || !f.triggerBinding || !f.triggerBinding.type) ? '' : f.triggerBinding.type;
+            let hash = (!!((_a = f.isCalledBy) === null || _a === void 0 ? void 0 : _a.length) || !f.triggerBinding || !f.triggerBinding.type) ? '' : f.triggerBinding.type;
             hash += '~' + f.name;
             return hash;
         };
         functions.sort((f1, f2) => {
-            var s1 = getFunctionHash(f1);
-            var s2 = getFunctionHash(f2);
+            let s1 = getFunctionHash(f1);
+            let s2 = getFunctionHash(f2);
             return (s1 > s2) ? 1 : ((s2 > s1) ? -1 : 0);
         });
         // Rendering
@@ -107,19 +109,19 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings = {}) {
                 }
             }
             else if (!!func.triggerBinding) {
-                code += `${func.name}.${func.triggerBinding.type}>"${getTriggerBindingText(func.triggerBinding)}"]:::${func.triggerBinding.type} --> ${func.name}\n`;
+                code += `${func.name}.binding${func.triggerBinding.index}.${func.triggerBinding.type}>"${getTriggerBindingText(func.triggerBinding)}"]:::${func.triggerBinding.type} --> ${func.name}\n`;
             }
-            for (var i = 0; i < func.inputBindings.length; i++) {
+            for (let i = 0; i < func.inputBindings.length; i++) {
                 const inputBinding = func.inputBindings[i];
-                code += `${func.name}.${i}.${inputBinding.type}(["${getBindingText(inputBinding)}"]):::${inputBinding.type} -.-> ${func.name}\n`;
+                code += `${func.name}.binding${inputBinding.index}.${inputBinding.type}(["${getBindingText(inputBinding)}"]):::${inputBinding.type} -.-> ${func.name}\n`;
             }
-            for (var i = 0; i < func.outputBindings.length; i++) {
+            for (let i = 0; i < func.outputBindings.length; i++) {
                 const outputBinding = func.outputBindings[i];
-                code += `${func.name} -.-> ${func.name}.${i}.${outputBinding.type}(["${getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
+                code += `${func.name} -.-> ${func.name}.binding${outputBinding.index}.${outputBinding.type}(["${getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
             }
-            for (var i = 0; i < func.otherBindings.length; i++) {
+            for (let i = 0; i < func.otherBindings.length; i++) {
                 const otherBinding = func.otherBindings[i];
-                code += `${func.name} -.- ${func.name}.${i}.${otherBinding.type}(["${getBindingText(otherBinding)}"]):::${otherBinding.type}\n`;
+                code += `${func.name} -.- ${func.name}.binding${otherBinding.index}.${otherBinding.type}(["${getBindingText(otherBinding)}"]):::${otherBinding.type}\n`;
             }
             if (!!((_b = func.isSignalledBy) === null || _b === void 0 ? void 0 : _b.length)) {
                 for (const signalledBy of func.isSignalledBy) {
@@ -134,8 +136,8 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings = {}) {
     // Also proxies
     if (!settings.doNotRenderProxies && (Object.keys(proxiesMap).length > 0)) {
         const proxyNodesColor = '#FFE6C8';
-        var nodeTitle = ``;
-        var notAddedToCsProjFile = false;
+        let nodeTitle = ``;
+        let notAddedToCsProjFile = false;
         for (const name in proxiesMap) {
             const proxy = proxiesMap[name];
             const proxyPurifiedName = name.replace(/ /g, '');
@@ -152,7 +154,7 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings = {}) {
             if (!nodeTitle) {
                 nodeTitle = name;
             }
-            var nodeName = `proxy.${proxyPurifiedName}`;
+            let nodeName = `proxy.${proxyPurifiedName}`;
             code += `proxies.json -. "${name}" .-> ${nodeName}(["${space}${nodeTitle}"]):::proxy\n`;
             code += `style ${nodeName} fill:${proxyNodesColor}\n`;
             if (!!proxy.backendUri) {
@@ -167,7 +169,7 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings = {}) {
             code += `style ${nextNodeName} fill:${proxyNodesColor}\n`;
         }
         nodeTitle = `proxies.json`;
-        var nodeColor = proxyNodesColor;
+        let nodeColor = proxyNodesColor;
         if (notAddedToCsProjFile) {
             nodeTitle += ` #9888; Not added to .CSPROJ file!`;
             nodeColor = `#FF8080`;
@@ -183,7 +185,7 @@ function getRequestOverridesArrowCode(requestOverrides) {
     if (!requestOverrides) {
         return `-->`;
     }
-    var arrowText = JSON.stringify(requestOverrides)
+    let arrowText = JSON.stringify(requestOverrides)
         .replace(/"/g, `'`)
         .replace(/'backend.request./g, `'`);
     if (arrowText.length > maxSymbolsInTitle) {
@@ -198,7 +200,7 @@ function getResponseOverridesArrowCode(responseOverrides) {
     if (!!responseOverrides['response.body']) {
         responseOverrides['response.body'] = '...';
     }
-    var arrowText = JSON.stringify(responseOverrides)
+    let arrowText = JSON.stringify(responseOverrides)
         .replace(/"/g, `'`)
         .replace(/'response./g, `'`);
     if (arrowText.length > maxSymbolsInTitle) {
