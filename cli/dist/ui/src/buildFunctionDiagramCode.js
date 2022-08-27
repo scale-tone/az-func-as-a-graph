@@ -125,21 +125,21 @@ function buildFunctionDiagramCode(functionsMap, proxiesMap, settings) {
             else if (!!func.triggerBinding) {
                 code += func.name + ".binding" + func.triggerBinding.index + "." + func.triggerBinding.type + ">\"" + getTriggerBindingText(func.triggerBinding) + "\"]:::" + func.triggerBinding.type + " --> " + func.name + "\n";
             }
-            for (var i = 0; i < func.inputBindings.length; i++) {
-                var inputBinding = func.inputBindings[i];
+            for (var _e = 0, _f = func.inputBindings; _e < _f.length; _e++) {
+                var inputBinding = _f[_e];
                 code += func.name + ".binding" + inputBinding.index + "." + inputBinding.type + "([\"" + getBindingText(inputBinding) + "\"]):::" + inputBinding.type + " -.-> " + func.name + "\n";
             }
-            for (var i = 0; i < func.outputBindings.length; i++) {
-                var outputBinding = func.outputBindings[i];
+            for (var _g = 0, _h = func.outputBindings; _g < _h.length; _g++) {
+                var outputBinding = _h[_g];
                 code += func.name + " -.-> " + func.name + ".binding" + outputBinding.index + "." + outputBinding.type + "([\"" + getBindingText(outputBinding) + "\"]):::" + outputBinding.type + "\n";
             }
-            for (var i = 0; i < func.otherBindings.length; i++) {
-                var otherBinding = func.otherBindings[i];
+            for (var _j = 0, _k = func.otherBindings; _j < _k.length; _j++) {
+                var otherBinding = _k[_j];
                 code += func.name + " -.- " + func.name + ".binding" + otherBinding.index + "." + otherBinding.type + "([\"" + getBindingText(otherBinding) + "\"]):::" + otherBinding.type + "\n";
             }
             if (!!((_b = func.isSignalledBy) === null || _b === void 0 ? void 0 : _b.length)) {
-                for (var _e = 0, _f = func.isSignalledBy; _e < _f.length; _e++) {
-                    var signalledBy = _f[_e];
+                for (var _l = 0, _m = func.isSignalledBy; _l < _m.length; _l++) {
+                    var signalledBy = _m[_l];
                     code += signalledBy.name + " -- \"#9889; " + signalledBy.signalName + "\" ---> " + func.name + "\n";
                 }
             }

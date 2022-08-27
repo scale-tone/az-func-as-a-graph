@@ -169,18 +169,15 @@ export function buildFunctionDiagramCode(functionsMap: FunctionsMap, proxiesMap:
                 code += `${func.name}.binding${func.triggerBinding.index}.${func.triggerBinding.type}>"${getTriggerBindingText(func.triggerBinding)}"]:::${func.triggerBinding.type} --> ${func.name}\n`;
             }
     
-            for (let i = 0; i < func.inputBindings.length; i++) {
-                const inputBinding = func.inputBindings[i];
+            for (const inputBinding of func.inputBindings) {
                 code += `${func.name}.binding${inputBinding.index}.${inputBinding.type}(["${getBindingText(inputBinding)}"]):::${inputBinding.type} -.-> ${func.name}\n`;
             }
     
-            for (let i = 0; i < func.outputBindings.length; i++) {
-                const outputBinding = func.outputBindings[i];
+            for (const outputBinding of func.outputBindings) {
                 code += `${func.name} -.-> ${func.name}.binding${outputBinding.index}.${outputBinding.type}(["${getBindingText(outputBinding)}"]):::${outputBinding.type}\n`;
             }
     
-            for (let i = 0; i < func.otherBindings.length; i++) {
-                const otherBinding = func.otherBindings[i];
+            for (const otherBinding of func.otherBindings) {
                 code += `${func.name} -.- ${func.name}.binding${otherBinding.index}.${otherBinding.type}(["${getBindingText(otherBinding)}"]):::${otherBinding.type}\n`;
             }
     
