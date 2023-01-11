@@ -7,6 +7,8 @@ const execAsync = util.promisify(exec);
 
 const gitCloneTimeoutInSeconds = 60;
 
+export const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
+
 // Does a git clone into a temp folder and returns info about that cloned code
 export async function cloneFromGitHub(url: string): Promise<{gitTempFolder: string, projectFolder: string}> {
 
@@ -86,7 +88,7 @@ export function posToLineNr(code: string | undefined, pos: number): number {
     return !lineBreaks ? 1 : lineBreaks.length + 1;
 }
 
-// Checks if the given folder looks like a .Net project
+// Checks if the given folder looks like a .NET project
 export async function isDotNetProjectAsync(projectFolder: string): Promise<boolean> {
     return (await fs.promises.readdir(projectFolder)).some(fn => {
         fn = fn.toLowerCase();
@@ -96,23 +98,47 @@ export async function isDotNetProjectAsync(projectFolder: string): Promise<boole
     });
 }
 
+
+// Checks if the given folder looks like a .NET Isolated project
+export async function isDotNetIsolatedProjectAsync(projectFolder: string): Promise<boolean> {
+
+    const csprojFile = (await fs.promises.readdir(projectFolder)).find(fn => {
+        fn = fn.toLowerCase();
+        return (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+    });
+
+    if (!csprojFile) {
+        return false;
+    }
+
+    const csprojFileString = await fs.promises.readFile(path.join(projectFolder, csprojFile), { encoding: 'utf8' });
+
+    return csprojFileString.includes('Microsoft.Azure.Functions.Worker');
+}
+
 // Complements regex's inability to keep up with nested brackets
 export function getCodeInBrackets(str: string, startFrom: number, openingBracket: string, closingBracket: string, mustHaveSymbols: string = ''): string {
 
     var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = !mustHaveSymbols;
+
     for (var i = startFrom; i < str.length; i++) {
+
         switch (str[i]) {
             case openingBracket:
+
                 if (bracketCount <= 0) {
                     openBracketPos = i + 1;
                 }
                 bracketCount++;
+
                 break;
             case closingBracket:
+
                 bracketCount--;
                 if (bracketCount <= 0 && mustHaveSymbolFound) {
                     return str.substring(startFrom, i + 1);
                 }
+                
                 break;
         }
 
@@ -318,4 +344,6 @@ export class DotNetBindingsParser {
     static readonly eventGridParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
 
     static readonly isOutRegex = new RegExp(`^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
+
+    static readonly functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\(`, 'g');
 }

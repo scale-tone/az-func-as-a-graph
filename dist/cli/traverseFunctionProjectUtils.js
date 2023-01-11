@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DotNetBindingsParser = exports.TraversalRegexes = exports.getCodeInBrackets = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = void 0;
+exports.DotNetBindingsParser = exports.TraversalRegexes = exports.getCodeInBrackets = exports.isDotNetIsolatedProjectAsync = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
@@ -17,6 +17,7 @@ const util = require("util");
 const child_process_1 = require("child_process");
 const execAsync = util.promisify(child_process_1.exec);
 const gitCloneTimeoutInSeconds = 60;
+exports.ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 // Does a git clone into a temp folder and returns info about that cloned code
 function cloneFromGitHub(url) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -77,7 +78,7 @@ function posToLineNr(code, pos) {
     return !lineBreaks ? 1 : lineBreaks.length + 1;
 }
 exports.posToLineNr = posToLineNr;
-// Checks if the given folder looks like a .Net project
+// Checks if the given folder looks like a .NET project
 function isDotNetProjectAsync(projectFolder) {
     return __awaiter(this, void 0, void 0, function* () {
         return (yield fs.promises.readdir(projectFolder)).some(fn => {
@@ -89,6 +90,21 @@ function isDotNetProjectAsync(projectFolder) {
     });
 }
 exports.isDotNetProjectAsync = isDotNetProjectAsync;
+// Checks if the given folder looks like a .NET Isolated project
+function isDotNetIsolatedProjectAsync(projectFolder) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const csprojFile = (yield fs.promises.readdir(projectFolder)).find(fn => {
+            fn = fn.toLowerCase();
+            return (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+        });
+        if (!csprojFile) {
+            return false;
+        }
+        const csprojFileString = yield fs.promises.readFile(path.join(projectFolder, csprojFile), { encoding: 'utf8' });
+        return csprojFileString.includes('Microsoft.Azure.Functions.Worker');
+    });
+}
+exports.isDotNetIsolatedProjectAsync = isDotNetIsolatedProjectAsync;
 // Complements regex's inability to keep up with nested brackets
 function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols = '') {
     var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = !mustHaveSymbols;
@@ -272,4 +288,5 @@ DotNetBindingsParser.cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"
 DotNetBindingsParser.signalRConnInfoParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.eventGridParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
 DotNetBindingsParser.isOutRegex = new RegExp(`^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
+DotNetBindingsParser.functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\(`, 'g');
 //# sourceMappingURL=traverseFunctionProjectUtils.js.map

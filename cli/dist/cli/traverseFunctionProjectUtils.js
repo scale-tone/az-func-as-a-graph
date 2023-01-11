@@ -345,6 +345,7 @@ var DotNetBindingsParser = /** @class */ (function () {
     DotNetBindingsParser.signalRConnInfoParamsRegex = new RegExp("\"([^\"]+)\"");
     DotNetBindingsParser.eventGridParamsRegex = new RegExp("\"([^\"]+)\"(.|\r|\n)+?\"([^\"]+)\"");
     DotNetBindingsParser.isOutRegex = new RegExp("^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()", 'g');
+    DotNetBindingsParser.functionAttributeRegex = new RegExp("\\[\\s*Function(Attribute)?\\s*\\(", 'g');
     return DotNetBindingsParser;
 }());
 exports.DotNetBindingsParser = DotNetBindingsParser;

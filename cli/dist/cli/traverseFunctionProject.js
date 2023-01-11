@@ -69,12 +69,12 @@ var ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python
 // (if the project uses Durable Functions)
 function traverseFunctionProject(projectFolder, log) {
     return __awaiter(this, void 0, void 0, function () {
-        var functions, tempFolders, gitInfo, hostJsonMatch, hostJsonFolder, publishTempFolder, promises, proxies;
+        var tempFolders, gitInfo, hostJsonMatch, hostJsonFolder, publishTempFolder, functions, tempFolders, promises, match, proxies;
         var _this = this;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    functions = {}, tempFolders = [];
+                    tempFolders = [];
                     if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 2];
                     log("Cloning " + projectFolder);
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder)];
@@ -105,7 +105,9 @@ function traverseFunctionProject(projectFolder, log) {
                     _a.sent();
                     hostJsonFolder = publishTempFolder;
                     _a.label = 7;
-                case 7: return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
+                case 7:
+                    functions = {}, tempFolders = [];
+                    return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
                 case 8:
                     promises = (_a.sent()).map(function (functionName) { return __awaiter(_this, void 0, void 0, function () {
                         var fullPath, functionJsonFilePath, isDirectory, functionJsonExists, functionJsonString, functionJson, err_1;
@@ -139,12 +141,18 @@ function traverseFunctionProject(projectFolder, log) {
                     return [4 /*yield*/, Promise.all(promises)];
                 case 9:
                     _a.sent();
-                    return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder)];
+                    if (!!Object.keys(functions).length) return [3 /*break*/, 11];
+                    return [4 /*yield*/, findFileRecursivelyAsync(projectFolder, '.+\\.(f|c)s$', true, traverseFunctionProjectUtils_1.DotNetBindingsParser.functionAttributeRegex)];
                 case 10:
+                    match = _a.sent();
+                    console.log(match);
+                    _a.label = 11;
+                case 11: return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder)];
+                case 12:
                     // Now enriching data from function.json with more info extracted from code
                     functions = _a.sent();
                     return [4 /*yield*/, readProxiesJson(projectFolder, log)];
-                case 11:
+                case 13:
                     proxies = _a.sent();
                     return [2 /*return*/, { functions: functions, proxies: proxies, tempFolders: tempFolders, projectFolder: projectFolder }];
             }
