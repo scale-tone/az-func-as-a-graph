@@ -31,18 +31,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.traverseDotNetIsolatedProject = void 0;
 const fs = require("fs");
 const path = require("path");
-const util = require("util");
-const child_process_1 = require("child_process");
-const execAsync = util.promisify(child_process_1.exec);
 const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 // Tries to parse code of a .NET Isolated function and extract bindings from there
 function traverseDotNetIsolatedProject(projectFolder) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
+        let result = {};
         try {
-            for (var _b = __asyncValues(findFilesRecursivelyAsync(projectFolder, new RegExp('.+\\.cs$', 'i'), traverseFunctionProjectUtils_1.DotNetBindingsParser.functionAttributeRegex)), _c; _c = yield _b.next(), !_c.done;) {
-                const csFile = _c.value;
-                console.log(csFile.code);
+            for (var _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder)), _c; _c = yield _b.next(), !_c.done;) {
+                const func = _c.value;
+                const bindings = traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(func.declarationCode);
+                // Also trying to extract multiple output bindings
+                const outputBindings = yield extractOutputBindings(projectFolder, func.declarationCode);
+                result[func.functionName] = {
+                    filePath: func.filePath,
+                    pos: func.pos,
+                    lineNr: func.lineNr,
+                    bindings: [...bindings, ...outputBindings]
+                };
             }
         }
         catch (e_1_1) { e_1 = { error: e_1_1 }; }
@@ -52,12 +58,33 @@ function traverseDotNetIsolatedProject(projectFolder) {
             }
             finally { if (e_1) throw e_1.error; }
         }
-        return {};
+        return result;
     });
 }
 exports.traverseDotNetIsolatedProject = traverseDotNetIsolatedProject;
-function findFilesRecursivelyAsync(folder, fileNameRegex, pattern) {
-    return __asyncGenerator(this, arguments, function* findFilesRecursivelyAsync_1() {
+function extractOutputBindings(projectFolder, functionCode) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const returnTypeMatch = traverseFunctionProjectUtils_1.DotNetBindingsParser.functionReturnTypeRegex.exec(functionCode);
+        if (!returnTypeMatch) {
+            return [];
+        }
+        const returnTypeName = removeNamespace(returnTypeMatch[3]);
+        if (!returnTypeName) {
+            return [];
+        }
+        const returnTypeDefinition = yield traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, '.+\\.cs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getClassDefinitionRegex(returnTypeName));
+        if (!returnTypeDefinition) {
+            return [];
+        }
+        const classBody = traverseFunctionProjectUtils_1.getCodeInBrackets(returnTypeDefinition.code, returnTypeDefinition.pos + returnTypeDefinition.length, '{', '}');
+        if (!classBody.code) {
+            return [];
+        }
+        return traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(classBody.code);
+    });
+}
+function findFunctionsRecursivelyAsync(folder) {
+    return __asyncGenerator(this, arguments, function* findFunctionsRecursivelyAsync_1() {
         var e_2, _a;
         for (const dirEnt of yield __await(fs.promises.readdir(folder, { withFileTypes: true }))) {
             var fullPath = path.join(folder, dirEnt.name);
@@ -66,7 +93,7 @@ function findFilesRecursivelyAsync(folder, fileNameRegex, pattern) {
                     continue;
                 }
                 try {
-                    for (var _b = (e_2 = void 0, __asyncValues(findFilesRecursivelyAsync(fullPath, fileNameRegex, pattern))), _c; _c = yield __await(_b.next()), !_c.done;) {
+                    for (var _b = (e_2 = void 0, __asyncValues(findFunctionsRecursivelyAsync(fullPath))), _c; _c = yield __await(_b.next()), !_c.done;) {
                         const file = _c.value;
                         yield yield __await(file);
                     }
@@ -79,19 +106,32 @@ function findFilesRecursivelyAsync(folder, fileNameRegex, pattern) {
                     finally { if (e_2) throw e_2.error; }
                 }
             }
-            else if (!!fileNameRegex.exec(dirEnt.name)) {
+            else if (!!traverseFunctionProjectUtils_1.TraversalRegexes.cSharpFileNameRegex.exec(dirEnt.name)) {
                 const code = yield __await(fs.promises.readFile(fullPath, { encoding: 'utf8' }));
-                const match = pattern.exec(code);
-                if (!!match) {
-                    yield yield __await({
-                        filePath: fullPath,
-                        code,
-                        pos: match.index,
-                        length: match[0].length
-                    });
+                var match;
+                while (!!(match = traverseFunctionProjectUtils_1.DotNetBindingsParser.functionAttributeRegex.exec(code))) {
+                    let functionName = removeNamespace(match[3]);
+                    const body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, match.index + match[0].length, '{', '}', ' \n');
+                    if (body.openBracketPos >= 0 && !!body.code) {
+                        yield yield __await({
+                            functionName,
+                            filePath: fullPath,
+                            pos: match.index,
+                            lineNr: traverseFunctionProjectUtils_1.posToLineNr(code, match.index),
+                            declarationCode: body.code.substring(0, body.openBracketPos),
+                            bodyCode: body.code.substring(body.openBracketPos)
+                        });
+                    }
                 }
             }
         }
     });
+}
+function removeNamespace(name) {
+    if (!name) {
+        return name;
+    }
+    const dotPos = name.lastIndexOf('.');
+    return dotPos >= 0 ? name.substring(dotPos + 1) : name;
 }
 //# sourceMappingURL=traverseDotNetIsolatedFunctionProject.js.map

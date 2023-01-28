@@ -9,7 +9,7 @@ import { FunctionsMap, ProxiesMap, TraverseFunctionResult } from '../ui/src/shar
 
 import {
     getCodeInBrackets, TraversalRegexes, DotNetBindingsParser,
-    isDotNetProjectAsync, isDotNetIsolatedProjectAsync, posToLineNr, cloneFromGitHub, ExcludedFolders
+    isDotNetProjectAsync, isDotNetIsolatedProjectAsync, posToLineNr, cloneFromGitHub, findFileRecursivelyAsync
 } from './traverseFunctionProjectUtils';
 
 import { traverseDotNetIsolatedProject } from './traverseDotNetIsolatedFunctionProject';
@@ -44,8 +44,11 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
 
     let hostJsonFolder = path.dirname(hostJsonMatch.filePath);
 
+    const isDotNetProject = await isDotNetProjectAsync(hostJsonFolder);
+    const isDotNetIsolatedProject = await isDotNetIsolatedProjectAsync(projectFolder);
+
     // If it is a C# function, we'll need to dotnet publish first
-    if (await isDotNetProjectAsync(hostJsonFolder)) {
+    if (!!isDotNetProject && !isDotNetIsolatedProject) {
 
         const publishTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
         tempFolders.push(publishTempFolder);
@@ -57,7 +60,7 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
 
     let functions: FunctionsMap = {};
 
-    if (await isDotNetIsolatedProjectAsync(projectFolder)) {
+    if (!!isDotNetIsolatedProject) {
 
         functions = await traverseDotNetIsolatedProject(projectFolder);
         
@@ -152,53 +155,6 @@ async function readProxiesJson(projectFolder: string, log: (s: any) => void): Pr
         log(`>>> Failed to parse ${proxiesJsonPath}: ${err}`);
         return {};
     }
-}
-
-// fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
-// If returnFileContents == true, returns file content. Otherwise returns full path to the file.
-async function findFileRecursivelyAsync(folder: string, fileName: string, returnFileContents: boolean, pattern?: RegExp)
-    : Promise<{ filePath: string, code?: string, pos?: number, length?: number } | undefined> {
-
-    const fileNameRegex = new RegExp(fileName, 'i');
-
-    for (const name of await fs.promises.readdir(folder)) {
-        var fullPath = path.join(folder, name);
-
-        if ((await fs.promises.lstat(fullPath)).isDirectory()) {
-
-            if (ExcludedFolders.includes(name.toLowerCase())) {
-                continue;
-            }
-
-            const result = await findFileRecursivelyAsync(fullPath, fileName, returnFileContents, pattern);
-            if (!!result) {
-                return result;
-            }
-
-        } else if (!!fileNameRegex.exec(name)) {
-
-            if (!pattern) {
-                return {
-                    filePath: fullPath,
-                    code: returnFileContents ? (await fs.promises.readFile(fullPath, { encoding: 'utf8' })) : undefined
-                };
-            }
-
-            const code = await fs.promises.readFile(fullPath, { encoding: 'utf8' });
-            const match = pattern.exec(code);
-
-            if (!!match) {
-                return {
-                    filePath: fullPath,
-                    code: returnFileContents ? code : undefined,
-                    pos: match.index,
-                    length: match[0].length
-                };
-            }
-        }
-    }
-
-    return undefined;
 }
 
 // Tries to match orchestrations and their activities by parsing source code
@@ -356,7 +312,7 @@ async function getFunctionsAndTheirCodesAsync(functionNames: string[], isDotNet:
             return undefined;
         }
 
-        const code = !isDotNet ? match.code : getCodeInBrackets(match.code!, match.pos! + match.length!, '{', '}', ' \n');
+        const code = !isDotNet ? match.code : getCodeInBrackets(match.code!, match.pos! + match.length!, '{', '}', ' \n').code;
         const pos = !match.pos ? 0 : match.pos;
         const lineNr = posToLineNr(match.code, pos);
 

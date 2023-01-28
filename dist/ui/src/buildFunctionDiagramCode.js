@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildFunctionDiagramCode = void 0;
 const space = '#32;';
 function getTriggerBindingText(binding) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
     switch (binding.type) {
         case 'httpTrigger':
             return `${binding.authLevel === 'anonymous' ? '#127760;' : '#128274;'} http${!binding.methods ? '' : ':[' + binding.methods.join(',') + ']'}${!binding.route ? '' : ':' + binding.route}`;
@@ -14,19 +14,23 @@ function getTriggerBindingText(binding) {
             return `${space}cosmosDB:${(_c = binding.databaseName) !== null && _c !== void 0 ? _c : ''}:${(_d = binding.collectionName) !== null && _d !== void 0 ? _d : ''}`;
         case 'eventHubTrigger':
             return `${space}eventHub:${(_e = binding.eventHubName) !== null && _e !== void 0 ? _e : ''}`;
+        case 'kafkaTrigger':
+            return `${space}kafka:${(_f = binding.brokerList) !== null && _f !== void 0 ? _f : ''}`;
+        case 'eventGridTrigger':
+            return `${space}eventGrid:${(_g = binding.topicEndpointUri) !== null && _g !== void 0 ? _g : ''}`;
         case 'serviceBusTrigger':
-            const queueOrTopicName = (_f = binding.queueOrTopicName) !== null && _f !== void 0 ? _f : ((_g = binding.queueName) !== null && _g !== void 0 ? _g : ((_h = binding.topicName) !== null && _h !== void 0 ? _h : ''));
+            const queueOrTopicName = (_h = binding.queueOrTopicName) !== null && _h !== void 0 ? _h : ((_j = binding.queueName) !== null && _j !== void 0 ? _j : ((_k = binding.topicName) !== null && _k !== void 0 ? _k : ''));
             return `${space}serviceBus:${queueOrTopicName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
         case 'queueTrigger':
-            return `${space}queue:${(_j = binding.queueName) !== null && _j !== void 0 ? _j : ''}`;
+            return `${space}queue:${(_l = binding.queueName) !== null && _l !== void 0 ? _l : ''}`;
         case 'timerTrigger':
-            return `${space}timer:${(_k = binding.schedule) !== null && _k !== void 0 ? _k : ''}`;
+            return `${space}timer:${(_m = binding.schedule) !== null && _m !== void 0 ? _m : ''}`;
         default:
             return `${space}${binding.type}`;
     }
 }
 function getBindingText(binding) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
     switch (binding.type) {
         case 'table':
             return `${space}table:${(_a = binding.tableName) !== null && _a !== void 0 ? _a : ''}`;
@@ -37,13 +41,15 @@ function getBindingText(binding) {
             return `${space}cosmosDB:${(_d = binding.databaseName) !== null && _d !== void 0 ? _d : ''}:${(_e = binding.collectionName) !== null && _e !== void 0 ? _e : ''}`;
         case 'eventHub':
             return `${space}eventHub:${(_f = binding.eventHubName) !== null && _f !== void 0 ? _f : ''}`;
+        case 'kafka':
+            return `${space}kafka:${(_g = binding.brokerList) !== null && _g !== void 0 ? _g : ''}`;
         case 'eventGrid':
-            return `${space}eventGrid:${(_g = binding.topicEndpointUri) !== null && _g !== void 0 ? _g : ''}`;
+            return `${space}eventGrid:${(_h = binding.topicEndpointUri) !== null && _h !== void 0 ? _h : ''}`;
         case 'serviceBus':
-            const queueOrTopicName = (_h = binding.queueOrTopicName) !== null && _h !== void 0 ? _h : ((_j = binding.queueName) !== null && _j !== void 0 ? _j : ((_k = binding.topicName) !== null && _k !== void 0 ? _k : ''));
+            const queueOrTopicName = (_j = binding.queueOrTopicName) !== null && _j !== void 0 ? _j : ((_k = binding.queueName) !== null && _k !== void 0 ? _k : ((_l = binding.topicName) !== null && _l !== void 0 ? _l : ''));
             return `${space}serviceBus:${queueOrTopicName}${!binding.subscriptionName ? '' : ':' + binding.subscriptionName}`;
         case 'queue':
-            return `${space}queue:${(_l = binding.queueName) !== null && _l !== void 0 ? _l : ''}`;
+            return `${space}queue:${(_m = binding.queueName) !== null && _m !== void 0 ? _m : ''}`;
         default:
             return `${space}${binding.type}`;
     }

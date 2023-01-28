@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DotNetBindingsParser = exports.TraversalRegexes = exports.getCodeInBrackets = exports.isDotNetIsolatedProjectAsync = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
+exports.DotNetBindingsParser = exports.TraversalRegexes = exports.findFileRecursivelyAsync = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.isDotNetIsolatedProjectAsync = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
@@ -107,19 +107,19 @@ function isDotNetIsolatedProjectAsync(projectFolder) {
 exports.isDotNetIsolatedProjectAsync = isDotNetIsolatedProjectAsync;
 // Complements regex's inability to keep up with nested brackets
 function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols = '') {
-    var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = !mustHaveSymbols;
+    var bracketCount = 0, openBracketPos = -1, mustHaveSymbolFound = !mustHaveSymbols;
     for (var i = startFrom; i < str.length; i++) {
         switch (str[i]) {
             case openingBracket:
                 if (bracketCount <= 0) {
-                    openBracketPos = i + 1;
+                    openBracketPos = i;
                 }
                 bracketCount++;
                 break;
             case closingBracket:
                 bracketCount--;
                 if (bracketCount <= 0 && mustHaveSymbolFound) {
-                    return str.substring(startFrom, i + 1);
+                    return { code: str.substring(startFrom, i + 1), openBracketPos: openBracketPos - startFrom };
                 }
                 break;
         }
@@ -127,9 +127,70 @@ function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustH
             mustHaveSymbolFound = true;
         }
     }
-    return '';
+    return { code: '', openBracketPos: -1 };
 }
 exports.getCodeInBrackets = getCodeInBrackets;
+// Complements regex's inability to keep up with nested brackets
+function getCodeInBracketsReverse(str, openingBracket, closingBracket) {
+    var bracketCount = 0, closingBracketPos = 0;
+    for (var i = str.length - 1; i >= 0; i--) {
+        switch (str[i]) {
+            case closingBracket:
+                if (bracketCount <= 0) {
+                    closingBracketPos = i;
+                }
+                bracketCount++;
+                break;
+            case openingBracket:
+                bracketCount--;
+                if (bracketCount <= 0) {
+                    return { code: str.substring(0, closingBracketPos + 1), openBracketPos: i };
+                }
+                break;
+        }
+    }
+    return { code: '', openBracketPos: -1 };
+}
+exports.getCodeInBracketsReverse = getCodeInBracketsReverse;
+// fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
+// If returnFileContents == true, returns file content. Otherwise returns full path to the file.
+function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const fileNameRegex = new RegExp(fileName, 'i');
+        for (const name of yield fs.promises.readdir(folder)) {
+            var fullPath = path.join(folder, name);
+            if ((yield fs.promises.lstat(fullPath)).isDirectory()) {
+                if (exports.ExcludedFolders.includes(name.toLowerCase())) {
+                    continue;
+                }
+                const result = yield findFileRecursivelyAsync(fullPath, fileName, returnFileContents, pattern);
+                if (!!result) {
+                    return result;
+                }
+            }
+            else if (!!fileNameRegex.exec(name)) {
+                if (!pattern) {
+                    return {
+                        filePath: fullPath,
+                        code: returnFileContents ? (yield fs.promises.readFile(fullPath, { encoding: 'utf8' })) : undefined
+                    };
+                }
+                const code = yield fs.promises.readFile(fullPath, { encoding: 'utf8' });
+                const match = pattern.exec(code);
+                if (!!match) {
+                    return {
+                        filePath: fullPath,
+                        code: returnFileContents ? code : undefined,
+                        pos: match.index,
+                        length: match[0].length
+                    };
+                }
+            }
+        }
+        return undefined;
+    });
+}
+exports.findFileRecursivelyAsync = findFileRecursivelyAsync;
 // General-purpose regexes
 class TraversalRegexes {
     static getStartNewOrchestrationRegex(orchName) {
@@ -150,8 +211,12 @@ class TraversalRegexes {
     static getCallActivityRegex(activityName) {
         return new RegExp(`(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*["'\`]?${activityName}\\s*["'\`\\),]{1}`, 'i');
     }
+    static getClassDefinitionRegex(className) {
+        return new RegExp(`class\\s*${className}`);
+    }
 }
 exports.TraversalRegexes = TraversalRegexes;
+TraversalRegexes.cSharpFileNameRegex = new RegExp('.+\\.cs$', 'i');
 TraversalRegexes.continueAsNewRegex = new RegExp(`ContinueAsNew\\s*\\(`, 'i');
 TraversalRegexes.waitForExternalEventRegex = new RegExp(`(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w,\\.-\\[\\]\\(\\)\\<\\>]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)?([\\s\\w\\.-]+)\\s*["'\`\\),]{1}`, 'gi');
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
@@ -166,69 +231,137 @@ class DotNetBindingsParser {
         var match;
         while (!!(match = regex.exec(funcCode))) {
             const isReturn = !!match[2];
-            const attributeName = match[3];
-            const attributeCodeStartIndex = match.index + match[0].length - 1;
-            const attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '');
+            let attributeName = match[3];
+            if (attributeName.endsWith(`Attribute`)) {
+                attributeName = attributeName.substring(0, attributeName.length - `Attribute`.length);
+            }
+            const attributeCodeStartIndex = match.index + match[0].length;
+            const attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '').code;
             this.isOutRegex.lastIndex = attributeCodeStartIndex + attributeCode.length;
             const isOut = !!this.isOutRegex.exec(funcCode);
             switch (attributeName) {
+                case 'BlobInput':
+                case 'BlobOutput':
                 case 'Blob': {
-                    const binding = { type: 'blob', direction: isReturn || isOut ? 'out' : 'in' };
+                    const binding = {
+                        type: 'blob',
+                        direction: attributeName === 'Blob' ? (isReturn || isOut ? 'out' : 'in') : (attributeName === 'BlobOutput' ? 'out' : 'in')
+                    };
                     const paramsMatch = this.blobParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['path'] = paramsMatch[1];
+                        binding.path = paramsMatch[1];
                     }
                     result.push(binding);
                     break;
                 }
+                case 'BlobTrigger': {
+                    const binding = { type: 'blobTrigger' };
+                    const paramsMatch = this.blobParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.path = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'TableInput':
+                case 'TableOutput':
                 case 'Table': {
-                    const binding = { type: 'table', direction: isReturn || isOut ? 'out' : 'in' };
+                    const binding = {
+                        type: 'table',
+                        direction: attributeName === 'Table' ? (isReturn || isOut ? 'out' : 'in') : (attributeName === 'TableOutput' ? 'out' : 'in')
+                    };
                     const paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['tableName'] = paramsMatch[2];
+                        binding.tableName = paramsMatch[2];
                     }
                     result.push(binding);
                     break;
                 }
+                case 'CosmosDBInput':
+                case 'CosmosDBOutput':
                 case 'CosmosDB': {
-                    const binding = { type: 'cosmosDB', direction: isReturn || isOut ? 'out' : 'in' };
+                    const binding = {
+                        type: 'cosmosDB',
+                        direction: attributeName === 'CosmosDB' ? (isReturn || isOut ? 'out' : 'in') : (attributeName === 'CosmosDBOutput' ? 'out' : 'in')
+                    };
                     const paramsMatch = this.cosmosDbParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['databaseName'] = paramsMatch[1];
-                        binding['collectionName'] = paramsMatch[3];
+                        binding.databaseName = paramsMatch[1];
+                        binding.collectionName = paramsMatch[3];
                     }
                     result.push(binding);
                     break;
                 }
-                case 'SignalRConnectionInfo': {
-                    const binding = { type: 'signalRConnectionInfo', direction: 'in' };
-                    const paramsMatch = this.signalRConnInfoParamsRegex.exec(attributeCode);
+                case 'CosmosDBTrigger': {
+                    const binding = { type: 'cosmosDBTrigger' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['hubName'] = paramsMatch[1];
+                        binding.databaseName = paramsMatch[2];
                     }
                     result.push(binding);
                     break;
                 }
-                case 'EventGrid': {
+                case 'EventGrid':
+                case 'EventGridOutput': {
                     const binding = { type: 'eventGrid', direction: 'out' };
                     const paramsMatch = this.eventGridParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['topicEndpointUri'] = paramsMatch[1];
-                        binding['topicKeySetting'] = paramsMatch[3];
+                        binding.topicEndpointUri = paramsMatch[1];
+                        binding.topicKeySetting = paramsMatch[3];
                     }
                     result.push(binding);
                     break;
                 }
-                case 'EventHub': {
+                case 'EventGridTrigger': {
+                    const binding = { type: 'eventGridTrigger' };
+                    const paramsMatch = this.eventGridParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.topicEndpointUri = paramsMatch[1];
+                        binding.topicKeySetting = paramsMatch[3];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'EventHub':
+                case 'EventHubOutput': {
                     const binding = { type: 'eventHub', direction: 'out' };
                     const paramsMatch = this.eventHubParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['eventHubName'] = paramsMatch[1];
+                        binding.eventHubName = paramsMatch[1];
                     }
                     result.push(binding);
                     break;
                 }
-                case 'Queue': {
+                case 'EventHubTrigger': {
+                    const binding = { type: 'eventHubTrigger' };
+                    const paramsMatch = this.eventHubParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.eventHubName = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'Kafka':
+                case 'KafkaOutput': {
+                    const binding = { type: 'kafka', direction: 'out' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.brokerList = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'KafkaTrigger': {
+                    const binding = { type: 'kafkaTrigger' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.brokerList = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'Queue':
+                case 'QueueOutput': {
                     const binding = { type: 'queue', direction: 'out' };
                     const paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -237,7 +370,17 @@ class DotNetBindingsParser {
                     result.push(binding);
                     break;
                 }
-                case 'ServiceBus': {
+                case 'QueueTrigger': {
+                    const binding = { type: 'queueTrigger' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'ServiceBus':
+                case 'ServiceBusOutput': {
                     const binding = { type: 'serviceBus', direction: 'out' };
                     const paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -246,7 +389,27 @@ class DotNetBindingsParser {
                     result.push(binding);
                     break;
                 }
-                case 'SignalR': {
+                case 'ServiceBusTrigger': {
+                    const binding = { type: 'serviceBusTrigger' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SignalRConnectionInfo':
+                case 'SignalRConnectionInfoInput': {
+                    const binding = { type: 'signalRConnectionInfo', direction: 'in' };
+                    const paramsMatch = this.signalRConnInfoParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.hubName = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SignalR':
+                case 'SignalROutput': {
                     const binding = { type: 'signalR', direction: 'out' };
                     const paramsMatch = this.signalRParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -255,7 +418,17 @@ class DotNetBindingsParser {
                     result.push(binding);
                     break;
                 }
-                case 'RabbitMQ': {
+                case 'SignalRTrigger': {
+                    const binding = { type: 'signalRTrigger' };
+                    const paramsMatch = this.signalRParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['hubName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'RabbitMQ':
+                case 'RabbitMQOutput': {
                     const binding = { type: 'rabbitMQ', direction: 'out' };
                     const paramsMatch = this.rabbitMqParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -264,12 +437,38 @@ class DotNetBindingsParser {
                     result.push(binding);
                     break;
                 }
-                case 'SendGrid': {
+                case 'RabbitMQTrigger': {
+                    const binding = { type: 'rabbitMQTrigger' };
+                    const paramsMatch = this.rabbitMqParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SendGrid':
+                case 'SendGridOutput': {
                     result.push({ type: 'sendGrid', direction: 'out' });
                     break;
                 }
                 case 'TwilioSms': {
                     result.push({ type: 'twilioSms', direction: 'out' });
+                    break;
+                }
+                case 'HttpTrigger': {
+                    const binding = { type: 'httpTrigger', methods: [] };
+                    const httpTriggerRouteMatch = this.httpTriggerRouteRegex.exec(attributeCode);
+                    if (!!httpTriggerRouteMatch) {
+                        binding.route = httpTriggerRouteMatch[1];
+                    }
+                    const lowerAttributeCode = attributeCode.toLowerCase();
+                    for (const httpMethod of this.httpMethods) {
+                        if (lowerAttributeCode.includes(`"${httpMethod}"`)) {
+                            binding.methods.push(httpMethod);
+                        }
+                    }
+                    result.push(binding);
+                    result.push({ type: 'http', direction: 'out' });
                     break;
                 }
             }
@@ -278,7 +477,7 @@ class DotNetBindingsParser {
     }
 }
 exports.DotNetBindingsParser = DotNetBindingsParser;
-DotNetBindingsParser.bindingAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(`, 'g');
+DotNetBindingsParser.bindingAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)`, 'g');
 DotNetBindingsParser.singleParamRegex = new RegExp(`("|nameof\\s*\\()?([\\w\\.-]+)`);
 DotNetBindingsParser.eventHubParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.signalRParamsRegex = new RegExp(`"([^"]+)"`);
@@ -288,5 +487,8 @@ DotNetBindingsParser.cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"
 DotNetBindingsParser.signalRConnInfoParamsRegex = new RegExp(`"([^"]+)"`);
 DotNetBindingsParser.eventGridParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
 DotNetBindingsParser.isOutRegex = new RegExp(`^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
-DotNetBindingsParser.functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\(`, 'g');
+DotNetBindingsParser.httpMethods = [`get`, `head`, `post`, `put`, `delete`, `connect`, `options`, `trace`, `patch`];
+DotNetBindingsParser.httpTriggerRouteRegex = new RegExp(`Route\\s*=\\s*"(.*)"`);
+DotNetBindingsParser.functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\(\\s*("|nameof\\s*\\(\\s*)([\\w\\.-]+)(\\"|\\s*\\))\\s*\\)\\s*\\]`, 'g');
+DotNetBindingsParser.functionReturnTypeRegex = new RegExp(`public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)`, 'g');
 //# sourceMappingURL=traverseFunctionProjectUtils.js.map
