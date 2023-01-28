@@ -103,7 +103,6 @@ export class AppState {
 
         const projectPath = this.pathText;
         window.history.replaceState(null, null, `?path=${encodeURIComponent(projectPath)}`);
-        this.pathText = '';
 
         const traversedFunctionsPromise = axios.post(`a/p/i/traverse-func`, projectPath);
 
