@@ -22,7 +22,15 @@ function getTriggerBindingText(binding: any): string {
         case 'eventHubTrigger':
             
             return `${space}eventHub:${binding.eventHubName ?? ''}`;
+        
+        case 'kafkaTrigger':
+            
+            return `${space}kafka:${binding.brokerList ?? ''}`;
 
+        case 'eventGridTrigger':
+            
+            return `${space}eventGrid:${binding.topicEndpointUri ?? ''}`;
+        
         case 'serviceBusTrigger':
             
             const queueOrTopicName =
@@ -65,6 +73,10 @@ function getBindingText(binding: any): string {
         case 'eventHub':
             
             return `${space}eventHub:${binding.eventHubName ?? ''}`;
+
+        case 'kafka':
+            
+            return `${space}kafka:${binding.brokerList ?? ''}`;
         
         case 'eventGrid':
             

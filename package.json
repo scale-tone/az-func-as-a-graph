@@ -1,7 +1,7 @@
 {
   "name": "az-function-as-a-graph",
   "version": "1.0.0",
-  "description": "",
+  "description": "Visualizes your Azure Functions project in form of a graph",
   "scripts": {
     "build": "(cd cli && npm install && tsc) && (cd ../ui && npm install && npm run build && node compile-icons.js) && (cd .. && tsc)",
     "build:production": "npm run prestart && npm prune --production",

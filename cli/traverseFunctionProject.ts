@@ -6,12 +6,13 @@ import { exec } from 'child_process';
 const execAsync = util.promisify(exec);
 
 import { FunctionsMap, ProxiesMap, TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
+
 import {
     getCodeInBrackets, TraversalRegexes, DotNetBindingsParser,
-    isDotNetProjectAsync, posToLineNr, cloneFromGitHub
+    isDotNetProjectAsync, isDotNetIsolatedProjectAsync, posToLineNr, cloneFromGitHub, findFileRecursivelyAsync
 } from './traverseFunctionProjectUtils';
 
-const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
+import { traverseDotNetIsolatedProject } from './traverseDotNetIsolatedFunctionProject';
 
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
 // extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
@@ -19,7 +20,7 @@ const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.pyth
 export async function traverseFunctionProject(projectFolder: string, log: (s: any) => void)
     : Promise<TraverseFunctionResult> {
 
-    var functions: FunctionsMap = {}, tempFolders = [];
+    let tempFolders = [];
     
     // If it is a git repo, cloning it
     if (projectFolder.toLowerCase().startsWith('http')) {
@@ -41,10 +42,13 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
 
     log(`>>> Found host.json at ${hostJsonMatch.filePath}`);
 
-    var hostJsonFolder = path.dirname(hostJsonMatch.filePath);
+    let hostJsonFolder = path.dirname(hostJsonMatch.filePath);
+
+    const isDotNetProject = await isDotNetProjectAsync(hostJsonFolder);
+    const isDotNetIsolatedProject = await isDotNetIsolatedProjectAsync(projectFolder);
 
     // If it is a C# function, we'll need to dotnet publish first
-    if (await isDotNetProjectAsync(hostJsonFolder)) {
+    if (!!isDotNetProject && !isDotNetIsolatedProject) {
 
         const publishTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
         tempFolders.push(publishTempFolder);
@@ -54,32 +58,41 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
         hostJsonFolder = publishTempFolder;
     }
 
-    // Reading function.json files, in parallel
-    const promises = (await fs.promises.readdir(hostJsonFolder)).map(async functionName => {
+    let functions: FunctionsMap = {};
 
-        const fullPath = path.join(hostJsonFolder, functionName);
-        const functionJsonFilePath = path.join(fullPath, 'function.json');
+    if (!!isDotNetIsolatedProject) {
 
-        const isDirectory = (await fs.promises.lstat(fullPath)).isDirectory();
-        const functionJsonExists = fs.existsSync(functionJsonFilePath);
+        functions = await traverseDotNetIsolatedProject(projectFolder);
+        
+    } else {
 
-        if (isDirectory && functionJsonExists) {
+        // Reading function.json files, in parallel
+        const promises = (await fs.promises.readdir(hostJsonFolder)).map(async functionName => {
 
-            try {
-                const functionJsonString = await fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
-                const functionJson = JSON.parse(functionJsonString);
+            const fullPath = path.join(hostJsonFolder, functionName);
+            const functionJsonFilePath = path.join(fullPath, 'function.json');
 
-                functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
+            const isDirectory = (await fs.promises.lstat(fullPath)).isDirectory();
+            const functionJsonExists = fs.existsSync(functionJsonFilePath);
 
-            } catch (err) {
-                log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
+            if (isDirectory && functionJsonExists) {
+
+                try {
+                    const functionJsonString = await fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
+                    const functionJson = JSON.parse(functionJsonString);
+
+                    functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
+
+                } catch (err) {
+                    log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
+                }
             }
-        }
-    });
-    await Promise.all(promises);
+        });
+        await Promise.all(promises);
 
-    // Now enriching data from function.json with more info extracted from code
-    functions = await mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
+        // Now enriching data from function.json with more info extracted from code
+        functions = await mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
+    }
 
     // Also reading proxies
     const proxies = await readProxiesJson(projectFolder, log);
@@ -144,55 +157,8 @@ async function readProxiesJson(projectFolder: string, log: (s: any) => void): Pr
     }
 }
 
-// fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
-// If returnFileContents == true, returns file content. Otherwise returns full path to the file.
-async function findFileRecursivelyAsync(folder: string, fileName: string, returnFileContents: boolean, pattern?: RegExp)
-    : Promise<{ filePath: string, code?: string, pos?: number, length?: number } | undefined> {
-
-    const fileNameRegex = new RegExp(fileName, 'i');
-
-    for (const name of await fs.promises.readdir(folder)) {
-        var fullPath = path.join(folder, name);
-
-        if ((await fs.promises.lstat(fullPath)).isDirectory()) {
-
-            if (ExcludedFolders.includes(name.toLowerCase())) {
-                continue;
-            }
-
-            const result = await findFileRecursivelyAsync(fullPath, fileName, returnFileContents, pattern);
-            if (!!result) {
-                return result;
-            }
-
-        } else if (!!fileNameRegex.exec(name)) {
-
-            if (!pattern) {
-                return {
-                    filePath: fullPath,
-                    code: returnFileContents ? (await fs.promises.readFile(fullPath, { encoding: 'utf8' })) : undefined
-                };
-            }
-
-            const code = await fs.promises.readFile(fullPath, { encoding: 'utf8' });
-            const match = pattern.exec(code);
-
-            if (!!match) {
-                return {
-                    filePath: fullPath,
-                    code: returnFileContents ? code : undefined,
-                    pos: match.index,
-                    length: match[0].length
-                };
-            }
-        }
-    }
-
-    return undefined;
-}
-
 // Tries to match orchestrations and their activities by parsing source code
-async function mapOrchestratorsAndActivitiesAsync(functions: FunctionsMap, projectFolder: string, hostJsonFolder: string): Promise<{}> {
+async function mapOrchestratorsAndActivitiesAsync(functions: FunctionsMap, projectFolder: string, hostJsonFolder: string): Promise<FunctionsMap> {
 
     const isDotNet = await isDotNetProjectAsync(projectFolder);
     const functionNames = Object.keys(functions);
@@ -346,7 +312,7 @@ async function getFunctionsAndTheirCodesAsync(functionNames: string[], isDotNet:
             return undefined;
         }
 
-        const code = !isDotNet ? match.code : getCodeInBrackets(match.code!, match.pos! + match.length!, '{', '}', ' \n');
+        const code = !isDotNet ? match.code : getCodeInBrackets(match.code!, match.pos! + match.length!, '{', '}', ' \n').code;
         const pos = !match.pos ? 0 : match.pos;
         const lineNr = posToLineNr(match.code, pos);
 

@@ -6,13 +6,15 @@ test('bindingAttributeRegex', () => {
     const samples = [
         `[return:Table("MyTable")]`,
         `[ BlobTrigger ( "claims/{fileFullName}", Connection = "AzureWebJobsStorage")] Stream fileStream`,
-        `([<ServiceBus(TopicName, Connection = ServiceBusConnectionString, EntityType = EntityType.Topic)>] topic: IAsyncCollector<Message>)`
+        `([<ServiceBus(TopicName, Connection = ServiceBusConnectionString, EntityType = EntityType.Topic)>] topic: IAsyncCollector<Message>)`,
+        `[QueueOutputAttribute("myQueue")]`
     ];
 
     const results = [
         ['return:', 'Table'],
         [undefined, 'BlobTrigger'],
         [undefined, 'ServiceBus'],
+        [undefined, 'QueueOutputAttribute'],
     ];
 
     const regex = DotNetBindingsParser.bindingAttributeRegex;
@@ -76,5 +78,83 @@ test('singleParamRegex', () => {
         const match = regex.exec(sample);
         expect(match).not.toBeNull();
         expect(match[2]).toBe(result);
+    }
+});
+
+test('functionAttributeRegex', () => {
+
+    const samples = [
+
+        ` [Function(nameof(MyFunc_123))] 
+        [QueueOutput("output-queue")]
+        public static string[] Run([QueueTrigger("input-queue")] Book myQueueItem, FunctionContext context)
+        {`,
+
+        ` [  Function   (    nameof     (     MyNamespace.MyFunc_123 )  )   ]     
+        {`,
+
+        ` [  Function   (    "My-Func-123"  )   ]     
+            public static Book Run(
+                [QueueTrigger("functionstesting2", Connection = "AzureWebJobsStorage")] Book myQueueItem,
+                [BlobInput("test-samples/sample1.txt", Connection = "AzureWebJobsStorage")] string myBlob)
+        {`,
+    ];
+
+    const results = [
+        ['MyFunc_123'],
+        ['MyNamespace.MyFunc_123'],
+        ['My-Func-123'],
+    ];
+
+    const regex = DotNetBindingsParser.functionAttributeRegex;
+    for (var i = 0; i < samples.length; i++) {
+
+        // Need to reset the regex, because it's 'global' aka stateful
+        regex.lastIndex = 0;
+
+        const sample = samples[i];
+        const result = results[i];
+
+        const match = regex.exec(sample);
+        expect(match).not.toBeNull();
+        expect(match[3]).toBe(result[0]);
+    }
+});
+
+test('functionReturnTypeRegex', () => {
+
+    const samples = [
+
+        ` public  MyNamespace.MyOutputClass_1   Run`,
+
+        `  public  static MyOutputClass_2   Run`,
+        `   public static  Task<MyOutputClass_3>   Run`,
+        `    public async Task<MyOutputClass_4>   Run`,
+
+        `  public  static    async Task<MyOutputClass_5>   Run`,
+        `public  async static Task<MyOutputClass_6>   Run`,
+    ];
+
+    const results = [
+        ['MyNamespace.MyOutputClass_1'],
+        ['MyOutputClass_2'],
+        ['MyOutputClass_3'],
+        ['MyOutputClass_4'],
+        ['MyOutputClass_5'],
+        ['MyOutputClass_6'],
+    ];
+
+    const regex = DotNetBindingsParser.functionReturnTypeRegex;
+    for (var i = 0; i < samples.length; i++) {
+
+        // Need to reset the regex, because it's 'global' aka stateful
+        regex.lastIndex = 0;
+
+        const sample = samples[i];
+        const result = results[i];
+
+        const match = regex.exec(sample);
+        expect(match).not.toBeNull();
+        expect(match[3]).toBe(result[0]);
     }
 });

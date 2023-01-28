@@ -1,27 +1,29 @@
 {
     "version": "0.2.0",
     "configurations": [
-    {
-        "name": "Launch Program",
-        "program": "${workspaceFolder}/az-func-as-a-graph.js",
-        "args": [
-            "https://github.com/scale-tone/WhatIfDemo/tree/master/WhatIfDemo-Functions", 
-            "c:\\temp\\graph.htm", "c:\\temp\\graph-settings.json"],
-        "request": "launch",
-        "skipFiles": [
-            "<node_internals>/**"
-        ],
-        "type": "pwa-node"
-    },
-    {
-        "name": "Attach by Process ID",
-        "processId": "${command:PickProcess}",
-        "request": "attach",
-        "skipFiles": [
-            "<node_internals>/**"
-        ],
-        "type": "pwa-node"
-    },
+        {
+            "name": "Launch Program",
+            "program": "${workspaceFolder}/az-func-as-a-graph.js",
+            "args": [
+                "https://github.com/scale-tone/WhatIfDemo/tree/master/WhatIfDemo-Functions",
+                "c:\\temp\\graph.htm",
+                "c:\\temp\\graph-settings.json"
+            ],
+            "request": "launch",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node"
+        },
+        {
+            "name": "Attach by Process ID",
+            "processId": "${command:PickProcess}",
+            "request": "attach",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "type": "pwa-node"
+        },
         {
             "name": "Attach to Node Functions",
             "type": "node",

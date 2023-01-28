@@ -55,7 +55,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DotNetBindingsParser = exports.TraversalRegexes = exports.getCodeInBrackets = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = void 0;
+exports.DotNetBindingsParser = exports.TraversalRegexes = exports.findFileRecursivelyAsync = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.isDotNetIsolatedProjectAsync = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
 var os = __importStar(require("os"));
 var fs = __importStar(require("fs"));
 var path = __importStar(require("path"));
@@ -63,6 +63,7 @@ var util = __importStar(require("util"));
 var child_process_1 = require("child_process");
 var execAsync = util.promisify(child_process_1.exec);
 var gitCloneTimeoutInSeconds = 60;
+exports.ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 // Does a git clone into a temp folder and returns info about that cloned code
 function cloneFromGitHub(url) {
     return __awaiter(this, void 0, void 0, function () {
@@ -141,7 +142,7 @@ function posToLineNr(code, pos) {
     return !lineBreaks ? 1 : lineBreaks.length + 1;
 }
 exports.posToLineNr = posToLineNr;
-// Checks if the given folder looks like a .Net project
+// Checks if the given folder looks like a .NET project
 function isDotNetProjectAsync(projectFolder) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
@@ -158,22 +159,46 @@ function isDotNetProjectAsync(projectFolder) {
     });
 }
 exports.isDotNetProjectAsync = isDotNetProjectAsync;
+// Checks if the given folder looks like a .NET Isolated project
+function isDotNetIsolatedProjectAsync(projectFolder) {
+    return __awaiter(this, void 0, void 0, function () {
+        var csprojFile, csprojFileString;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, fs.promises.readdir(projectFolder)];
+                case 1:
+                    csprojFile = (_a.sent()).find(function (fn) {
+                        fn = fn.toLowerCase();
+                        return (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+                    });
+                    if (!csprojFile) {
+                        return [2 /*return*/, false];
+                    }
+                    return [4 /*yield*/, fs.promises.readFile(path.join(projectFolder, csprojFile), { encoding: 'utf8' })];
+                case 2:
+                    csprojFileString = _a.sent();
+                    return [2 /*return*/, csprojFileString.includes('Microsoft.Azure.Functions.Worker')];
+            }
+        });
+    });
+}
+exports.isDotNetIsolatedProjectAsync = isDotNetIsolatedProjectAsync;
 // Complements regex's inability to keep up with nested brackets
 function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols) {
     if (mustHaveSymbols === void 0) { mustHaveSymbols = ''; }
-    var bracketCount = 0, openBracketPos = 0, mustHaveSymbolFound = !mustHaveSymbols;
+    var bracketCount = 0, openBracketPos = -1, mustHaveSymbolFound = !mustHaveSymbols;
     for (var i = startFrom; i < str.length; i++) {
         switch (str[i]) {
             case openingBracket:
                 if (bracketCount <= 0) {
-                    openBracketPos = i + 1;
+                    openBracketPos = i;
                 }
                 bracketCount++;
                 break;
             case closingBracket:
                 bracketCount--;
                 if (bracketCount <= 0 && mustHaveSymbolFound) {
-                    return str.substring(startFrom, i + 1);
+                    return { code: str.substring(startFrom, i + 1), openBracketPos: openBracketPos - startFrom };
                 }
                 break;
         }
@@ -181,9 +206,100 @@ function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustH
             mustHaveSymbolFound = true;
         }
     }
-    return '';
+    return { code: '', openBracketPos: -1 };
 }
 exports.getCodeInBrackets = getCodeInBrackets;
+// Complements regex's inability to keep up with nested brackets
+function getCodeInBracketsReverse(str, openingBracket, closingBracket) {
+    var bracketCount = 0, closingBracketPos = 0;
+    for (var i = str.length - 1; i >= 0; i--) {
+        switch (str[i]) {
+            case closingBracket:
+                if (bracketCount <= 0) {
+                    closingBracketPos = i;
+                }
+                bracketCount++;
+                break;
+            case openingBracket:
+                bracketCount--;
+                if (bracketCount <= 0) {
+                    return { code: str.substring(0, closingBracketPos + 1), openBracketPos: i };
+                }
+                break;
+        }
+    }
+    return { code: '', openBracketPos: -1 };
+}
+exports.getCodeInBracketsReverse = getCodeInBracketsReverse;
+// fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
+// If returnFileContents == true, returns file content. Otherwise returns full path to the file.
+function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
+    return __awaiter(this, void 0, void 0, function () {
+        var fileNameRegex, _i, _a, name_1, fullPath, result, _b, _c, code, match;
+        return __generator(this, function (_d) {
+            switch (_d.label) {
+                case 0:
+                    fileNameRegex = new RegExp(fileName, 'i');
+                    _i = 0;
+                    return [4 /*yield*/, fs.promises.readdir(folder)];
+                case 1:
+                    _a = _d.sent();
+                    _d.label = 2;
+                case 2:
+                    if (!(_i < _a.length)) return [3 /*break*/, 12];
+                    name_1 = _a[_i];
+                    fullPath = path.join(folder, name_1);
+                    return [4 /*yield*/, fs.promises.lstat(fullPath)];
+                case 3:
+                    if (!(_d.sent()).isDirectory()) return [3 /*break*/, 5];
+                    if (exports.ExcludedFolders.includes(name_1.toLowerCase())) {
+                        return [3 /*break*/, 11];
+                    }
+                    return [4 /*yield*/, findFileRecursivelyAsync(fullPath, fileName, returnFileContents, pattern)];
+                case 4:
+                    result = _d.sent();
+                    if (!!result) {
+                        return [2 /*return*/, result];
+                    }
+                    return [3 /*break*/, 11];
+                case 5:
+                    if (!!!fileNameRegex.exec(name_1)) return [3 /*break*/, 11];
+                    if (!!pattern) return [3 /*break*/, 9];
+                    _b = {
+                        filePath: fullPath
+                    };
+                    if (!returnFileContents) return [3 /*break*/, 7];
+                    return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
+                case 6:
+                    _c = (_d.sent());
+                    return [3 /*break*/, 8];
+                case 7:
+                    _c = undefined;
+                    _d.label = 8;
+                case 8: return [2 /*return*/, (_b.code = _c,
+                        _b)];
+                case 9: return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
+                case 10:
+                    code = _d.sent();
+                    match = pattern.exec(code);
+                    if (!!match) {
+                        return [2 /*return*/, {
+                                filePath: fullPath,
+                                code: returnFileContents ? code : undefined,
+                                pos: match.index,
+                                length: match[0].length
+                            }];
+                    }
+                    _d.label = 11;
+                case 11:
+                    _i++;
+                    return [3 /*break*/, 2];
+                case 12: return [2 /*return*/, undefined];
+            }
+        });
+    });
+}
+exports.findFileRecursivelyAsync = findFileRecursivelyAsync;
 // General-purpose regexes
 var TraversalRegexes = /** @class */ (function () {
     function TraversalRegexes() {
@@ -206,6 +322,10 @@ var TraversalRegexes = /** @class */ (function () {
     TraversalRegexes.getCallActivityRegex = function (activityName) {
         return new RegExp("(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*[\"'`]?" + activityName + "\\s*[\"'`\\),]{1}", 'i');
     };
+    TraversalRegexes.getClassDefinitionRegex = function (className) {
+        return new RegExp("class\\s*" + className);
+    };
+    TraversalRegexes.cSharpFileNameRegex = new RegExp('.+\\.cs$', 'i');
     TraversalRegexes.continueAsNewRegex = new RegExp("ContinueAsNew\\s*\\(", 'i');
     TraversalRegexes.waitForExternalEventRegex = new RegExp("(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w,\\.-\\[\\]\\(\\)\\<\\>]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)?([\\s\\w\\.-]+)\\s*[\"'`\\),]{1}", 'gi');
     return TraversalRegexes;
@@ -226,68 +346,136 @@ var DotNetBindingsParser = /** @class */ (function () {
         while (!!(match = regex.exec(funcCode))) {
             var isReturn = !!match[2];
             var attributeName = match[3];
-            var attributeCodeStartIndex = match.index + match[0].length - 1;
-            var attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '');
+            if (attributeName.endsWith("Attribute")) {
+                attributeName = attributeName.substring(0, attributeName.length - "Attribute".length);
+            }
+            var attributeCodeStartIndex = match.index + match[0].length;
+            var attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '').code;
             this.isOutRegex.lastIndex = attributeCodeStartIndex + attributeCode.length;
             var isOut = !!this.isOutRegex.exec(funcCode);
             switch (attributeName) {
+                case 'BlobInput':
+                case 'BlobOutput':
                 case 'Blob': {
-                    var binding = { type: 'blob', direction: isReturn || isOut ? 'out' : 'in' };
+                    var binding = {
+                        type: 'blob',
+                        direction: attributeName === 'Blob' ? (isReturn || isOut ? 'out' : 'in') : (attributeName === 'BlobOutput' ? 'out' : 'in')
+                    };
                     var paramsMatch = this.blobParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['path'] = paramsMatch[1];
+                        binding.path = paramsMatch[1];
                     }
                     result.push(binding);
                     break;
                 }
+                case 'BlobTrigger': {
+                    var binding = { type: 'blobTrigger' };
+                    var paramsMatch = this.blobParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.path = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'TableInput':
+                case 'TableOutput':
                 case 'Table': {
-                    var binding = { type: 'table', direction: isReturn || isOut ? 'out' : 'in' };
+                    var binding = {
+                        type: 'table',
+                        direction: attributeName === 'Table' ? (isReturn || isOut ? 'out' : 'in') : (attributeName === 'TableOutput' ? 'out' : 'in')
+                    };
                     var paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['tableName'] = paramsMatch[2];
+                        binding.tableName = paramsMatch[2];
                     }
                     result.push(binding);
                     break;
                 }
+                case 'CosmosDBInput':
+                case 'CosmosDBOutput':
                 case 'CosmosDB': {
-                    var binding = { type: 'cosmosDB', direction: isReturn || isOut ? 'out' : 'in' };
+                    var binding = {
+                        type: 'cosmosDB',
+                        direction: attributeName === 'CosmosDB' ? (isReturn || isOut ? 'out' : 'in') : (attributeName === 'CosmosDBOutput' ? 'out' : 'in')
+                    };
                     var paramsMatch = this.cosmosDbParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['databaseName'] = paramsMatch[1];
-                        binding['collectionName'] = paramsMatch[3];
+                        binding.databaseName = paramsMatch[1];
+                        binding.collectionName = paramsMatch[3];
                     }
                     result.push(binding);
                     break;
                 }
-                case 'SignalRConnectionInfo': {
-                    var binding = { type: 'signalRConnectionInfo', direction: 'in' };
-                    var paramsMatch = this.signalRConnInfoParamsRegex.exec(attributeCode);
+                case 'CosmosDBTrigger': {
+                    var binding = { type: 'cosmosDBTrigger' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['hubName'] = paramsMatch[1];
+                        binding.databaseName = paramsMatch[2];
                     }
                     result.push(binding);
                     break;
                 }
-                case 'EventGrid': {
+                case 'EventGrid':
+                case 'EventGridOutput': {
                     var binding = { type: 'eventGrid', direction: 'out' };
                     var paramsMatch = this.eventGridParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['topicEndpointUri'] = paramsMatch[1];
-                        binding['topicKeySetting'] = paramsMatch[3];
+                        binding.topicEndpointUri = paramsMatch[1];
+                        binding.topicKeySetting = paramsMatch[3];
                     }
                     result.push(binding);
                     break;
                 }
-                case 'EventHub': {
+                case 'EventGridTrigger': {
+                    var binding = { type: 'eventGridTrigger' };
+                    var paramsMatch = this.eventGridParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.topicEndpointUri = paramsMatch[1];
+                        binding.topicKeySetting = paramsMatch[3];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'EventHub':
+                case 'EventHubOutput': {
                     var binding = { type: 'eventHub', direction: 'out' };
                     var paramsMatch = this.eventHubParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
-                        binding['eventHubName'] = paramsMatch[1];
+                        binding.eventHubName = paramsMatch[1];
                     }
                     result.push(binding);
                     break;
                 }
-                case 'Queue': {
+                case 'EventHubTrigger': {
+                    var binding = { type: 'eventHubTrigger' };
+                    var paramsMatch = this.eventHubParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.eventHubName = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'Kafka':
+                case 'KafkaOutput': {
+                    var binding = { type: 'kafka', direction: 'out' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.brokerList = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'KafkaTrigger': {
+                    var binding = { type: 'kafkaTrigger' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.brokerList = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'Queue':
+                case 'QueueOutput': {
                     var binding = { type: 'queue', direction: 'out' };
                     var paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -296,7 +484,17 @@ var DotNetBindingsParser = /** @class */ (function () {
                     result.push(binding);
                     break;
                 }
-                case 'ServiceBus': {
+                case 'QueueTrigger': {
+                    var binding = { type: 'queueTrigger' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'ServiceBus':
+                case 'ServiceBusOutput': {
                     var binding = { type: 'serviceBus', direction: 'out' };
                     var paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -305,7 +503,27 @@ var DotNetBindingsParser = /** @class */ (function () {
                     result.push(binding);
                     break;
                 }
-                case 'SignalR': {
+                case 'ServiceBusTrigger': {
+                    var binding = { type: 'serviceBusTrigger' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SignalRConnectionInfo':
+                case 'SignalRConnectionInfoInput': {
+                    var binding = { type: 'signalRConnectionInfo', direction: 'in' };
+                    var paramsMatch = this.signalRConnInfoParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.hubName = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SignalR':
+                case 'SignalROutput': {
                     var binding = { type: 'signalR', direction: 'out' };
                     var paramsMatch = this.signalRParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -314,7 +532,17 @@ var DotNetBindingsParser = /** @class */ (function () {
                     result.push(binding);
                     break;
                 }
-                case 'RabbitMQ': {
+                case 'SignalRTrigger': {
+                    var binding = { type: 'signalRTrigger' };
+                    var paramsMatch = this.signalRParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['hubName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'RabbitMQ':
+                case 'RabbitMQOutput': {
                     var binding = { type: 'rabbitMQ', direction: 'out' };
                     var paramsMatch = this.rabbitMqParamsRegex.exec(attributeCode);
                     if (!!paramsMatch) {
@@ -323,7 +551,17 @@ var DotNetBindingsParser = /** @class */ (function () {
                     result.push(binding);
                     break;
                 }
-                case 'SendGrid': {
+                case 'RabbitMQTrigger': {
+                    var binding = { type: 'rabbitMQTrigger' };
+                    var paramsMatch = this.rabbitMqParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SendGrid':
+                case 'SendGridOutput': {
                     result.push({ type: 'sendGrid', direction: 'out' });
                     break;
                 }
@@ -331,11 +569,28 @@ var DotNetBindingsParser = /** @class */ (function () {
                     result.push({ type: 'twilioSms', direction: 'out' });
                     break;
                 }
+                case 'HttpTrigger': {
+                    var binding = { type: 'httpTrigger', methods: [] };
+                    var httpTriggerRouteMatch = this.httpTriggerRouteRegex.exec(attributeCode);
+                    if (!!httpTriggerRouteMatch) {
+                        binding.route = httpTriggerRouteMatch[1];
+                    }
+                    var lowerAttributeCode = attributeCode.toLowerCase();
+                    for (var _i = 0, _a = this.httpMethods; _i < _a.length; _i++) {
+                        var httpMethod = _a[_i];
+                        if (lowerAttributeCode.includes("\"" + httpMethod + "\"")) {
+                            binding.methods.push(httpMethod);
+                        }
+                    }
+                    result.push(binding);
+                    result.push({ type: 'http', direction: 'out' });
+                    break;
+                }
             }
         }
         return result;
     };
-    DotNetBindingsParser.bindingAttributeRegex = new RegExp("\\[(<)?\\s*(return:)?\\s*(\\w+)(Attribute)?\\s*\\(", 'g');
+    DotNetBindingsParser.bindingAttributeRegex = new RegExp("\\[(<)?\\s*(return:)?\\s*(\\w+)", 'g');
     DotNetBindingsParser.singleParamRegex = new RegExp("(\"|nameof\\s*\\()?([\\w\\.-]+)");
     DotNetBindingsParser.eventHubParamsRegex = new RegExp("\"([^\"]+)\"");
     DotNetBindingsParser.signalRParamsRegex = new RegExp("\"([^\"]+)\"");
@@ -345,6 +600,10 @@ var DotNetBindingsParser = /** @class */ (function () {
     DotNetBindingsParser.signalRConnInfoParamsRegex = new RegExp("\"([^\"]+)\"");
     DotNetBindingsParser.eventGridParamsRegex = new RegExp("\"([^\"]+)\"(.|\r|\n)+?\"([^\"]+)\"");
     DotNetBindingsParser.isOutRegex = new RegExp("^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()", 'g');
+    DotNetBindingsParser.httpMethods = ["get", "head", "post", "put", "delete", "connect", "options", "trace", "patch"];
+    DotNetBindingsParser.httpTriggerRouteRegex = new RegExp("Route\\s*=\\s*\"(.*)\"");
+    DotNetBindingsParser.functionAttributeRegex = new RegExp("\\[\\s*Function(Attribute)?\\s*\\(\\s*(\"|nameof\\s*\\(\\s*)([\\w\\.-]+)(\\\"|\\s*\\))\\s*\\)\\s*\\]", 'g');
+    DotNetBindingsParser.functionReturnTypeRegex = new RegExp("public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)", 'g');
     return DotNetBindingsParser;
 }());
 exports.DotNetBindingsParser = DotNetBindingsParser;

@@ -63,18 +63,18 @@ var util = __importStar(require("util"));
 var child_process_1 = require("child_process");
 var execAsync = util.promisify(child_process_1.exec);
 var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
-var ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
+var traverseDotNetIsolatedFunctionProject_1 = require("./traverseDotNetIsolatedFunctionProject");
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
 // extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
 // (if the project uses Durable Functions)
 function traverseFunctionProject(projectFolder, log) {
     return __awaiter(this, void 0, void 0, function () {
-        var functions, tempFolders, gitInfo, hostJsonMatch, hostJsonFolder, publishTempFolder, promises, proxies;
+        var tempFolders, gitInfo, hostJsonMatch, hostJsonFolder, isDotNetProject, isDotNetIsolatedProject, publishTempFolder, functions, promises, proxies;
         var _this = this;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    functions = {}, tempFolders = [];
+                    tempFolders = [];
                     if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 2];
                     log("Cloning " + projectFolder);
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder)];
@@ -84,7 +84,7 @@ function traverseFunctionProject(projectFolder, log) {
                     tempFolders.push(gitInfo.gitTempFolder);
                     projectFolder = gitInfo.projectFolder;
                     _a.label = 2;
-                case 2: return [4 /*yield*/, findFileRecursivelyAsync(projectFolder, 'host.json', false)];
+                case 2: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, 'host.json', false)];
                 case 3:
                     hostJsonMatch = _a.sent();
                     if (!hostJsonMatch) {
@@ -94,19 +94,30 @@ function traverseFunctionProject(projectFolder, log) {
                     hostJsonFolder = path.dirname(hostJsonMatch.filePath);
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(hostJsonFolder)];
                 case 4:
-                    if (!_a.sent()) return [3 /*break*/, 7];
-                    return [4 /*yield*/, fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'))];
+                    isDotNetProject = _a.sent();
+                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetIsolatedProjectAsync(projectFolder)];
                 case 5:
+                    isDotNetIsolatedProject = _a.sent();
+                    if (!(!!isDotNetProject && !isDotNetIsolatedProject)) return [3 /*break*/, 8];
+                    return [4 /*yield*/, fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'))];
+                case 6:
                     publishTempFolder = _a.sent();
                     tempFolders.push(publishTempFolder);
                     log(">>> Publishing " + hostJsonFolder + " to " + publishTempFolder + "...");
                     return [4 /*yield*/, execAsync("dotnet publish -o " + publishTempFolder, { cwd: hostJsonFolder })];
-                case 6:
+                case 7:
                     _a.sent();
                     hostJsonFolder = publishTempFolder;
-                    _a.label = 7;
-                case 7: return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
+                    _a.label = 8;
                 case 8:
+                    functions = {};
+                    if (!!!isDotNetIsolatedProject) return [3 /*break*/, 10];
+                    return [4 /*yield*/, traverseDotNetIsolatedFunctionProject_1.traverseDotNetIsolatedProject(projectFolder)];
+                case 9:
+                    functions = _a.sent();
+                    return [3 /*break*/, 14];
+                case 10: return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
+                case 11:
                     promises = (_a.sent()).map(function (functionName) { return __awaiter(_this, void 0, void 0, function () {
                         var fullPath, functionJsonFilePath, isDirectory, functionJsonExists, functionJsonString, functionJson, err_1;
                         return __generator(this, function (_a) {
@@ -137,14 +148,15 @@ function traverseFunctionProject(projectFolder, log) {
                         });
                     }); });
                     return [4 /*yield*/, Promise.all(promises)];
-                case 9:
+                case 12:
                     _a.sent();
                     return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder)];
-                case 10:
+                case 13:
                     // Now enriching data from function.json with more info extracted from code
                     functions = _a.sent();
-                    return [4 /*yield*/, readProxiesJson(projectFolder, log)];
-                case 11:
+                    _a.label = 14;
+                case 14: return [4 /*yield*/, readProxiesJson(projectFolder, log)];
+                case 15:
                     proxies = _a.sent();
                     return [2 /*return*/, { functions: functions, proxies: proxies, tempFolders: tempFolders, projectFolder: projectFolder }];
             }
@@ -177,7 +189,7 @@ function readProxiesJson(projectFolder, log) {
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)];
                 case 3:
                     if (!_a.sent()) return [3 /*break*/, 5];
-                    return [4 /*yield*/, findFileRecursivelyAsync(projectFolder, '.+\\.csproj$', true)];
+                    return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, '.+\\.csproj$', true)];
                 case 4:
                     csProjFile = _a.sent();
                     proxiesJsonEntryRegex = new RegExp("\\s*=\\s*\"proxies.json\"\\s*>");
@@ -206,74 +218,6 @@ function readProxiesJson(projectFolder, log) {
                     log(">>> Failed to parse " + proxiesJsonPath + ": " + err_2);
                     return [2 /*return*/, {}];
                 case 7: return [2 /*return*/];
-            }
-        });
-    });
-}
-// fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
-// If returnFileContents == true, returns file content. Otherwise returns full path to the file.
-function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
-    return __awaiter(this, void 0, void 0, function () {
-        var fileNameRegex, _i, _a, name_1, fullPath, result, _b, _c, code, match;
-        return __generator(this, function (_d) {
-            switch (_d.label) {
-                case 0:
-                    fileNameRegex = new RegExp(fileName, 'i');
-                    _i = 0;
-                    return [4 /*yield*/, fs.promises.readdir(folder)];
-                case 1:
-                    _a = _d.sent();
-                    _d.label = 2;
-                case 2:
-                    if (!(_i < _a.length)) return [3 /*break*/, 12];
-                    name_1 = _a[_i];
-                    fullPath = path.join(folder, name_1);
-                    return [4 /*yield*/, fs.promises.lstat(fullPath)];
-                case 3:
-                    if (!(_d.sent()).isDirectory()) return [3 /*break*/, 5];
-                    if (ExcludedFolders.includes(name_1.toLowerCase())) {
-                        return [3 /*break*/, 11];
-                    }
-                    return [4 /*yield*/, findFileRecursivelyAsync(fullPath, fileName, returnFileContents, pattern)];
-                case 4:
-                    result = _d.sent();
-                    if (!!result) {
-                        return [2 /*return*/, result];
-                    }
-                    return [3 /*break*/, 11];
-                case 5:
-                    if (!!!fileNameRegex.exec(name_1)) return [3 /*break*/, 11];
-                    if (!!pattern) return [3 /*break*/, 9];
-                    _b = {
-                        filePath: fullPath
-                    };
-                    if (!returnFileContents) return [3 /*break*/, 7];
-                    return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
-                case 6:
-                    _c = (_d.sent());
-                    return [3 /*break*/, 8];
-                case 7:
-                    _c = undefined;
-                    _d.label = 8;
-                case 8: return [2 /*return*/, (_b.code = _c,
-                        _b)];
-                case 9: return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
-                case 10:
-                    code = _d.sent();
-                    match = pattern.exec(code);
-                    if (!!match) {
-                        return [2 /*return*/, {
-                                filePath: fullPath,
-                                code: returnFileContents ? code : undefined,
-                                pos: match.index,
-                                length: match[0].length
-                            }];
-                    }
-                    _d.label = 11;
-                case 11:
-                    _i++;
-                    return [3 /*break*/, 2];
-                case 12: return [2 /*return*/, undefined];
             }
         });
     });
@@ -422,14 +366,14 @@ function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, 
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0: return [4 /*yield*/, (isDotNet ?
-                                        findFileRecursivelyAsync(projectFolder, '.+\\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
-                                        findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true))];
+                                        traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, '.+\\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
+                                        traverseFunctionProjectUtils_1.findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true))];
                                 case 1:
                                     match = _a.sent();
                                     if (!match) {
                                         return [2 /*return*/, undefined];
                                     }
-                                    code = !isDotNet ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n');
+                                    code = !isDotNet ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n').code;
                                     pos = !match.pos ? 0 : match.pos;
                                     lineNr = traverseFunctionProjectUtils_1.posToLineNr(match.code, pos);
                                     return [2 /*return*/, { name: name, code: code, filePath: match.filePath, pos: pos, lineNr: lineNr }];
