@@ -39,9 +39,9 @@ function traverseDotNetIsolatedProject(projectFolder) {
         let result = {};
         const fileNameRegex = new RegExp('.+\\.cs$', 'i');
         try {
-            for (var _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.DotNetBindingsParser.functionAttributeRegex, 2)), _c; _c = yield _b.next(), !_c.done;) {
+            for (var _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.functionAttributeRegex, 2)), _c; _c = yield _b.next(), !_c.done;) {
                 const func = _c.value;
-                const bindings = traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(func.declarationCode);
+                const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
                 // Also trying to extract multiple output bindings
                 const outputBindings = yield extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex);
                 result[func.functionName] = {
@@ -70,9 +70,9 @@ function traverseJavaProject(projectFolder) {
         let result = {};
         const fileNameRegex = new RegExp('.+\\.java$', 'i');
         try {
-            for (var _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.DotNetBindingsParser.javaFunctionAttributeRegex, 1)), _c; _c = yield _b.next(), !_c.done;) {
+            for (var _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.javaFunctionAttributeRegex, 1)), _c; _c = yield _b.next(), !_c.done;) {
                 const func = _c.value;
-                const bindings = traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(func.declarationCode);
+                const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
                 result[func.functionName] = {
                     filePath: func.filePath,
                     pos: func.pos,
@@ -94,7 +94,7 @@ function traverseJavaProject(projectFolder) {
 exports.traverseJavaProject = traverseJavaProject;
 function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
     return __awaiter(this, void 0, void 0, function* () {
-        const returnTypeMatch = traverseFunctionProjectUtils_1.DotNetBindingsParser.functionReturnTypeRegex.exec(functionCode);
+        const returnTypeMatch = traverseFunctionProjectUtils_1.BindingsParser.functionReturnTypeRegex.exec(functionCode);
         if (!returnTypeMatch) {
             return [];
         }
@@ -110,7 +110,7 @@ function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
         if (!classBody.code) {
             return [];
         }
-        return traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(classBody.code);
+        return traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(classBody.code);
     });
 }
 function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeRegex, functionNamePosInRegex) {
@@ -181,4 +181,4 @@ function cleanupFunctionName(name) {
     }
     return removeNamespace(name);
 }
-//# sourceMappingURL=traverseDotNetIsolatedFunctionProject.js.map
+//# sourceMappingURL=traverseDotNetIsolatedOrJavaProject.js.map

@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DotNetBindingsParser = exports.TraversalRegexes = exports.findFileRecursivelyAsync = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.isDotNetIsolatedProjectAsync = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
+exports.BindingsParser = exports.TraversalRegexes = exports.findFileRecursivelyAsync = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.isJavaProjectAsync = exports.isDotNetIsolatedProjectAsync = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
@@ -105,6 +105,14 @@ function isDotNetIsolatedProjectAsync(projectFolder) {
     });
 }
 exports.isDotNetIsolatedProjectAsync = isDotNetIsolatedProjectAsync;
+// Checks if the given folder looks like a Java Functions project
+function isJavaProjectAsync(projectFolder) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const javaFileMatch = yield findFileRecursivelyAsync(projectFolder, `.+\\.java$`, false);
+        return !!javaFileMatch;
+    });
+}
+exports.isJavaProjectAsync = isJavaProjectAsync;
 // Complements regex's inability to keep up with nested brackets
 function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols = '') {
     var bracketCount = 0, openBracketPos = -1, mustHaveSymbolFound = !mustHaveSymbols;
@@ -156,14 +164,14 @@ exports.getCodeInBracketsReverse = getCodeInBracketsReverse;
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
 function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
     return __awaiter(this, void 0, void 0, function* () {
-        const fileNameRegex = new RegExp(fileName, 'i');
+        const fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;
         for (const name of yield fs.promises.readdir(folder)) {
             var fullPath = path.join(folder, name);
             if ((yield fs.promises.lstat(fullPath)).isDirectory()) {
                 if (exports.ExcludedFolders.includes(name.toLowerCase())) {
                     continue;
                 }
-                const result = yield findFileRecursivelyAsync(fullPath, fileName, returnFileContents, pattern);
+                const result = yield findFileRecursivelyAsync(fullPath, fileNameRegex, returnFileContents, pattern);
                 if (!!result) {
                     return result;
                 }
@@ -208,6 +216,9 @@ class TraversalRegexes {
     static getDotNetFunctionNameRegex(funcName) {
         return new RegExp(`FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)${funcName}\\s*["'\`\\)]{1}`);
     }
+    static getJavaFunctionNameRegex(funcName) {
+        return new RegExp(`@\\s*FunctionName\\s*\\(["\\s\\w\\.-]*${funcName}"?\\)`);
+    }
     static getCallActivityRegex(activityName) {
         return new RegExp(`(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*["'\`]?${activityName}\\s*["'\`\\),]{1}`, 'i');
     }
@@ -216,11 +227,10 @@ class TraversalRegexes {
     }
 }
 exports.TraversalRegexes = TraversalRegexes;
-TraversalRegexes.cSharpFileNameRegex = new RegExp('.+\\.cs$', 'i');
 TraversalRegexes.continueAsNewRegex = new RegExp(`ContinueAsNew\\s*\\(`, 'i');
 TraversalRegexes.waitForExternalEventRegex = new RegExp(`(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w,\\.-\\[\\]\\(\\)\\<\\>]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)?([\\s\\w\\.-]+)\\s*["'\`\\),]{1}`, 'gi');
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
-class DotNetBindingsParser {
+class BindingsParser {
     // Extracts additional bindings info from C#/F# source code
     static tryExtractBindings(funcCode) {
         const result = [];
@@ -230,8 +240,8 @@ class DotNetBindingsParser {
         const regex = this.bindingAttributeRegex;
         var match;
         while (!!(match = regex.exec(funcCode))) {
-            const isReturn = !!match[2];
-            let attributeName = match[3];
+            const isReturn = !!match[3];
+            let attributeName = match[4];
             if (attributeName.endsWith(`Attribute`)) {
                 attributeName = attributeName.substring(0, attributeName.length - `Attribute`.length);
             }
@@ -471,24 +481,37 @@ class DotNetBindingsParser {
                     result.push({ type: 'http', direction: 'out' });
                     break;
                 }
+                case 'DurableOrchestrationTrigger': {
+                    result.push({ type: 'orchestrationTrigger', direction: 'in' });
+                    break;
+                }
+                case 'DurableActivityTrigger': {
+                    result.push({ type: 'activityTrigger', direction: 'in' });
+                    break;
+                }
+                case 'DurableEntityTrigger': {
+                    result.push({ type: 'entityTrigger', direction: 'in' });
+                    break;
+                }
             }
         }
         return result;
     }
 }
-exports.DotNetBindingsParser = DotNetBindingsParser;
-DotNetBindingsParser.bindingAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)`, 'g');
-DotNetBindingsParser.singleParamRegex = new RegExp(`("|nameof\\s*\\()?([\\w\\.-]+)`);
-DotNetBindingsParser.eventHubParamsRegex = new RegExp(`"([^"]+)"`);
-DotNetBindingsParser.signalRParamsRegex = new RegExp(`"([^"]+)"`);
-DotNetBindingsParser.rabbitMqParamsRegex = new RegExp(`"([^"]+)"`);
-DotNetBindingsParser.blobParamsRegex = new RegExp(`"([^"]+)"`);
-DotNetBindingsParser.cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
-DotNetBindingsParser.signalRConnInfoParamsRegex = new RegExp(`"([^"]+)"`);
-DotNetBindingsParser.eventGridParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
-DotNetBindingsParser.isOutRegex = new RegExp(`^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
-DotNetBindingsParser.httpMethods = [`get`, `head`, `post`, `put`, `delete`, `connect`, `options`, `trace`, `patch`];
-DotNetBindingsParser.httpTriggerRouteRegex = new RegExp(`Route\\s*=\\s*"(.*)"`);
-DotNetBindingsParser.functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\(\\s*("|nameof\\s*\\(\\s*)([\\w\\.-]+)(\\"|\\s*\\))\\s*\\)\\s*\\]`, 'g');
-DotNetBindingsParser.functionReturnTypeRegex = new RegExp(`public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)`, 'g');
+exports.BindingsParser = BindingsParser;
+BindingsParser.bindingAttributeRegex = new RegExp(`(\\[|@)(<)?\\s*(return:)?\\s*(\\w+)`, 'g');
+BindingsParser.singleParamRegex = new RegExp(`("|nameof\\s*\\()?([\\w\\.-]+)`);
+BindingsParser.eventHubParamsRegex = new RegExp(`"([^"]+)"`);
+BindingsParser.signalRParamsRegex = new RegExp(`"([^"]+)"`);
+BindingsParser.rabbitMqParamsRegex = new RegExp(`"([^"]+)"`);
+BindingsParser.blobParamsRegex = new RegExp(`"([^"]+)"`);
+BindingsParser.cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
+BindingsParser.signalRConnInfoParamsRegex = new RegExp(`"([^"]+)"`);
+BindingsParser.eventGridParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
+BindingsParser.isOutRegex = new RegExp(`^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
+BindingsParser.httpMethods = [`get`, `head`, `post`, `put`, `delete`, `connect`, `options`, `trace`, `patch`];
+BindingsParser.httpTriggerRouteRegex = new RegExp(`Route\\s*=\\s*"(.*)"`);
+BindingsParser.functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]`, 'g');
+BindingsParser.functionReturnTypeRegex = new RegExp(`public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)`, 'g');
+BindingsParser.javaFunctionAttributeRegex = new RegExp(`@\\s*FunctionName\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
 //# sourceMappingURL=traverseFunctionProjectUtils.js.map

@@ -1,5 +1,5 @@
 
-import { DotNetBindingsParser } from '../cli/traverseFunctionProjectUtils';
+import { BindingsParser } from '../cli/traverseFunctionProjectUtils';
 
 test('bindingAttributeRegex', () => {
 
@@ -7,7 +7,8 @@ test('bindingAttributeRegex', () => {
         `[return:Table("MyTable")]`,
         `[ BlobTrigger ( "claims/{fileFullName}", Connection = "AzureWebJobsStorage")] Stream fileStream`,
         `([<ServiceBus(TopicName, Connection = ServiceBusConnectionString, EntityType = EntityType.Topic)>] topic: IAsyncCollector<Message>)`,
-        `[QueueOutputAttribute("myQueue")]`
+        `[QueueOutputAttribute("myQueue")]`,
+        ` @BlobTrigger(name = "content", path = "samples-workitems/{name}", dataType = "binary") byte[] content,`
     ];
 
     const results = [
@@ -15,9 +16,10 @@ test('bindingAttributeRegex', () => {
         [undefined, 'BlobTrigger'],
         [undefined, 'ServiceBus'],
         [undefined, 'QueueOutputAttribute'],
+        [undefined, 'BlobTrigger'],
     ];
 
-    const regex = DotNetBindingsParser.bindingAttributeRegex;
+    const regex = BindingsParser.bindingAttributeRegex;
     for (var i = 0; i < samples.length; i++) {
 
         // Need to reset the regex, because it's 'global' aka stateful
@@ -28,8 +30,8 @@ test('bindingAttributeRegex', () => {
 
         const match = regex.exec(sample);
         expect(match).not.toBeNull();
-        expect(match[2]).toBe(result[0]);
-        expect(match[3]).toBe(result[1]);
+        expect(match[3]).toBe(result[0]);
+        expect(match[4]).toBe(result[1]);
     }
 });
 
@@ -42,7 +44,7 @@ test('isOutRegex', () => {
         `]IAsyncCollector myCollector(`,
     ];
 
-    const regex = DotNetBindingsParser.isOutRegex;
+    const regex = BindingsParser.isOutRegex;
     for (var i = 0; i < samples.length; i++) {
 
         // Need to reset the regex, because it's 'global' aka stateful
@@ -69,7 +71,7 @@ test('singleParamRegex', () => {
         `Constants.MyQueue`,
     ];
 
-    const regex = DotNetBindingsParser.singleParamRegex;
+    const regex = BindingsParser.singleParamRegex;
     for (var i = 0; i < samples.length; i++) {
 
         const sample = samples[i];
@@ -98,15 +100,19 @@ test('functionAttributeRegex', () => {
                 [QueueTrigger("functionstesting2", Connection = "AzureWebJobsStorage")] Book myQueueItem,
                 [BlobInput("test-samples/sample1.txt", Connection = "AzureWebJobsStorage")] string myBlob)
         {`,
+
+        `[Function(Constants .  MyFuncName)   ]`,
     ];
 
     const results = [
-        ['MyFunc_123'],
-        ['MyNamespace.MyFunc_123'],
-        ['My-Func-123'],
+
+        ['nameof(MyFunc_123)'],
+        ['    nameof     (     MyNamespace.MyFunc_123 )  '],
+        ['    "My-Func-123"  '],
+        ['Constants .  MyFuncName']
     ];
 
-    const regex = DotNetBindingsParser.functionAttributeRegex;
+    const regex = BindingsParser.functionAttributeRegex;
     for (var i = 0; i < samples.length; i++) {
 
         // Need to reset the regex, because it's 'global' aka stateful
@@ -117,7 +123,7 @@ test('functionAttributeRegex', () => {
 
         const match = regex.exec(sample);
         expect(match).not.toBeNull();
-        expect(match[3]).toBe(result[0]);
+        expect(match[2]).toBe(result[0]);
     }
 });
 
@@ -144,7 +150,7 @@ test('functionReturnTypeRegex', () => {
         ['MyOutputClass_6'],
     ];
 
-    const regex = DotNetBindingsParser.functionReturnTypeRegex;
+    const regex = BindingsParser.functionReturnTypeRegex;
     for (var i = 0; i < samples.length; i++) {
 
         // Need to reset the regex, because it's 'global' aka stateful

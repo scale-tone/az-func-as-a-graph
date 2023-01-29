@@ -98,7 +98,6 @@ export async function isDotNetProjectAsync(projectFolder: string): Promise<boole
     });
 }
 
-
 // Checks if the given folder looks like a .NET Isolated project
 export async function isDotNetIsolatedProjectAsync(projectFolder: string): Promise<boolean> {
 
@@ -114,6 +113,13 @@ export async function isDotNetIsolatedProjectAsync(projectFolder: string): Promi
     const csprojFileString = await fs.promises.readFile(path.join(projectFolder, csprojFile), { encoding: 'utf8' });
 
     return csprojFileString.includes('Microsoft.Azure.Functions.Worker');
+}
+
+// Checks if the given folder looks like a Java Functions project
+export async function isJavaProjectAsync(projectFolder: string): Promise<boolean> {
+
+    const javaFileMatch = await findFileRecursivelyAsync(projectFolder, `.+\\.java$`, false);
+    return !!javaFileMatch;
 }
 
 // Complements regex's inability to keep up with nested brackets
@@ -181,10 +187,10 @@ export function getCodeInBracketsReverse(str: string, openingBracket: string, cl
 
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
-export async function findFileRecursivelyAsync(folder: string, fileName: string, returnFileContents: boolean, pattern?: RegExp)
+export async function findFileRecursivelyAsync(folder: string, fileName: string | RegExp, returnFileContents: boolean, pattern?: RegExp)
     : Promise<{ filePath: string, code?: string, pos?: number, length?: number } | undefined> {
 
-    const fileNameRegex = new RegExp(fileName, 'i');
+    const fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;
 
     for (const name of await fs.promises.readdir(folder)) {
         var fullPath = path.join(folder, name);
@@ -195,7 +201,7 @@ export async function findFileRecursivelyAsync(folder: string, fileName: string,
                 continue;
             }
 
-            const result = await findFileRecursivelyAsync(fullPath, fileName, returnFileContents, pattern);
+            const result = await findFileRecursivelyAsync(fullPath, fileNameRegex, returnFileContents, pattern);
             if (!!result) {
                 return result;
             }
@@ -229,8 +235,6 @@ export async function findFileRecursivelyAsync(folder: string, fileName: string,
 // General-purpose regexes
 export class TraversalRegexes {
 
-    static readonly cSharpFileNameRegex = new RegExp('.+\\.cs$', 'i');
-
     static getStartNewOrchestrationRegex(orchName: string): RegExp {
         return new RegExp(`(StartNew|StartNewAsync|start_new)(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${orchName}\\s*["'\\),]{1}`, 'i');
     }
@@ -255,6 +259,10 @@ export class TraversalRegexes {
         return new RegExp(`FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)${funcName}\\s*["'\`\\)]{1}`)
     }
 
+    static getJavaFunctionNameRegex(funcName: string): RegExp {
+        return new RegExp(`@\\s*FunctionName\\s*\\(["\\s\\w\\.-]*${funcName}"?\\)`)
+    }
+
     static getCallActivityRegex(activityName: string): RegExp {
         return new RegExp(`(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*["'\`]?${activityName}\\s*["'\`\\),]{1}`, 'i');
     }
@@ -265,7 +273,7 @@ export class TraversalRegexes {
 }
 
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
-export class DotNetBindingsParser {
+export class BindingsParser {
 
     // Extracts additional bindings info from C#/F# source code
     static tryExtractBindings(funcCode: string): {type: string, direction: string}[] {
@@ -280,9 +288,9 @@ export class DotNetBindingsParser {
         var match: RegExpExecArray | null;
         while (!!(match = regex.exec(funcCode))) {
 
-            const isReturn = !!match[2];
+            const isReturn = !!match[3];
 
-            let attributeName = match[3];
+            let attributeName = match[4];
             if (attributeName.endsWith(`Attribute`)) {
                 attributeName = attributeName.substring(0, attributeName.length - `Attribute`.length);
             }
@@ -572,13 +580,25 @@ export class DotNetBindingsParser {
 
                     break;
                 }
+                case 'DurableOrchestrationTrigger': {
+                    result.push({ type: 'orchestrationTrigger', direction: 'in' });
+                    break;
+                }
+                case 'DurableActivityTrigger': {
+                    result.push({ type: 'activityTrigger', direction: 'in' });
+                    break;
+                }
+                case 'DurableEntityTrigger': {
+                    result.push({ type: 'entityTrigger', direction: 'in' });
+                    break;
+                }
             }
         }
 
         return result;
     }
 
-    static readonly bindingAttributeRegex = new RegExp(`\\[(<)?\\s*(return:)?\\s*(\\w+)`, 'g');
+    static readonly bindingAttributeRegex = new RegExp(`(\\[|@)(<)?\\s*(return:)?\\s*(\\w+)`, 'g');
     static readonly singleParamRegex = new RegExp(`("|nameof\\s*\\()?([\\w\\.-]+)`);
     static readonly eventHubParamsRegex = new RegExp(`"([^"]+)"`);
     static readonly signalRParamsRegex = new RegExp(`"([^"]+)"`);
@@ -593,6 +613,8 @@ export class DotNetBindingsParser {
     static readonly httpMethods = [`get`, `head`, `post`, `put`, `delete`, `connect`, `options`, `trace`, `patch`];
     static readonly httpTriggerRouteRegex = new RegExp(`Route\\s*=\\s*"(.*)"`);
 
-    static readonly functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\(\\s*("|nameof\\s*\\(\\s*)([\\w\\.-]+)(\\"|\\s*\\))\\s*\\)\\s*\\]`, 'g');
+    static readonly functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]`, 'g');
     static readonly functionReturnTypeRegex = new RegExp(`public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)`, 'g');
+
+    static readonly javaFunctionAttributeRegex = new RegExp(`@\\s*FunctionName\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
 }

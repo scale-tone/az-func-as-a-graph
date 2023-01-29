@@ -55,7 +55,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DotNetBindingsParser = exports.TraversalRegexes = exports.findFileRecursivelyAsync = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.isDotNetIsolatedProjectAsync = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
+exports.BindingsParser = exports.TraversalRegexes = exports.findFileRecursivelyAsync = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.isJavaProjectAsync = exports.isDotNetIsolatedProjectAsync = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
 var os = __importStar(require("os"));
 var fs = __importStar(require("fs"));
 var path = __importStar(require("path"));
@@ -183,6 +183,21 @@ function isDotNetIsolatedProjectAsync(projectFolder) {
     });
 }
 exports.isDotNetIsolatedProjectAsync = isDotNetIsolatedProjectAsync;
+// Checks if the given folder looks like a Java Functions project
+function isJavaProjectAsync(projectFolder) {
+    return __awaiter(this, void 0, void 0, function () {
+        var javaFileMatch;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, findFileRecursivelyAsync(projectFolder, ".+\\.java$", false)];
+                case 1:
+                    javaFileMatch = _a.sent();
+                    return [2 /*return*/, !!javaFileMatch];
+            }
+        });
+    });
+}
+exports.isJavaProjectAsync = isJavaProjectAsync;
 // Complements regex's inability to keep up with nested brackets
 function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols) {
     if (mustHaveSymbols === void 0) { mustHaveSymbols = ''; }
@@ -239,7 +254,7 @@ function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern)
         return __generator(this, function (_d) {
             switch (_d.label) {
                 case 0:
-                    fileNameRegex = new RegExp(fileName, 'i');
+                    fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;
                     _i = 0;
                     return [4 /*yield*/, fs.promises.readdir(folder)];
                 case 1:
@@ -255,7 +270,7 @@ function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern)
                     if (exports.ExcludedFolders.includes(name_1.toLowerCase())) {
                         return [3 /*break*/, 11];
                     }
-                    return [4 /*yield*/, findFileRecursivelyAsync(fullPath, fileName, returnFileContents, pattern)];
+                    return [4 /*yield*/, findFileRecursivelyAsync(fullPath, fileNameRegex, returnFileContents, pattern)];
                 case 4:
                     result = _d.sent();
                     if (!!result) {
@@ -319,24 +334,26 @@ var TraversalRegexes = /** @class */ (function () {
     TraversalRegexes.getDotNetFunctionNameRegex = function (funcName) {
         return new RegExp("FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)" + funcName + "\\s*[\"'`\\)]{1}");
     };
+    TraversalRegexes.getJavaFunctionNameRegex = function (funcName) {
+        return new RegExp("@\\s*FunctionName\\s*\\([\"\\s\\w\\.-]*" + funcName + "\"?\\)");
+    };
     TraversalRegexes.getCallActivityRegex = function (activityName) {
         return new RegExp("(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*[\"'`]?" + activityName + "\\s*[\"'`\\),]{1}", 'i');
     };
     TraversalRegexes.getClassDefinitionRegex = function (className) {
         return new RegExp("class\\s*" + className);
     };
-    TraversalRegexes.cSharpFileNameRegex = new RegExp('.+\\.cs$', 'i');
     TraversalRegexes.continueAsNewRegex = new RegExp("ContinueAsNew\\s*\\(", 'i');
     TraversalRegexes.waitForExternalEventRegex = new RegExp("(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w,\\.-\\[\\]\\(\\)\\<\\>]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)?([\\s\\w\\.-]+)\\s*[\"'`\\),]{1}", 'gi');
     return TraversalRegexes;
 }());
 exports.TraversalRegexes = TraversalRegexes;
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
-var DotNetBindingsParser = /** @class */ (function () {
-    function DotNetBindingsParser() {
+var BindingsParser = /** @class */ (function () {
+    function BindingsParser() {
     }
     // Extracts additional bindings info from C#/F# source code
-    DotNetBindingsParser.tryExtractBindings = function (funcCode) {
+    BindingsParser.tryExtractBindings = function (funcCode) {
         var result = [];
         if (!funcCode) {
             return result;
@@ -344,8 +361,8 @@ var DotNetBindingsParser = /** @class */ (function () {
         var regex = this.bindingAttributeRegex;
         var match;
         while (!!(match = regex.exec(funcCode))) {
-            var isReturn = !!match[2];
-            var attributeName = match[3];
+            var isReturn = !!match[3];
+            var attributeName = match[4];
             if (attributeName.endsWith("Attribute")) {
                 attributeName = attributeName.substring(0, attributeName.length - "Attribute".length);
             }
@@ -586,24 +603,37 @@ var DotNetBindingsParser = /** @class */ (function () {
                     result.push({ type: 'http', direction: 'out' });
                     break;
                 }
+                case 'DurableOrchestrationTrigger': {
+                    result.push({ type: 'orchestrationTrigger', direction: 'in' });
+                    break;
+                }
+                case 'DurableActivityTrigger': {
+                    result.push({ type: 'activityTrigger', direction: 'in' });
+                    break;
+                }
+                case 'DurableEntityTrigger': {
+                    result.push({ type: 'entityTrigger', direction: 'in' });
+                    break;
+                }
             }
         }
         return result;
     };
-    DotNetBindingsParser.bindingAttributeRegex = new RegExp("\\[(<)?\\s*(return:)?\\s*(\\w+)", 'g');
-    DotNetBindingsParser.singleParamRegex = new RegExp("(\"|nameof\\s*\\()?([\\w\\.-]+)");
-    DotNetBindingsParser.eventHubParamsRegex = new RegExp("\"([^\"]+)\"");
-    DotNetBindingsParser.signalRParamsRegex = new RegExp("\"([^\"]+)\"");
-    DotNetBindingsParser.rabbitMqParamsRegex = new RegExp("\"([^\"]+)\"");
-    DotNetBindingsParser.blobParamsRegex = new RegExp("\"([^\"]+)\"");
-    DotNetBindingsParser.cosmosDbParamsRegex = new RegExp("\"([^\"]+)\"(.|\r|\n)+?\"([^\"]+)\"");
-    DotNetBindingsParser.signalRConnInfoParamsRegex = new RegExp("\"([^\"]+)\"");
-    DotNetBindingsParser.eventGridParamsRegex = new RegExp("\"([^\"]+)\"(.|\r|\n)+?\"([^\"]+)\"");
-    DotNetBindingsParser.isOutRegex = new RegExp("^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()", 'g');
-    DotNetBindingsParser.httpMethods = ["get", "head", "post", "put", "delete", "connect", "options", "trace", "patch"];
-    DotNetBindingsParser.httpTriggerRouteRegex = new RegExp("Route\\s*=\\s*\"(.*)\"");
-    DotNetBindingsParser.functionAttributeRegex = new RegExp("\\[\\s*Function(Attribute)?\\s*\\(\\s*(\"|nameof\\s*\\(\\s*)([\\w\\.-]+)(\\\"|\\s*\\))\\s*\\)\\s*\\]", 'g');
-    DotNetBindingsParser.functionReturnTypeRegex = new RegExp("public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)", 'g');
-    return DotNetBindingsParser;
+    BindingsParser.bindingAttributeRegex = new RegExp("(\\[|@)(<)?\\s*(return:)?\\s*(\\w+)", 'g');
+    BindingsParser.singleParamRegex = new RegExp("(\"|nameof\\s*\\()?([\\w\\.-]+)");
+    BindingsParser.eventHubParamsRegex = new RegExp("\"([^\"]+)\"");
+    BindingsParser.signalRParamsRegex = new RegExp("\"([^\"]+)\"");
+    BindingsParser.rabbitMqParamsRegex = new RegExp("\"([^\"]+)\"");
+    BindingsParser.blobParamsRegex = new RegExp("\"([^\"]+)\"");
+    BindingsParser.cosmosDbParamsRegex = new RegExp("\"([^\"]+)\"(.|\r|\n)+?\"([^\"]+)\"");
+    BindingsParser.signalRConnInfoParamsRegex = new RegExp("\"([^\"]+)\"");
+    BindingsParser.eventGridParamsRegex = new RegExp("\"([^\"]+)\"(.|\r|\n)+?\"([^\"]+)\"");
+    BindingsParser.isOutRegex = new RegExp("^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()", 'g');
+    BindingsParser.httpMethods = ["get", "head", "post", "put", "delete", "connect", "options", "trace", "patch"];
+    BindingsParser.httpTriggerRouteRegex = new RegExp("Route\\s*=\\s*\"(.*)\"");
+    BindingsParser.functionAttributeRegex = new RegExp("\\[\\s*Function(Attribute)?\\s*\\(([\"\\w\\s\\.\\(\\)-]+)\\)\\s*\\]", 'g');
+    BindingsParser.functionReturnTypeRegex = new RegExp("public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)", 'g');
+    BindingsParser.javaFunctionAttributeRegex = new RegExp("@\\s*FunctionName\\s*\\(([\"\\w\\s\\.\\(\\)-]+)\\)", 'g');
+    return BindingsParser;
 }());
-exports.DotNetBindingsParser = DotNetBindingsParser;
+exports.BindingsParser = BindingsParser;

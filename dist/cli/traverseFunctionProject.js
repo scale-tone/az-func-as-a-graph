@@ -17,7 +17,7 @@ const util = require("util");
 const child_process_1 = require("child_process");
 const execAsync = util.promisify(child_process_1.exec);
 const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
-const traverseDotNetIsolatedFunctionProject_1 = require("./traverseDotNetIsolatedFunctionProject");
+const traverseDotNetIsolatedOrJavaProject_1 = require("./traverseDotNetIsolatedOrJavaProject");
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
 // extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
 // (if the project uses Durable Functions)
@@ -38,19 +38,29 @@ function traverseFunctionProject(projectFolder, log) {
         }
         log(`>>> Found host.json at ${hostJsonMatch.filePath}`);
         let hostJsonFolder = path.dirname(hostJsonMatch.filePath);
-        const isDotNetProject = yield traverseFunctionProjectUtils_1.isDotNetProjectAsync(hostJsonFolder);
+        // here we should check projectFolder (not hostJsonFolder)
         const isDotNetIsolatedProject = yield traverseFunctionProjectUtils_1.isDotNetIsolatedProjectAsync(projectFolder);
-        // If it is a C# function, we'll need to dotnet publish first
-        if (!!isDotNetProject && !isDotNetIsolatedProject) {
-            const publishTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
-            tempFolders.push(publishTempFolder);
-            log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
-            yield execAsync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
-            hostJsonFolder = publishTempFolder;
+        let isJavaProject = false;
+        if (!isDotNetIsolatedProject) {
+            const isDotNetProject = yield traverseFunctionProjectUtils_1.isDotNetProjectAsync(hostJsonFolder);
+            // If it is a C# function, we'll need to dotnet publish first
+            if (!!isDotNetProject) {
+                const publishTempFolder = yield fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
+                tempFolders.push(publishTempFolder);
+                log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
+                yield execAsync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
+                hostJsonFolder = publishTempFolder;
+            }
+            isJavaProject = yield traverseFunctionProjectUtils_1.isJavaProjectAsync(hostJsonFolder);
         }
         let functions = {};
-        if (!!isDotNetIsolatedProject) {
-            functions = yield traverseDotNetIsolatedFunctionProject_1.traverseDotNetIsolatedProject(projectFolder);
+        if (!!isJavaProject) {
+            functions = yield traverseDotNetIsolatedOrJavaProject_1.traverseJavaProject(projectFolder);
+            // Now enriching it with more info extracted from code
+            functions = yield mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
+        }
+        else if (!!isDotNetIsolatedProject) {
+            functions = yield traverseDotNetIsolatedOrJavaProject_1.traverseDotNetIsolatedProject(projectFolder);
         }
         else {
             // Reading function.json files, in parallel
@@ -127,16 +137,22 @@ function readProxiesJson(projectFolder, log) {
 // Tries to match orchestrations and their activities by parsing source code
 function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function* () {
-        const isDotNet = yield traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder);
+        let projectKind = 'other';
+        if (yield traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)) {
+            projectKind = 'dotNet';
+        }
+        else if (yield traverseFunctionProjectUtils_1.isJavaProjectAsync(projectFolder)) {
+            projectKind = 'java';
+        }
         const functionNames = Object.keys(functions);
         const orchestratorNames = functionNames.filter(name => functions[name].bindings.some((b) => b.type === 'orchestrationTrigger'));
-        const orchestrators = yield getFunctionsAndTheirCodesAsync(orchestratorNames, isDotNet, projectFolder, hostJsonFolder);
+        const orchestrators = yield getFunctionsAndTheirCodesAsync(orchestratorNames, projectKind, projectFolder, hostJsonFolder);
         const activityNames = Object.keys(functions).filter(name => functions[name].bindings.some((b) => b.type === 'activityTrigger'));
-        const activities = yield getFunctionsAndTheirCodesAsync(activityNames, isDotNet, projectFolder, hostJsonFolder);
+        const activities = yield getFunctionsAndTheirCodesAsync(activityNames, projectKind, projectFolder, hostJsonFolder);
         const entityNames = functionNames.filter(name => functions[name].bindings.some((b) => b.type === 'entityTrigger'));
-        const entities = yield getFunctionsAndTheirCodesAsync(entityNames, isDotNet, projectFolder, hostJsonFolder);
+        const entities = yield getFunctionsAndTheirCodesAsync(entityNames, projectKind, projectFolder, hostJsonFolder);
         const otherFunctionNames = functionNames.filter(name => !functions[name].bindings.some((b) => ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type)));
-        const otherFunctions = yield getFunctionsAndTheirCodesAsync(otherFunctionNames, isDotNet, projectFolder, hostJsonFolder);
+        const otherFunctions = yield getFunctionsAndTheirCodesAsync(otherFunctionNames, projectKind, projectFolder, hostJsonFolder);
         for (const orch of orchestrators) {
             // Trying to match this orchestrator with its calling function
             const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getStartNewOrchestrationRegex(orch.name);
@@ -186,11 +202,11 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                 }
             }
         }
-        if (isDotNet) {
+        if (projectKind === 'dotNet') {
             // Trying to extract extra binding info from C# code
             for (const func of activities.concat(otherFunctions)) {
                 const bindingsFromFunctionJson = functions[func.name].bindings;
-                const bindingsFromCode = traverseFunctionProjectUtils_1.DotNetBindingsParser.tryExtractBindings(func.code);
+                const bindingsFromCode = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.code);
                 const existingBindingTypes = bindingsFromFunctionJson.map(b => b.type);
                 for (let binding of bindingsFromCode) {
                     // Only pushing extracted binding, if a binding with that type doesn't exist yet in function.json,
@@ -231,16 +247,24 @@ function getEventNames(orchestratorCode) {
     return result;
 }
 // Tries to load code for functions of certain type
-function getFunctionsAndTheirCodesAsync(functionNames, isDotNet, projectFolder, hostJsonFolder) {
+function getFunctionsAndTheirCodesAsync(functionNames, projectKind, projectFolder, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function* () {
         const promises = functionNames.map((name) => __awaiter(this, void 0, void 0, function* () {
-            const match = yield (isDotNet ?
-                traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, '.+\\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name)) :
-                traverseFunctionProjectUtils_1.findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true));
+            let match;
+            switch (projectKind) {
+                case 'dotNet':
+                    match = yield traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, '.+\\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name));
+                    break;
+                case 'java':
+                    match = yield traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, '.+\\.java$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name));
+                    break;
+                default:
+                    match = yield traverseFunctionProjectUtils_1.findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true);
+            }
             if (!match) {
                 return undefined;
             }
-            const code = !isDotNet ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n').code;
+            const code = projectKind === 'other' ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n').code;
             const pos = !match.pos ? 0 : match.pos;
             const lineNr = traverseFunctionProjectUtils_1.posToLineNr(match.code, pos);
             return { name, code, filePath: match.filePath, pos, lineNr };
