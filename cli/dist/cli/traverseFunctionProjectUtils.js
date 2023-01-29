@@ -520,7 +520,9 @@ var BindingsParser = /** @class */ (function () {
                     result.push(binding);
                     break;
                 }
-                case 'ServiceBusTrigger': {
+                case 'ServiceBusTrigger':
+                case 'ServiceBusQueueTrigger':
+                case 'ServiceBusTopicTrigger': {
                     var binding = { type: 'serviceBusTrigger' };
                     var paramsMatch = this.singleParamRegex.exec(attributeCode);
                     if (!!paramsMatch) {

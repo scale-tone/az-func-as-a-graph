@@ -479,7 +479,9 @@ export class BindingsParser {
 
                     break;
                 }
-                case 'ServiceBusTrigger': {
+                case 'ServiceBusTrigger': 
+                case 'ServiceBusQueueTrigger': 
+                case 'ServiceBusTopicTrigger': {
                     const binding: any = { type: 'serviceBusTrigger' };
 
                     const paramsMatch = this.singleParamRegex.exec(attributeCode);
