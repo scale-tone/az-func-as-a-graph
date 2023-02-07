@@ -60,7 +60,7 @@ export async function traverseJavaProject(projectFolder: string): Promise<Functi
 }
 
 async function extractOutputBindings(projectFolder: string, functionCode: string, fileNameRegex: RegExp): Promise<{ type: string, direction: string }[]> {
-    
+
     const returnTypeMatch = BindingsParser.functionReturnTypeRegex.exec(functionCode);
     if (!returnTypeMatch) {
         return [];

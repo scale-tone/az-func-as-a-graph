@@ -514,6 +514,6 @@ BindingsParser.isOutRegex = new RegExp(`^\\s*\\]\\s*(out |ICollector|IAsyncColle
 BindingsParser.httpMethods = [`get`, `head`, `post`, `put`, `delete`, `connect`, `options`, `trace`, `patch`];
 BindingsParser.httpTriggerRouteRegex = new RegExp(`Route\\s*=\\s*"(.*)"`);
 BindingsParser.functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]`, 'g');
-BindingsParser.functionReturnTypeRegex = new RegExp(`public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)`, 'g');
+BindingsParser.functionReturnTypeRegex = new RegExp(`public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)`);
 BindingsParser.javaFunctionAttributeRegex = new RegExp(`@\\s*FunctionName\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
 //# sourceMappingURL=traverseFunctionProjectUtils.js.map
