@@ -240,60 +240,63 @@ function readProxiesJson(projectFolder, log) {
 }
 // Tries to match orchestrations and their activities by parsing source code
 function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder) {
+    var _a, _b, _c, _d;
     return __awaiter(this, void 0, void 0, function () {
-        var projectKind, functionNames, orchestratorNames, orchestrators, activityNames, activities, entityNames, entities, otherFunctionNames, otherFunctions, _i, orchestrators_1, orch, regex, _a, otherFunctions_1, func, _b, orchestrators_2, subOrch, regex_1, eventNames, _c, eventNames_1, eventName, regex_2, _d, otherFunctions_2, func, _e, entities_1, entity, _f, otherFunctions_3, func, regex, _g, _h, func, bindingsFromFunctionJson, bindingsFromCode, existingBindingTypes, _j, bindingsFromCode_1, binding, _loop_1, _k, bindingsFromFunctionJson_1, binding, _l, _m, func;
-        return __generator(this, function (_o) {
-            switch (_o.label) {
+        var projectKind, functionNames, orchestratorNames, orchestrators, activityNames, activities, entityNames, entities, otherFunctionNames, otherFunctions, _i, orchestrators_1, orch, regex, _e, otherFunctions_1, func, _f, orchestrators_2, subOrch, regex_1, eventNames, _g, eventNames_1, eventName, regex_2, _h, otherFunctions_2, func, _j, entities_1, entity, _k, otherFunctions_3, func, regex, _l, _m, func, bindingsFromFunctionJson, bindingsFromCode, existingBindingTypes, _o, bindingsFromCode_1, binding, _loop_1, _p, bindingsFromFunctionJson_1, binding, _q, _r, func;
+        return __generator(this, function (_s) {
+            switch (_s.label) {
                 case 0:
                     projectKind = 'other';
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)];
                 case 1:
-                    if (!_o.sent()) return [3 /*break*/, 2];
+                    if (!_s.sent()) return [3 /*break*/, 2];
                     projectKind = 'dotNet';
                     return [3 /*break*/, 4];
                 case 2: return [4 /*yield*/, traverseFunctionProjectUtils_1.isJavaProjectAsync(projectFolder)];
                 case 3:
-                    if (_o.sent()) {
+                    if (_s.sent()) {
                         projectKind = 'java';
                     }
-                    _o.label = 4;
+                    _s.label = 4;
                 case 4:
                     functionNames = Object.keys(functions);
                     orchestratorNames = functionNames.filter(function (name) { return functions[name].bindings.some(function (b) { return b.type === 'orchestrationTrigger'; }); });
                     return [4 /*yield*/, getFunctionsAndTheirCodesAsync(orchestratorNames, projectKind, projectFolder, hostJsonFolder)];
                 case 5:
-                    orchestrators = _o.sent();
+                    orchestrators = _s.sent();
                     activityNames = Object.keys(functions).filter(function (name) { return functions[name].bindings.some(function (b) { return b.type === 'activityTrigger'; }); });
                     return [4 /*yield*/, getFunctionsAndTheirCodesAsync(activityNames, projectKind, projectFolder, hostJsonFolder)];
                 case 6:
-                    activities = _o.sent();
+                    activities = _s.sent();
                     entityNames = functionNames.filter(function (name) { return functions[name].bindings.some(function (b) { return b.type === 'entityTrigger'; }); });
                     return [4 /*yield*/, getFunctionsAndTheirCodesAsync(entityNames, projectKind, projectFolder, hostJsonFolder)];
                 case 7:
-                    entities = _o.sent();
+                    entities = _s.sent();
                     otherFunctionNames = functionNames.filter(function (name) { return !functions[name].bindings.some(function (b) { return ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type); }); });
                     return [4 /*yield*/, getFunctionsAndTheirCodesAsync(otherFunctionNames, projectKind, projectFolder, hostJsonFolder)];
                 case 8:
-                    otherFunctions = _o.sent();
+                    otherFunctions = _s.sent();
                     for (_i = 0, orchestrators_1 = orchestrators; _i < orchestrators_1.length; _i++) {
                         orch = orchestrators_1[_i];
                         regex = traverseFunctionProjectUtils_1.TraversalRegexes.getStartNewOrchestrationRegex(orch.name);
-                        for (_a = 0, otherFunctions_1 = otherFunctions; _a < otherFunctions_1.length; _a++) {
-                            func = otherFunctions_1[_a];
+                        for (_e = 0, otherFunctions_1 = otherFunctions; _e < otherFunctions_1.length; _e++) {
+                            func = otherFunctions_1[_e];
                             // If this function seems to be calling that orchestrator
                             if (!!regex.exec(func.code)) {
+                                functions[orch.name].isCalledBy = (_a = functions[orch.name].isCalledBy) !== null && _a !== void 0 ? _a : [];
                                 functions[orch.name].isCalledBy.push(func.name);
                             }
                         }
                         // Matching suborchestrators
-                        for (_b = 0, orchestrators_2 = orchestrators; _b < orchestrators_2.length; _b++) {
-                            subOrch = orchestrators_2[_b];
+                        for (_f = 0, orchestrators_2 = orchestrators; _f < orchestrators_2.length; _f++) {
+                            subOrch = orchestrators_2[_f];
                             if (orch.name === subOrch.name) {
                                 continue;
                             }
                             regex_1 = traverseFunctionProjectUtils_1.TraversalRegexes.getCallSubOrchestratorRegex(subOrch.name);
                             if (!!regex_1.exec(orch.code)) {
                                 // Mapping that suborchestrator to this orchestrator
+                                functions[subOrch.name].isCalledBy = (_b = functions[subOrch.name].isCalledBy) !== null && _b !== void 0 ? _b : [];
                                 functions[subOrch.name].isCalledBy.push(orch.name);
                             }
                         }
@@ -304,38 +307,40 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                             functions[orch.name].isCalledByItself = true;
                         }
                         eventNames = getEventNames(orch.code);
-                        for (_c = 0, eventNames_1 = eventNames; _c < eventNames_1.length; _c++) {
-                            eventName = eventNames_1[_c];
+                        for (_g = 0, eventNames_1 = eventNames; _g < eventNames_1.length; _g++) {
+                            eventName = eventNames_1[_g];
                             regex_2 = traverseFunctionProjectUtils_1.TraversalRegexes.getRaiseEventRegex(eventName);
-                            for (_d = 0, otherFunctions_2 = otherFunctions; _d < otherFunctions_2.length; _d++) {
-                                func = otherFunctions_2[_d];
+                            for (_h = 0, otherFunctions_2 = otherFunctions; _h < otherFunctions_2.length; _h++) {
+                                func = otherFunctions_2[_h];
                                 // If this function seems to be sending that event
                                 if (!!regex_2.exec(func.code)) {
+                                    functions[orch.name].isSignalledBy = (_c = functions[orch.name].isSignalledBy) !== null && _c !== void 0 ? _c : [];
                                     functions[orch.name].isSignalledBy.push({ name: func.name, signalName: eventName });
                                 }
                             }
                         }
                     }
-                    for (_e = 0, entities_1 = entities; _e < entities_1.length; _e++) {
-                        entity = entities_1[_e];
+                    for (_j = 0, entities_1 = entities; _j < entities_1.length; _j++) {
+                        entity = entities_1[_j];
                         // Trying to match this entity with its calling function
-                        for (_f = 0, otherFunctions_3 = otherFunctions; _f < otherFunctions_3.length; _f++) {
-                            func = otherFunctions_3[_f];
+                        for (_k = 0, otherFunctions_3 = otherFunctions; _k < otherFunctions_3.length; _k++) {
+                            func = otherFunctions_3[_k];
                             regex = traverseFunctionProjectUtils_1.TraversalRegexes.getSignalEntityRegex(entity.name);
                             if (!!regex.exec(func.code)) {
+                                functions[entity.name].isCalledBy = (_d = functions[entity.name].isCalledBy) !== null && _d !== void 0 ? _d : [];
                                 functions[entity.name].isCalledBy.push(func.name);
                             }
                         }
                     }
                     if (projectKind === 'dotNet') {
                         // Trying to extract extra binding info from C# code
-                        for (_g = 0, _h = activities.concat(otherFunctions); _g < _h.length; _g++) {
-                            func = _h[_g];
+                        for (_l = 0, _m = activities.concat(otherFunctions); _l < _m.length; _l++) {
+                            func = _m[_l];
                             bindingsFromFunctionJson = functions[func.name].bindings;
                             bindingsFromCode = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.code);
                             existingBindingTypes = bindingsFromFunctionJson.map(function (b) { return b.type; });
-                            for (_j = 0, bindingsFromCode_1 = bindingsFromCode; _j < bindingsFromCode_1.length; _j++) {
-                                binding = bindingsFromCode_1[_j];
+                            for (_o = 0, bindingsFromCode_1 = bindingsFromCode; _o < bindingsFromCode_1.length; _o++) {
+                                binding = bindingsFromCode_1[_o];
                                 // Only pushing extracted binding, if a binding with that type doesn't exist yet in function.json,
                                 // so that no duplicates are produced
                                 if (!existingBindingTypes.includes(binding.type)) {
@@ -352,15 +357,15 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                                 }
                             };
                             // Also setting default direction
-                            for (_k = 0, bindingsFromFunctionJson_1 = bindingsFromFunctionJson; _k < bindingsFromFunctionJson_1.length; _k++) {
-                                binding = bindingsFromFunctionJson_1[_k];
+                            for (_p = 0, bindingsFromFunctionJson_1 = bindingsFromFunctionJson; _p < bindingsFromFunctionJson_1.length; _p++) {
+                                binding = bindingsFromFunctionJson_1[_p];
                                 _loop_1(binding);
                             }
                         }
                     }
                     // Also adding file paths and code positions
-                    for (_l = 0, _m = otherFunctions.concat(orchestrators).concat(activities).concat(entities); _l < _m.length; _l++) {
-                        func = _m[_l];
+                    for (_q = 0, _r = otherFunctions.concat(orchestrators).concat(activities).concat(entities); _q < _r.length; _q++) {
+                        func = _r[_q];
                         functions[func.name].filePath = func.filePath;
                         functions[func.name].pos = func.pos;
                         functions[func.name].lineNr = func.lineNr;
@@ -415,7 +420,7 @@ function getFunctionsAndTheirCodesAsync(functionNames, projectKind, projectFolde
                                     if (!match) {
                                         return [2 /*return*/, undefined];
                                     }
-                                    code = projectKind === 'other' ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n').code;
+                                    code = projectKind === 'other' ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', '\n').code;
                                     pos = !match.pos ? 0 : match.pos;
                                     lineNr = traverseFunctionProjectUtils_1.posToLineNr(match.code, pos);
                                     return [2 /*return*/, { name: name, code: code, filePath: match.filePath, pos: pos, lineNr: lineNr }];
@@ -430,15 +435,14 @@ function getFunctionsAndTheirCodesAsync(functionNames, projectKind, projectFolde
 }
 // Tries to match orchestrator with its activities
 function mapActivitiesToOrchestrator(functions, orch, activityNames) {
+    var _a;
     for (var _i = 0, activityNames_1 = activityNames; _i < activityNames_1.length; _i++) {
         var activityName = activityNames_1[_i];
         // If this orchestrator seems to be calling this activity
         var regex = traverseFunctionProjectUtils_1.TraversalRegexes.getCallActivityRegex(activityName);
         if (!!regex.exec(orch.code)) {
             // Then mapping this activity to this orchestrator
-            if (!functions[activityName].isCalledBy) {
-                functions[activityName].isCalledBy = [];
-            }
+            functions[activityName].isCalledBy = (_a = functions[activityName].isCalledBy) !== null && _a !== void 0 ? _a : [];
             functions[activityName].isCalledBy.push(orch.name);
         }
     }

@@ -11,7 +11,7 @@ import {
 // Tries to parse code of a .NET Isolated function and extract bindings from there
 export async function traverseDotNetIsolatedProject(projectFolder: string): Promise<FunctionsMap> {
 
-    let result = {};
+    let result: any = {};
 
     const fileNameRegex = new RegExp('.+\\.cs$', 'i');
     
@@ -38,7 +38,7 @@ export async function traverseDotNetIsolatedProject(projectFolder: string): Prom
 // Tries to parse code of Java function and extract bindings from there
 export async function traverseJavaProject(projectFolder: string): Promise<FunctionsMap> {
 
-    let result = {};
+    let result: any = {};
 
     const fileNameRegex = new RegExp('.+\\.java$', 'i');
     
@@ -60,7 +60,7 @@ export async function traverseJavaProject(projectFolder: string): Promise<Functi
 }
 
 async function extractOutputBindings(projectFolder: string, functionCode: string, fileNameRegex: RegExp): Promise<{ type: string, direction: string }[]> {
-
+    
     const returnTypeMatch = BindingsParser.functionReturnTypeRegex.exec(functionCode);
     if (!returnTypeMatch) {
         return [];
@@ -76,7 +76,7 @@ async function extractOutputBindings(projectFolder: string, functionCode: string
         return [];
     }
 
-    const classBody = getCodeInBrackets(returnTypeDefinition.code, returnTypeDefinition.pos + returnTypeDefinition.length, '{', '}');
+    const classBody = getCodeInBrackets(returnTypeDefinition.code!, (returnTypeDefinition.pos ?? 0) + (returnTypeDefinition.length ?? 0), '{', '}');
     if (!classBody.code) {
         return [];
     }
@@ -84,7 +84,7 @@ async function extractOutputBindings(projectFolder: string, functionCode: string
     return BindingsParser.tryExtractBindings(classBody.code);
 }
 
-async function* findFunctionsRecursivelyAsync(folder: string, fileNameRegex: RegExp, functionAttributeRegex: RegExp, functionNamePosInRegex: number) {
+async function* findFunctionsRecursivelyAsync(folder: string, fileNameRegex: RegExp, functionAttributeRegex: RegExp, functionNamePosInRegex: number): AsyncGenerator<any> {
 
     for (const dirEnt of await fs.promises.readdir(folder, { withFileTypes: true })) {
 
@@ -110,7 +110,7 @@ async function* findFunctionsRecursivelyAsync(folder: string, fileNameRegex: Reg
 
                 let functionName = cleanupFunctionName(match[functionNamePosInRegex]);
 
-                const body = getCodeInBrackets(code, match.index + match[0].length, '{', '}', ' \n');
+                const body = getCodeInBrackets(code, match.index + match[0].length, '{', '}', '\n');
 
                 if (body.openBracketPos >= 0 && !!body.code) {
 

@@ -93,6 +93,7 @@ function traverseJavaProject(projectFolder) {
 }
 exports.traverseJavaProject = traverseJavaProject;
 function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
+    var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
         const returnTypeMatch = traverseFunctionProjectUtils_1.BindingsParser.functionReturnTypeRegex.exec(functionCode);
         if (!returnTypeMatch) {
@@ -106,7 +107,7 @@ function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
         if (!returnTypeDefinition) {
             return [];
         }
-        const classBody = traverseFunctionProjectUtils_1.getCodeInBrackets(returnTypeDefinition.code, returnTypeDefinition.pos + returnTypeDefinition.length, '{', '}');
+        const classBody = traverseFunctionProjectUtils_1.getCodeInBrackets(returnTypeDefinition.code, ((_a = returnTypeDefinition.pos) !== null && _a !== void 0 ? _a : 0) + ((_b = returnTypeDefinition.length) !== null && _b !== void 0 ? _b : 0), '{', '}');
         if (!classBody.code) {
             return [];
         }
@@ -141,7 +142,7 @@ function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeR
                 var match;
                 while (!!(match = functionAttributeRegex.exec(code))) {
                     let functionName = cleanupFunctionName(match[functionNamePosInRegex]);
-                    const body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, match.index + match[0].length, '{', '}', ' \n');
+                    const body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, match.index + match[0].length, '{', '}', '\n');
                     if (body.openBracketPos >= 0 && !!body.code) {
                         yield yield __await({
                             functionName,

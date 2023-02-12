@@ -19,7 +19,9 @@ test('getStartNewOrchestrationRegex', () => {
 
         `await starter.StartNewAsync<Dictionary<string, int>>( nameof(My.Namespace.${orchId}) );`,
 
-        `await starter.StartNewAsync( My.Constants.${orchId}, instanceId, checkpointTimestamp);`
+        `await starter.StartNewAsync( My.Constants.${orchId}, instanceId, checkpointTimestamp);`,
+
+        `String instanceId = client.scheduleNewOrchestrationInstance("${orchId}"); `
     ];
 
     const regex = TraversalRegexes.getStartNewOrchestrationRegex(orchId);

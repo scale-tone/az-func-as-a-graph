@@ -191,10 +191,11 @@ function traverseJavaProject(projectFolder) {
 }
 exports.traverseJavaProject = traverseJavaProject;
 function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
+    var _a, _b;
     return __awaiter(this, void 0, void 0, function () {
         var returnTypeMatch, returnTypeName, returnTypeDefinition, classBody;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
+        return __generator(this, function (_c) {
+            switch (_c.label) {
                 case 0:
                     returnTypeMatch = traverseFunctionProjectUtils_1.BindingsParser.functionReturnTypeRegex.exec(functionCode);
                     if (!returnTypeMatch) {
@@ -206,11 +207,11 @@ function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
                     }
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, fileNameRegex, true, traverseFunctionProjectUtils_1.TraversalRegexes.getClassDefinitionRegex(returnTypeName))];
                 case 1:
-                    returnTypeDefinition = _a.sent();
+                    returnTypeDefinition = _c.sent();
                     if (!returnTypeDefinition) {
                         return [2 /*return*/, []];
                     }
-                    classBody = traverseFunctionProjectUtils_1.getCodeInBrackets(returnTypeDefinition.code, returnTypeDefinition.pos + returnTypeDefinition.length, '{', '}');
+                    classBody = traverseFunctionProjectUtils_1.getCodeInBrackets(returnTypeDefinition.code, ((_a = returnTypeDefinition.pos) !== null && _a !== void 0 ? _a : 0) + ((_b = returnTypeDefinition.length) !== null && _b !== void 0 ? _b : 0), '{', '}');
                     if (!classBody.code) {
                         return [2 /*return*/, []];
                     }
@@ -281,7 +282,7 @@ function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeR
                 case 19:
                     if (!!!(match = functionAttributeRegex.exec(code))) return [3 /*break*/, 23];
                     functionName = cleanupFunctionName(match[functionNamePosInRegex]);
-                    body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, match.index + match[0].length, '{', '}', ' \n');
+                    body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, match.index + match[0].length, '{', '}', '\n');
                     if (!(body.openBracketPos >= 0 && !!body.code)) return [3 /*break*/, 22];
                     return [4 /*yield*/, __await({
                             functionName: functionName,

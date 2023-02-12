@@ -136,6 +136,7 @@ function readProxiesJson(projectFolder, log) {
 }
 // Tries to match orchestrations and their activities by parsing source code
 function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder) {
+    var _a, _b, _c, _d;
     return __awaiter(this, void 0, void 0, function* () {
         let projectKind = 'other';
         if (yield traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)) {
@@ -159,6 +160,7 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
             for (const func of otherFunctions) {
                 // If this function seems to be calling that orchestrator
                 if (!!regex.exec(func.code)) {
+                    functions[orch.name].isCalledBy = (_a = functions[orch.name].isCalledBy) !== null && _a !== void 0 ? _a : [];
                     functions[orch.name].isCalledBy.push(func.name);
                 }
             }
@@ -171,6 +173,7 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                 const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getCallSubOrchestratorRegex(subOrch.name);
                 if (!!regex.exec(orch.code)) {
                     // Mapping that suborchestrator to this orchestrator
+                    functions[subOrch.name].isCalledBy = (_b = functions[subOrch.name].isCalledBy) !== null && _b !== void 0 ? _b : [];
                     functions[subOrch.name].isCalledBy.push(orch.name);
                 }
             }
@@ -187,6 +190,7 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                 for (const func of otherFunctions) {
                     // If this function seems to be sending that event
                     if (!!regex.exec(func.code)) {
+                        functions[orch.name].isSignalledBy = (_c = functions[orch.name].isSignalledBy) !== null && _c !== void 0 ? _c : [];
                         functions[orch.name].isSignalledBy.push({ name: func.name, signalName: eventName });
                     }
                 }
@@ -198,6 +202,7 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                 // If this function seems to be calling that entity
                 const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getSignalEntityRegex(entity.name);
                 if (!!regex.exec(func.code)) {
+                    functions[entity.name].isCalledBy = (_d = functions[entity.name].isCalledBy) !== null && _d !== void 0 ? _d : [];
                     functions[entity.name].isCalledBy.push(func.name);
                 }
             }
@@ -264,7 +269,7 @@ function getFunctionsAndTheirCodesAsync(functionNames, projectKind, projectFolde
             if (!match) {
                 return undefined;
             }
-            const code = projectKind === 'other' ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', ' \n').code;
+            const code = projectKind === 'other' ? match.code : traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', '\n').code;
             const pos = !match.pos ? 0 : match.pos;
             const lineNr = traverseFunctionProjectUtils_1.posToLineNr(match.code, pos);
             return { name, code, filePath: match.filePath, pos, lineNr };
@@ -274,14 +279,13 @@ function getFunctionsAndTheirCodesAsync(functionNames, projectKind, projectFolde
 }
 // Tries to match orchestrator with its activities
 function mapActivitiesToOrchestrator(functions, orch, activityNames) {
+    var _a;
     for (const activityName of activityNames) {
         // If this orchestrator seems to be calling this activity
         const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getCallActivityRegex(activityName);
         if (!!regex.exec(orch.code)) {
             // Then mapping this activity to this orchestrator
-            if (!functions[activityName].isCalledBy) {
-                functions[activityName].isCalledBy = [];
-            }
+            functions[activityName].isCalledBy = (_a = functions[activityName].isCalledBy) !== null && _a !== void 0 ? _a : [];
             functions[activityName].isCalledBy.push(orch.name);
         }
     }
