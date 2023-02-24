@@ -102,6 +102,7 @@ test('functionAttributeRegex', () => {
         {`,
 
         `[Function(Constants .  MyFuncName)   ]`,
+        `[FunctionName(Constants.MyFuncName)]`,
     ];
 
     const results = [
@@ -109,10 +110,49 @@ test('functionAttributeRegex', () => {
         ['nameof(MyFunc_123)'],
         ['    nameof     (     MyNamespace.MyFunc_123 )  '],
         ['    "My-Func-123"  '],
-        ['Constants .  MyFuncName']
+        ['Constants .  MyFuncName'],
+        ['Constants.MyFuncName'],
     ];
 
     const regex = BindingsParser.functionAttributeRegex;
+    for (var i = 0; i < samples.length; i++) {
+
+        // Need to reset the regex, because it's 'global' aka stateful
+        regex.lastIndex = 0;
+
+        const sample = samples[i];
+        const result = results[i];
+
+        const match = regex.exec(sample);
+        expect(match).not.toBeNull();
+        expect(match[3]).toBe(result[0]);
+    }
+});
+
+
+test('fSharpFunctionAttributeRegex', () => {
+
+    const samples = [
+
+        `
+        [<FunctionName("AttributeBased")>]
+        `,
+
+        `  [<FunctionName("E3_Counter")>]
+        `,
+
+        `    [<Function("Execute")>]
+        `,
+    ];
+
+    const results = [
+
+        ['"AttributeBased"'],
+        ['"E3_Counter"'],
+        ['"Execute"'],
+    ];
+
+    const regex = BindingsParser.fSharpFunctionAttributeRegex;
     for (var i = 0; i < samples.length; i++) {
 
         // Need to reset the regex, because it's 'global' aka stateful

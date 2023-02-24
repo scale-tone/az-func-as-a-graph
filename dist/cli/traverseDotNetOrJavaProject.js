@@ -28,27 +28,49 @@ var __asyncGenerator = (this && this.__asyncGenerator) || function (thisArg, _ar
     function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.traverseJavaProject = exports.traverseDotNetIsolatedProject = void 0;
+exports.traverseProjectCode = void 0;
 const fs = require("fs");
 const path = require("path");
 const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
-// Tries to parse code of a .NET Isolated function and extract bindings from there
-function traverseDotNetIsolatedProject(projectFolder) {
+function traverseProjectCode(projectKind, projectFolder) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
         let result = {};
-        const fileNameRegex = new RegExp('.+\\.cs$', 'i');
+        let fileNameRegex;
+        let funcAttributeRegex;
+        let funcNamePosIndex;
+        switch (projectKind) {
+            case 'cSharp':
+                fileNameRegex = new RegExp('.+\\.cs$', 'i');
+                funcAttributeRegex = traverseFunctionProjectUtils_1.BindingsParser.functionAttributeRegex;
+                funcNamePosIndex = 3;
+                break;
+            case 'fSharp':
+                fileNameRegex = new RegExp('.+\\.fs$', 'i');
+                funcAttributeRegex = traverseFunctionProjectUtils_1.BindingsParser.fSharpFunctionAttributeRegex;
+                funcNamePosIndex = 2;
+                break;
+            case 'java':
+                fileNameRegex = new RegExp('.+\\.java$', 'i');
+                funcAttributeRegex = traverseFunctionProjectUtils_1.BindingsParser.javaFunctionAttributeRegex;
+                funcNamePosIndex = 1;
+                break;
+            default:
+                return;
+        }
         try {
-            for (var _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.functionAttributeRegex, 2)), _c; _c = yield _b.next(), !_c.done;) {
+            for (var _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, funcAttributeRegex, funcNamePosIndex)), _c; _c = yield _b.next(), !_c.done;) {
                 const func = _c.value;
                 const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
-                // Also trying to extract multiple output bindings
-                const outputBindings = yield extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex);
+                if (projectKind === 'cSharp') {
+                    // Also trying to extract multiple output bindings
+                    bindings.push(...yield extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex));
+                }
                 result[func.functionName] = {
                     filePath: func.filePath,
                     pos: func.pos,
                     lineNr: func.lineNr,
-                    bindings: [...bindings, ...outputBindings]
+                    bindings: [...bindings]
                 };
             }
         }
@@ -62,36 +84,7 @@ function traverseDotNetIsolatedProject(projectFolder) {
         return result;
     });
 }
-exports.traverseDotNetIsolatedProject = traverseDotNetIsolatedProject;
-// Tries to parse code of Java function and extract bindings from there
-function traverseJavaProject(projectFolder) {
-    var e_2, _a;
-    return __awaiter(this, void 0, void 0, function* () {
-        let result = {};
-        const fileNameRegex = new RegExp('.+\\.java$', 'i');
-        try {
-            for (var _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.javaFunctionAttributeRegex, 1)), _c; _c = yield _b.next(), !_c.done;) {
-                const func = _c.value;
-                const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
-                result[func.functionName] = {
-                    filePath: func.filePath,
-                    pos: func.pos,
-                    lineNr: func.lineNr,
-                    bindings
-                };
-            }
-        }
-        catch (e_2_1) { e_2 = { error: e_2_1 }; }
-        finally {
-            try {
-                if (_c && !_c.done && (_a = _b.return)) yield _a.call(_b);
-            }
-            finally { if (e_2) throw e_2.error; }
-        }
-        return result;
-    });
-}
-exports.traverseJavaProject = traverseJavaProject;
+exports.traverseProjectCode = traverseProjectCode;
 function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
     var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
@@ -116,7 +109,7 @@ function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
 }
 function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeRegex, functionNamePosInRegex) {
     return __asyncGenerator(this, arguments, function* findFunctionsRecursivelyAsync_1() {
-        var e_3, _a;
+        var e_2, _a;
         for (const dirEnt of yield __await(fs.promises.readdir(folder, { withFileTypes: true }))) {
             var fullPath = path.join(folder, dirEnt.name);
             if (dirEnt.isDirectory()) {
@@ -124,17 +117,17 @@ function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeR
                     continue;
                 }
                 try {
-                    for (var _b = (e_3 = void 0, __asyncValues(findFunctionsRecursivelyAsync(fullPath, fileNameRegex, functionAttributeRegex, functionNamePosInRegex))), _c; _c = yield __await(_b.next()), !_c.done;) {
+                    for (var _b = (e_2 = void 0, __asyncValues(findFunctionsRecursivelyAsync(fullPath, fileNameRegex, functionAttributeRegex, functionNamePosInRegex))), _c; _c = yield __await(_b.next()), !_c.done;) {
                         const file = _c.value;
                         yield yield __await(file);
                     }
                 }
-                catch (e_3_1) { e_3 = { error: e_3_1 }; }
+                catch (e_2_1) { e_2 = { error: e_2_1 }; }
                 finally {
                     try {
                         if (_c && !_c.done && (_a = _b.return)) yield __await(_a.call(_b));
                     }
-                    finally { if (e_3) throw e_3.error; }
+                    finally { if (e_2) throw e_2.error; }
                 }
             }
             else if (!!fileNameRegex.exec(dirEnt.name)) {
@@ -142,7 +135,8 @@ function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeR
                 var match;
                 while (!!(match = functionAttributeRegex.exec(code))) {
                     let functionName = cleanupFunctionName(match[functionNamePosInRegex]);
-                    const body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, match.index + match[0].length, '{', '}', '\n');
+                    const functionAttributeEndPos = match.index + match[0].length;
+                    const body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, functionAttributeEndPos, '{', '}', '\n');
                     if (body.openBracketPos >= 0 && !!body.code) {
                         yield yield __await({
                             functionName,
@@ -152,6 +146,18 @@ function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeR
                             declarationCode: body.code.substring(0, body.openBracketPos),
                             bodyCode: body.code.substring(body.openBracketPos)
                         });
+                    }
+                    else {
+                        // Returning the rest of the file
+                        yield yield __await({
+                            functionName,
+                            filePath: fullPath,
+                            pos: match.index,
+                            lineNr: traverseFunctionProjectUtils_1.posToLineNr(code, match.index),
+                            declarationCode: code.substring(functionAttributeEndPos),
+                            bodyCode: code.substring(functionAttributeEndPos)
+                        });
+                        break;
                     }
                 }
             }
@@ -182,4 +188,4 @@ function cleanupFunctionName(name) {
     }
     return removeNamespace(name);
 }
-//# sourceMappingURL=traverseDotNetIsolatedOrJavaProject.js.map
+//# sourceMappingURL=traverseDotNetOrJavaProject.js.map

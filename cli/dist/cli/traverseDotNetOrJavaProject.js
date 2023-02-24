@@ -81,115 +81,91 @@ var __spreadArrays = (this && this.__spreadArrays) || function () {
     return r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.traverseJavaProject = exports.traverseDotNetIsolatedProject = void 0;
+exports.traverseProjectCode = void 0;
 var fs = __importStar(require("fs"));
 var path = __importStar(require("path"));
 var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
-// Tries to parse code of a .NET Isolated function and extract bindings from there
-function traverseDotNetIsolatedProject(projectFolder) {
+function traverseProjectCode(projectKind, projectFolder) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function () {
-        var result, fileNameRegex, _b, _c, func, bindings, outputBindings, e_1_1;
-        return __generator(this, function (_d) {
-            switch (_d.label) {
+        var result, fileNameRegex, funcAttributeRegex, funcNamePosIndex, _b, _c, func, bindings, _d, _e, _f, e_1_1;
+        return __generator(this, function (_g) {
+            switch (_g.label) {
                 case 0:
                     result = {};
-                    fileNameRegex = new RegExp('.+\\.cs$', 'i');
-                    _d.label = 1;
+                    switch (projectKind) {
+                        case 'cSharp':
+                            fileNameRegex = new RegExp('.+\\.cs$', 'i');
+                            funcAttributeRegex = traverseFunctionProjectUtils_1.BindingsParser.functionAttributeRegex;
+                            funcNamePosIndex = 3;
+                            break;
+                        case 'fSharp':
+                            fileNameRegex = new RegExp('.+\\.fs$', 'i');
+                            funcAttributeRegex = traverseFunctionProjectUtils_1.BindingsParser.fSharpFunctionAttributeRegex;
+                            funcNamePosIndex = 2;
+                            break;
+                        case 'java':
+                            fileNameRegex = new RegExp('.+\\.java$', 'i');
+                            funcAttributeRegex = traverseFunctionProjectUtils_1.BindingsParser.javaFunctionAttributeRegex;
+                            funcNamePosIndex = 1;
+                            break;
+                        default:
+                            return [2 /*return*/];
+                    }
+                    _g.label = 1;
                 case 1:
-                    _d.trys.push([1, 7, 8, 13]);
-                    _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.functionAttributeRegex, 2));
-                    _d.label = 2;
+                    _g.trys.push([1, 8, 9, 14]);
+                    _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, funcAttributeRegex, funcNamePosIndex));
+                    _g.label = 2;
                 case 2: return [4 /*yield*/, _b.next()];
                 case 3:
-                    if (!(_c = _d.sent(), !_c.done)) return [3 /*break*/, 6];
+                    if (!(_c = _g.sent(), !_c.done)) return [3 /*break*/, 7];
                     func = _c.value;
                     bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
+                    if (!(projectKind === 'cSharp')) return [3 /*break*/, 5];
+                    _e = 
+                    // Also trying to extract multiple output bindings
+                    (_d = bindings.push).apply;
+                    _f = [
+                        // Also trying to extract multiple output bindings
+                        bindings];
                     return [4 /*yield*/, extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex)];
                 case 4:
-                    outputBindings = _d.sent();
+                    // Also trying to extract multiple output bindings
+                    _e.apply(_d, _f.concat([_g.sent()]));
+                    _g.label = 5;
+                case 5:
                     result[func.functionName] = {
                         filePath: func.filePath,
                         pos: func.pos,
                         lineNr: func.lineNr,
-                        bindings: __spreadArrays(bindings, outputBindings)
+                        bindings: __spreadArrays(bindings)
                     };
-                    _d.label = 5;
-                case 5: return [3 /*break*/, 2];
-                case 6: return [3 /*break*/, 13];
-                case 7:
-                    e_1_1 = _d.sent();
-                    e_1 = { error: e_1_1 };
-                    return [3 /*break*/, 13];
+                    _g.label = 6;
+                case 6: return [3 /*break*/, 2];
+                case 7: return [3 /*break*/, 14];
                 case 8:
-                    _d.trys.push([8, , 11, 12]);
-                    if (!(_c && !_c.done && (_a = _b.return))) return [3 /*break*/, 10];
-                    return [4 /*yield*/, _a.call(_b)];
+                    e_1_1 = _g.sent();
+                    e_1 = { error: e_1_1 };
+                    return [3 /*break*/, 14];
                 case 9:
-                    _d.sent();
-                    _d.label = 10;
-                case 10: return [3 /*break*/, 12];
-                case 11:
+                    _g.trys.push([9, , 12, 13]);
+                    if (!(_c && !_c.done && (_a = _b.return))) return [3 /*break*/, 11];
+                    return [4 /*yield*/, _a.call(_b)];
+                case 10:
+                    _g.sent();
+                    _g.label = 11;
+                case 11: return [3 /*break*/, 13];
+                case 12:
                     if (e_1) throw e_1.error;
                     return [7 /*endfinally*/];
-                case 12: return [7 /*endfinally*/];
-                case 13: return [2 /*return*/, result];
+                case 13: return [7 /*endfinally*/];
+                case 14: return [2 /*return*/, result];
             }
         });
     });
 }
-exports.traverseDotNetIsolatedProject = traverseDotNetIsolatedProject;
-// Tries to parse code of Java function and extract bindings from there
-function traverseJavaProject(projectFolder) {
-    var e_2, _a;
-    return __awaiter(this, void 0, void 0, function () {
-        var result, fileNameRegex, _b, _c, func, bindings, e_2_1;
-        return __generator(this, function (_d) {
-            switch (_d.label) {
-                case 0:
-                    result = {};
-                    fileNameRegex = new RegExp('.+\\.java$', 'i');
-                    _d.label = 1;
-                case 1:
-                    _d.trys.push([1, 6, 7, 12]);
-                    _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.javaFunctionAttributeRegex, 1));
-                    _d.label = 2;
-                case 2: return [4 /*yield*/, _b.next()];
-                case 3:
-                    if (!(_c = _d.sent(), !_c.done)) return [3 /*break*/, 5];
-                    func = _c.value;
-                    bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
-                    result[func.functionName] = {
-                        filePath: func.filePath,
-                        pos: func.pos,
-                        lineNr: func.lineNr,
-                        bindings: bindings
-                    };
-                    _d.label = 4;
-                case 4: return [3 /*break*/, 2];
-                case 5: return [3 /*break*/, 12];
-                case 6:
-                    e_2_1 = _d.sent();
-                    e_2 = { error: e_2_1 };
-                    return [3 /*break*/, 12];
-                case 7:
-                    _d.trys.push([7, , 10, 11]);
-                    if (!(_c && !_c.done && (_a = _b.return))) return [3 /*break*/, 9];
-                    return [4 /*yield*/, _a.call(_b)];
-                case 8:
-                    _d.sent();
-                    _d.label = 9;
-                case 9: return [3 /*break*/, 11];
-                case 10:
-                    if (e_2) throw e_2.error;
-                    return [7 /*endfinally*/];
-                case 11: return [7 /*endfinally*/];
-                case 12: return [2 /*return*/, result];
-            }
-        });
-    });
-}
-exports.traverseJavaProject = traverseJavaProject;
+exports.traverseProjectCode = traverseProjectCode;
 function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
     var _a, _b;
     return __awaiter(this, void 0, void 0, function () {
@@ -222,8 +198,8 @@ function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
 }
 function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeRegex, functionNamePosInRegex) {
     return __asyncGenerator(this, arguments, function findFunctionsRecursivelyAsync_1() {
-        var _i, _a, dirEnt, fullPath, _b, _c, file, e_3_1, code, match, functionName, body;
-        var e_3, _d;
+        var _i, _a, dirEnt, fullPath, _b, _c, file, e_2_1, code, match, functionName, functionAttributeEndPos, body;
+        var e_2, _d;
         return __generator(this, function (_e) {
             switch (_e.label) {
                 case 0:
@@ -233,17 +209,17 @@ function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeR
                     _a = _e.sent();
                     _e.label = 2;
                 case 2:
-                    if (!(_i < _a.length)) return [3 /*break*/, 24];
+                    if (!(_i < _a.length)) return [3 /*break*/, 27];
                     dirEnt = _a[_i];
                     fullPath = path.join(folder, dirEnt.name);
                     if (!dirEnt.isDirectory()) return [3 /*break*/, 17];
                     if (traverseFunctionProjectUtils_1.ExcludedFolders.includes(dirEnt.name.toLowerCase())) {
-                        return [3 /*break*/, 23];
+                        return [3 /*break*/, 26];
                     }
                     _e.label = 3;
                 case 3:
                     _e.trys.push([3, 10, 11, 16]);
-                    _b = (e_3 = void 0, __asyncValues(findFunctionsRecursivelyAsync(fullPath, fileNameRegex, functionAttributeRegex, functionNamePosInRegex)));
+                    _b = (e_2 = void 0, __asyncValues(findFunctionsRecursivelyAsync(fullPath, fileNameRegex, functionAttributeRegex, functionNamePosInRegex)));
                     _e.label = 4;
                 case 4: return [4 /*yield*/, __await(_b.next())];
                 case 5:
@@ -257,8 +233,8 @@ function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeR
                 case 8: return [3 /*break*/, 4];
                 case 9: return [3 /*break*/, 16];
                 case 10:
-                    e_3_1 = _e.sent();
-                    e_3 = { error: e_3_1 };
+                    e_2_1 = _e.sent();
+                    e_2 = { error: e_2_1 };
                     return [3 /*break*/, 16];
                 case 11:
                     _e.trys.push([11, , 14, 15]);
@@ -269,20 +245,21 @@ function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeR
                     _e.label = 13;
                 case 13: return [3 /*break*/, 15];
                 case 14:
-                    if (e_3) throw e_3.error;
+                    if (e_2) throw e_2.error;
                     return [7 /*endfinally*/];
                 case 15: return [7 /*endfinally*/];
-                case 16: return [3 /*break*/, 23];
+                case 16: return [3 /*break*/, 26];
                 case 17:
-                    if (!!!fileNameRegex.exec(dirEnt.name)) return [3 /*break*/, 23];
+                    if (!!!fileNameRegex.exec(dirEnt.name)) return [3 /*break*/, 26];
                     return [4 /*yield*/, __await(fs.promises.readFile(fullPath, { encoding: 'utf8' }))];
                 case 18:
                     code = _e.sent();
                     _e.label = 19;
                 case 19:
-                    if (!!!(match = functionAttributeRegex.exec(code))) return [3 /*break*/, 23];
+                    if (!!!(match = functionAttributeRegex.exec(code))) return [3 /*break*/, 26];
                     functionName = cleanupFunctionName(match[functionNamePosInRegex]);
-                    body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, match.index + match[0].length, '{', '}', '\n');
+                    functionAttributeEndPos = match.index + match[0].length;
+                    body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, functionAttributeEndPos, '{', '}', '\n');
                     if (!(body.openBracketPos >= 0 && !!body.code)) return [3 /*break*/, 22];
                     return [4 /*yield*/, __await({
                             functionName: functionName,
@@ -295,12 +272,27 @@ function findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeR
                 case 20: return [4 /*yield*/, _e.sent()];
                 case 21:
                     _e.sent();
-                    _e.label = 22;
-                case 22: return [3 /*break*/, 19];
-                case 23:
+                    return [3 /*break*/, 25];
+                case 22: return [4 /*yield*/, __await({
+                        functionName: functionName,
+                        filePath: fullPath,
+                        pos: match.index,
+                        lineNr: traverseFunctionProjectUtils_1.posToLineNr(code, match.index),
+                        declarationCode: code.substring(functionAttributeEndPos),
+                        bodyCode: code.substring(functionAttributeEndPos)
+                    })];
+                case 23: 
+                // Returning the rest of the file
+                return [4 /*yield*/, _e.sent()];
+                case 24:
+                    // Returning the rest of the file
+                    _e.sent();
+                    return [3 /*break*/, 26];
+                case 25: return [3 /*break*/, 19];
+                case 26:
                     _i++;
                     return [3 /*break*/, 2];
-                case 24: return [2 /*return*/];
+                case 27: return [2 /*return*/];
             }
         });
     });

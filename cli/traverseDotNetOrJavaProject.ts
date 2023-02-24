@@ -4,55 +4,54 @@ import * as path from 'path';
 import { FunctionsMap } from '../ui/src/shared/FunctionsMap';
 import {
     getCodeInBrackets, BindingsParser,
-    posToLineNr, ExcludedFolders, TraversalRegexes, findFileRecursivelyAsync
+    posToLineNr, ExcludedFolders, TraversalRegexes, findFileRecursivelyAsync, FunctionProjectKind
 } from './traverseFunctionProjectUtils';
 
-
-// Tries to parse code of a .NET Isolated function and extract bindings from there
-export async function traverseDotNetIsolatedProject(projectFolder: string): Promise<FunctionsMap> {
+export async function traverseProjectCode(projectKind: FunctionProjectKind, projectFolder: string): Promise<FunctionsMap> {
 
     let result: any = {};
 
-    const fileNameRegex = new RegExp('.+\\.cs$', 'i');
-    
-    for await (const func of findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, BindingsParser.functionAttributeRegex, 2)) {
+    let fileNameRegex: RegExp;
+    let funcAttributeRegex: RegExp;
+    let funcNamePosIndex: number;
 
-        const bindings = BindingsParser.tryExtractBindings(func.declarationCode);
-   
-        // Also trying to extract multiple output bindings
-        const outputBindings = await extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex);
-
-        result[func.functionName] = {
-
-            filePath: func.filePath,
-            pos: func.pos,
-            lineNr: func.lineNr,
-
-            bindings: [...bindings, ...outputBindings]
-        };
+    switch (projectKind) {
+        case 'cSharp':
+            fileNameRegex = new RegExp('.+\\.cs$', 'i');
+            funcAttributeRegex = BindingsParser.functionAttributeRegex;
+            funcNamePosIndex = 3;
+            break;
+        case 'fSharp':
+            fileNameRegex = new RegExp('.+\\.fs$', 'i');
+            funcAttributeRegex = BindingsParser.fSharpFunctionAttributeRegex;
+            funcNamePosIndex = 2;
+            break;
+        case 'java':
+            fileNameRegex = new RegExp('.+\\.java$', 'i');
+            funcAttributeRegex = BindingsParser.javaFunctionAttributeRegex;
+            funcNamePosIndex = 1;
+            break;
+        default:
+            return;
     }
-
-    return result;
-}
-
-// Tries to parse code of Java function and extract bindings from there
-export async function traverseJavaProject(projectFolder: string): Promise<FunctionsMap> {
-
-    let result: any = {};
-
-    const fileNameRegex = new RegExp('.+\\.java$', 'i');
     
-    for await (const func of findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, BindingsParser.javaFunctionAttributeRegex, 1)) {
+    for await (const func of findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, funcAttributeRegex, funcNamePosIndex)) {
 
         const bindings = BindingsParser.tryExtractBindings(func.declarationCode);
    
+        if (projectKind === 'cSharp') {
+            
+            // Also trying to extract multiple output bindings
+            bindings.push(...await extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex));
+        }
+
         result[func.functionName] = {
 
             filePath: func.filePath,
             pos: func.pos,
             lineNr: func.lineNr,
 
-            bindings
+            bindings: [...bindings]
         };
     }
 
@@ -110,7 +109,9 @@ async function* findFunctionsRecursivelyAsync(folder: string, fileNameRegex: Reg
 
                 let functionName = cleanupFunctionName(match[functionNamePosInRegex]);
 
-                const body = getCodeInBrackets(code, match.index + match[0].length, '{', '}', '\n');
+                const functionAttributeEndPos = match.index + match[0].length;
+
+                const body = getCodeInBrackets(code, functionAttributeEndPos, '{', '}', '\n');
 
                 if (body.openBracketPos >= 0 && !!body.code) {
 
@@ -122,6 +123,22 @@ async function* findFunctionsRecursivelyAsync(folder: string, fileNameRegex: Reg
                         declarationCode: body.code.substring(0, body.openBracketPos),
                         bodyCode: body.code.substring(body.openBracketPos)
                     };
+
+                } else {
+
+                    // Returning the rest of the file
+
+                    yield {
+                        functionName,
+                        filePath: fullPath,
+                        pos: match.index,
+                        lineNr: posToLineNr(code, match.index),
+
+                        declarationCode: code.substring(functionAttributeEndPos),
+                        bodyCode: code.substring(functionAttributeEndPos)
+                    };
+
+                    break;
                 }
             }        
         }

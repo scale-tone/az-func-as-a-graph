@@ -1,18 +1,14 @@
-import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as util from 'util';
-import { exec } from 'child_process';
-const execAsync = util.promisify(exec);
 
 import { FunctionsMap, ProxiesMap, TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
 
 import {
-    getCodeInBrackets, TraversalRegexes, BindingsParser,
-    isDotNetProjectAsync, isDotNetIsolatedProjectAsync, posToLineNr, cloneFromGitHub, findFileRecursivelyAsync, isJavaProjectAsync
+    getCodeInBrackets, TraversalRegexes,
+    isCSharpProjectAsync, isFSharpProjectAsync, posToLineNr, cloneFromGitHub, findFileRecursivelyAsync, isJavaProjectAsync, FunctionProjectKind
 } from './traverseFunctionProjectUtils';
 
-import { traverseDotNetIsolatedProject, traverseJavaProject } from './traverseDotNetIsolatedOrJavaProject';
+import { traverseProjectCode } from './traverseDotNetOrJavaProject';
 
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
 // extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
@@ -44,43 +40,48 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
 
     let hostJsonFolder = path.dirname(hostJsonMatch.filePath);
 
-    // here we should check projectFolder (not hostJsonFolder)
-    const isDotNetIsolatedProject = await isDotNetIsolatedProjectAsync(projectFolder);
-    let isJavaProject = false;
+    let projectKind: FunctionProjectKind = 'other';
 
-    if (!isDotNetIsolatedProject) {
-        
-        const isDotNetProject = await isDotNetProjectAsync(hostJsonFolder);
-
-        // If it is a C# function, we'll need to dotnet publish first
-        if (!!isDotNetProject) {
-
-            const publishTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'));
-            tempFolders.push(publishTempFolder);
-
-            log(`>>> Publishing ${hostJsonFolder} to ${publishTempFolder}...`);
-            await execAsync(`dotnet publish -o ${publishTempFolder}`, { cwd: hostJsonFolder });
-            hostJsonFolder = publishTempFolder;
-        }
-
-        isJavaProject = await isJavaProjectAsync(hostJsonFolder);
+    if (await isCSharpProjectAsync(projectFolder)) {
+        projectKind = 'cSharp';
+    } else if (await isFSharpProjectAsync(projectFolder)) {
+        projectKind = 'fSharp';
+    } else if (await isJavaProjectAsync(projectFolder)) {
+        projectKind = 'java';
     }
 
+    let functions: FunctionsMap;
+
+    switch (projectKind) {
+        case 'cSharp':
+        case 'fSharp':
+        case 'java':
+
+            functions = await traverseProjectCode(projectKind, projectFolder);
+
+            // Now enriching it with more info extracted from code
+            functions = await mapOrchestratorsAndActivitiesAsync(projectKind, functions, projectFolder);
+
+            break;
+        default:
+
+            functions = await readFunctionsJson(hostJsonFolder, log);
+
+            // Now enriching it with more info extracted from code
+            functions = await mapOrchestratorsAndActivitiesAsync(projectKind, functions, hostJsonFolder);
+
+            break;
+    }
+
+    // Also reading proxies
+    const proxies = await readProxiesJson(projectFolder, log);
+
+    return { functions, proxies, tempFolders, projectFolder };
+}
+
+async function readFunctionsJson(hostJsonFolder: string, log: (s: any) => void): Promise<FunctionsMap> {
+
     let functions: FunctionsMap = {};
-
-
-    if (!!isJavaProject) {
-
-        functions = await traverseJavaProject(projectFolder);
-
-        // Now enriching it with more info extracted from code
-        functions = await mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
-        
-    }else if (!!isDotNetIsolatedProject) {
-
-        functions = await traverseDotNetIsolatedProject(projectFolder);
-        
-    } else {
 
         // Reading function.json files, in parallel
         const promises = (await fs.promises.readdir(hostJsonFolder)).map(async functionName => {
@@ -105,15 +106,8 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
             }
         });
         await Promise.all(promises);
-
-        // Now enriching data from function.json with more info extracted from code
-        functions = await mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder);
-    }
-
-    // Also reading proxies
-    const proxies = await readProxiesJson(projectFolder, log);
-
-    return { functions, proxies, tempFolders, projectFolder };
+    
+    return functions;
 }
 
 // Tries to read proxies.json file from project folder
@@ -133,7 +127,7 @@ async function readProxiesJson(projectFolder: string, log: (s: any) => void): Pr
         }
 
         var notAddedToCsProjFile = false;
-        if (await isDotNetProjectAsync(projectFolder)) {
+        if (await isCSharpProjectAsync(projectFolder)) {
 
             // Also checking that proxies.json is added to .csproj file
 
@@ -174,29 +168,21 @@ async function readProxiesJson(projectFolder: string, log: (s: any) => void): Pr
 }
 
 // Tries to match orchestrations and their activities by parsing source code
-async function mapOrchestratorsAndActivitiesAsync(functions: FunctionsMap, projectFolder: string, hostJsonFolder: string): Promise<FunctionsMap> {
-
-    let projectKind: 'dotNet' | 'java' | 'other' = 'other';
-
-    if (await isDotNetProjectAsync(projectFolder)) {
-        projectKind = 'dotNet';
-    } else if (await isJavaProjectAsync(projectFolder)) {
-        projectKind = 'java';
-    }
+async function mapOrchestratorsAndActivitiesAsync(projectKind: FunctionProjectKind, functions: FunctionsMap, projectFolder: string): Promise<FunctionsMap> {
 
     const functionNames = Object.keys(functions);
     
     const orchestratorNames = functionNames.filter(name => functions[name].bindings.some((b: any) => b.type === 'orchestrationTrigger'));
-    const orchestrators = await getFunctionsAndTheirCodesAsync(orchestratorNames, projectKind, projectFolder, hostJsonFolder);
+    const orchestrators = await getFunctionsAndTheirCodesAsync(orchestratorNames, projectKind, projectFolder);
 
     const activityNames = Object.keys(functions).filter(name => functions[name].bindings.some((b: any) => b.type === 'activityTrigger'));
-    const activities = await getFunctionsAndTheirCodesAsync(activityNames, projectKind, projectFolder, hostJsonFolder);
+    const activities = await getFunctionsAndTheirCodesAsync(activityNames, projectKind, projectFolder);
 
     const entityNames = functionNames.filter(name => functions[name].bindings.some((b: any) => b.type === 'entityTrigger'));
-    const entities = await getFunctionsAndTheirCodesAsync(entityNames, projectKind, projectFolder, hostJsonFolder);
+    const entities = await getFunctionsAndTheirCodesAsync(entityNames, projectKind, projectFolder);
 
     const otherFunctionNames = functionNames.filter(name => !functions[name].bindings.some((b: any) => ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type)));
-    const otherFunctions = await getFunctionsAndTheirCodesAsync(otherFunctionNames, projectKind, projectFolder, hostJsonFolder);
+    const otherFunctions = await getFunctionsAndTheirCodesAsync(otherFunctionNames, projectKind, projectFolder);
 
     for (const orch of orchestrators) {
 
@@ -266,42 +252,6 @@ async function mapOrchestratorsAndActivitiesAsync(functions: FunctionsMap, proje
         }
     }
 
-    if (projectKind === 'dotNet') {
-        
-        // Trying to extract extra binding info from C# code
-        for (const func of activities.concat(otherFunctions)) {
-
-            const bindingsFromFunctionJson = functions[func.name].bindings as { type: string, direction: string }[];
-            const bindingsFromCode = BindingsParser.tryExtractBindings(func.code);
-
-            const existingBindingTypes: string[] = bindingsFromFunctionJson.map(b => b.type);
-
-            for (let binding of bindingsFromCode) {
-
-                // Only pushing extracted binding, if a binding with that type doesn't exist yet in function.json,
-                // so that no duplicates are produced
-                if (!existingBindingTypes.includes(binding.type)) {
-                 
-                    bindingsFromFunctionJson.push(binding);
-                }
-            }
-
-            // Also setting default direction
-            for (let binding of bindingsFromFunctionJson) {
-                
-                if (!binding.direction) {
-
-                    const bindingsOfThisTypeFromCode = bindingsFromCode.filter(b => b.type === binding.type);
-                    // If we were able to unambiguosly detect the binding of this type
-                    if (bindingsOfThisTypeFromCode.length === 1) {
-                        
-                        binding.direction = bindingsOfThisTypeFromCode[0].direction;
-                    }
-                }
-            }
-        }
-    }
-
     // Also adding file paths and code positions
     for (const func of otherFunctions.concat(orchestrators).concat(activities).concat(entities)) {
         functions[func.name].filePath = func.filePath;
@@ -327,7 +277,7 @@ function getEventNames(orchestratorCode: string): string[] {
 }
 
 // Tries to load code for functions of certain type
-async function getFunctionsAndTheirCodesAsync(functionNames: string[], projectKind: 'dotNet' | 'java' | 'other', projectFolder: string, hostJsonFolder: string)
+async function getFunctionsAndTheirCodesAsync(functionNames: string[], projectKind: FunctionProjectKind, hostJsonFolder: string)
     : Promise<{ name: string, code: string, filePath: string, pos: number, lineNr: number }[]> {
     
     const promises = functionNames.map(async name => {
@@ -335,11 +285,14 @@ async function getFunctionsAndTheirCodesAsync(functionNames: string[], projectKi
         let match;
 
         switch (projectKind) {
-            case 'dotNet':
-                match = await findFileRecursivelyAsync(projectFolder, '.+\\.(f|c)s$', true, TraversalRegexes.getDotNetFunctionNameRegex(name));
+            case 'cSharp':
+                match = await findFileRecursivelyAsync(hostJsonFolder, '.+\\.cs$', true, TraversalRegexes.getDotNetFunctionNameRegex(name));
+                break;
+            case 'fSharp':
+                match = await findFileRecursivelyAsync(hostJsonFolder, '.+\\.fs$', true, TraversalRegexes.getDotNetFunctionNameRegex(name));
                 break;
             case 'java':
-                match = await findFileRecursivelyAsync(projectFolder, '.+\\.java$', true, TraversalRegexes.getDotNetFunctionNameRegex(name));
+                match = await findFileRecursivelyAsync(hostJsonFolder, '.+\\.java$', true, TraversalRegexes.getDotNetFunctionNameRegex(name));
                 break;
             default:
                 match = await findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true);

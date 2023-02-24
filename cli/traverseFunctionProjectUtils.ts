@@ -7,6 +7,8 @@ const execAsync = util.promisify(exec);
 
 const gitCloneTimeoutInSeconds = 60;
 
+export type FunctionProjectKind = 'cSharp' | 'fSharp' | 'java' | 'other';
+
 export const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 
 // Does a git clone into a temp folder and returns info about that cloned code
@@ -88,31 +90,20 @@ export function posToLineNr(code: string | undefined, pos: number): number {
     return !lineBreaks ? 1 : lineBreaks.length + 1;
 }
 
-// Checks if the given folder looks like a .NET project
-export async function isDotNetProjectAsync(projectFolder: string): Promise<boolean> {
+// Checks if the given folder looks like a C# function project
+export async function isCSharpProjectAsync(projectFolder: string): Promise<boolean> {
     return (await fs.promises.readdir(projectFolder)).some(fn => {
-        fn = fn.toLowerCase();
-        return fn.endsWith('.sln') ||
-            fn.endsWith('.fsproj') ||
-            (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
-    });
-}
-
-// Checks if the given folder looks like a .NET Isolated project
-export async function isDotNetIsolatedProjectAsync(projectFolder: string): Promise<boolean> {
-
-    const csprojFile = (await fs.promises.readdir(projectFolder)).find(fn => {
         fn = fn.toLowerCase();
         return (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
     });
+}
 
-    if (!csprojFile) {
-        return false;
-    }
-
-    const csprojFileString = await fs.promises.readFile(path.join(projectFolder, csprojFile), { encoding: 'utf8' });
-
-    return csprojFileString.includes('Microsoft.Azure.Functions.Worker');
+// Checks if the given folder looks like a F# function project
+export async function isFSharpProjectAsync(projectFolder: string): Promise<boolean> {
+    return (await fs.promises.readdir(projectFolder)).some(fn => {
+        fn = fn.toLowerCase();
+        return fn.endsWith('.fsproj');
+    });
 }
 
 // Checks if the given folder looks like a Java Functions project
@@ -582,14 +573,17 @@ export class BindingsParser {
 
                     break;
                 }
+                case 'OrchestrationTrigger':
                 case 'DurableOrchestrationTrigger': {
                     result.push({ type: 'orchestrationTrigger', direction: 'in' });
                     break;
                 }
+                case 'ActivityTrigger':
                 case 'DurableActivityTrigger': {
                     result.push({ type: 'activityTrigger', direction: 'in' });
                     break;
                 }
+                case 'EntityTrigger':
                 case 'DurableEntityTrigger': {
                     result.push({ type: 'entityTrigger', direction: 'in' });
                     break;
@@ -615,8 +609,10 @@ export class BindingsParser {
     static readonly httpMethods = [`get`, `head`, `post`, `put`, `delete`, `connect`, `options`, `trace`, `patch`];
     static readonly httpTriggerRouteRegex = new RegExp(`Route\\s*=\\s*"(.*)"`);
 
-    static readonly functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]`, 'g');
+    static readonly functionAttributeRegex = new RegExp(`\\[\\s*Function(Name)?(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]`, 'g');
     static readonly functionReturnTypeRegex = new RegExp(`public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)`);
 
     static readonly javaFunctionAttributeRegex = new RegExp(`@\\s*FunctionName\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
+
+    static readonly fSharpFunctionAttributeRegex = new RegExp(`\\[<\\s*Function(Name)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
 }

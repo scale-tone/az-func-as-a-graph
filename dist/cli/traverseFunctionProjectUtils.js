@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BindingsParser = exports.TraversalRegexes = exports.findFileRecursivelyAsync = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.isJavaProjectAsync = exports.isDotNetIsolatedProjectAsync = exports.isDotNetProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
+exports.BindingsParser = exports.TraversalRegexes = exports.findFileRecursivelyAsync = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.isJavaProjectAsync = exports.isFSharpProjectAsync = exports.isCSharpProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
@@ -78,33 +78,26 @@ function posToLineNr(code, pos) {
     return !lineBreaks ? 1 : lineBreaks.length + 1;
 }
 exports.posToLineNr = posToLineNr;
-// Checks if the given folder looks like a .NET project
-function isDotNetProjectAsync(projectFolder) {
+// Checks if the given folder looks like a C# function project
+function isCSharpProjectAsync(projectFolder) {
     return __awaiter(this, void 0, void 0, function* () {
         return (yield fs.promises.readdir(projectFolder)).some(fn => {
             fn = fn.toLowerCase();
-            return fn.endsWith('.sln') ||
-                fn.endsWith('.fsproj') ||
-                (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
-        });
-    });
-}
-exports.isDotNetProjectAsync = isDotNetProjectAsync;
-// Checks if the given folder looks like a .NET Isolated project
-function isDotNetIsolatedProjectAsync(projectFolder) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const csprojFile = (yield fs.promises.readdir(projectFolder)).find(fn => {
-            fn = fn.toLowerCase();
             return (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
         });
-        if (!csprojFile) {
-            return false;
-        }
-        const csprojFileString = yield fs.promises.readFile(path.join(projectFolder, csprojFile), { encoding: 'utf8' });
-        return csprojFileString.includes('Microsoft.Azure.Functions.Worker');
     });
 }
-exports.isDotNetIsolatedProjectAsync = isDotNetIsolatedProjectAsync;
+exports.isCSharpProjectAsync = isCSharpProjectAsync;
+// Checks if the given folder looks like a F# function project
+function isFSharpProjectAsync(projectFolder) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return (yield fs.promises.readdir(projectFolder)).some(fn => {
+            fn = fn.toLowerCase();
+            return fn.endsWith('.fsproj');
+        });
+    });
+}
+exports.isFSharpProjectAsync = isFSharpProjectAsync;
 // Checks if the given folder looks like a Java Functions project
 function isJavaProjectAsync(projectFolder) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -483,14 +476,17 @@ class BindingsParser {
                     result.push({ type: 'http', direction: 'out' });
                     break;
                 }
+                case 'OrchestrationTrigger':
                 case 'DurableOrchestrationTrigger': {
                     result.push({ type: 'orchestrationTrigger', direction: 'in' });
                     break;
                 }
+                case 'ActivityTrigger':
                 case 'DurableActivityTrigger': {
                     result.push({ type: 'activityTrigger', direction: 'in' });
                     break;
                 }
+                case 'EntityTrigger':
                 case 'DurableEntityTrigger': {
                     result.push({ type: 'entityTrigger', direction: 'in' });
                     break;
@@ -513,7 +509,8 @@ BindingsParser.eventGridParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`
 BindingsParser.isOutRegex = new RegExp(`^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
 BindingsParser.httpMethods = [`get`, `head`, `post`, `put`, `delete`, `connect`, `options`, `trace`, `patch`];
 BindingsParser.httpTriggerRouteRegex = new RegExp(`Route\\s*=\\s*"(.*)"`);
-BindingsParser.functionAttributeRegex = new RegExp(`\\[\\s*Function(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]`, 'g');
+BindingsParser.functionAttributeRegex = new RegExp(`\\[\\s*Function(Name)?(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]`, 'g');
 BindingsParser.functionReturnTypeRegex = new RegExp(`public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)`);
 BindingsParser.javaFunctionAttributeRegex = new RegExp(`@\\s*FunctionName\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
+BindingsParser.fSharpFunctionAttributeRegex = new RegExp(`\\[<\\s*Function(Name)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
 //# sourceMappingURL=traverseFunctionProjectUtils.js.map

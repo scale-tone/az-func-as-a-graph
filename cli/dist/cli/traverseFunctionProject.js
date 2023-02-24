@@ -56,84 +56,97 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.traverseFunctionProject = void 0;
-var os = __importStar(require("os"));
 var fs = __importStar(require("fs"));
 var path = __importStar(require("path"));
-var util = __importStar(require("util"));
-var child_process_1 = require("child_process");
-var execAsync = util.promisify(child_process_1.exec);
 var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
-var traverseDotNetIsolatedOrJavaProject_1 = require("./traverseDotNetIsolatedOrJavaProject");
+var traverseDotNetOrJavaProject_1 = require("./traverseDotNetOrJavaProject");
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
 // extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
 // (if the project uses Durable Functions)
 function traverseFunctionProject(projectFolder, log) {
     return __awaiter(this, void 0, void 0, function () {
-        var tempFolders, gitInfo, hostJsonMatch, hostJsonFolder, isDotNetIsolatedProject, isJavaProject, isDotNetProject, publishTempFolder, functions, promises, proxies;
-        var _this = this;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
+        var tempFolders, gitInfo, hostJsonMatch, hostJsonFolder, projectKind, functions, _a, proxies;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
                 case 0:
                     tempFolders = [];
                     if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 2];
                     log("Cloning " + projectFolder);
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder)];
                 case 1:
-                    gitInfo = _a.sent();
+                    gitInfo = _b.sent();
                     log("Successfully cloned to " + gitInfo.gitTempFolder);
                     tempFolders.push(gitInfo.gitTempFolder);
                     projectFolder = gitInfo.projectFolder;
-                    _a.label = 2;
+                    _b.label = 2;
                 case 2: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, 'host.json', false)];
                 case 3:
-                    hostJsonMatch = _a.sent();
+                    hostJsonMatch = _b.sent();
                     if (!hostJsonMatch) {
                         throw new Error('host.json file not found under the provided project path');
                     }
                     log(">>> Found host.json at " + hostJsonMatch.filePath);
                     hostJsonFolder = path.dirname(hostJsonMatch.filePath);
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetIsolatedProjectAsync(projectFolder)];
+                    projectKind = 'other';
+                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isCSharpProjectAsync(projectFolder)];
                 case 4:
-                    isDotNetIsolatedProject = _a.sent();
-                    isJavaProject = false;
-                    if (!!isDotNetIsolatedProject) return [3 /*break*/, 10];
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(hostJsonFolder)];
-                case 5:
-                    isDotNetProject = _a.sent();
-                    if (!!!isDotNetProject) return [3 /*break*/, 8];
-                    return [4 /*yield*/, fs.promises.mkdtemp(path.join(os.tmpdir(), 'dotnet-publish-'))];
+                    if (!_b.sent()) return [3 /*break*/, 5];
+                    projectKind = 'cSharp';
+                    return [3 /*break*/, 9];
+                case 5: return [4 /*yield*/, traverseFunctionProjectUtils_1.isFSharpProjectAsync(projectFolder)];
                 case 6:
-                    publishTempFolder = _a.sent();
-                    tempFolders.push(publishTempFolder);
-                    log(">>> Publishing " + hostJsonFolder + " to " + publishTempFolder + "...");
-                    return [4 /*yield*/, execAsync("dotnet publish -o " + publishTempFolder, { cwd: hostJsonFolder })];
-                case 7:
-                    _a.sent();
-                    hostJsonFolder = publishTempFolder;
-                    _a.label = 8;
-                case 8: return [4 /*yield*/, traverseFunctionProjectUtils_1.isJavaProjectAsync(hostJsonFolder)];
+                    if (!_b.sent()) return [3 /*break*/, 7];
+                    projectKind = 'fSharp';
+                    return [3 /*break*/, 9];
+                case 7: return [4 /*yield*/, traverseFunctionProjectUtils_1.isJavaProjectAsync(projectFolder)];
+                case 8:
+                    if (_b.sent()) {
+                        projectKind = 'java';
+                    }
+                    _b.label = 9;
                 case 9:
-                    isJavaProject = _a.sent();
-                    _a.label = 10;
-                case 10:
-                    functions = {};
-                    if (!!!isJavaProject) return [3 /*break*/, 13];
-                    return [4 /*yield*/, traverseDotNetIsolatedOrJavaProject_1.traverseJavaProject(projectFolder)];
+                    _a = projectKind;
+                    switch (_a) {
+                        case 'cSharp': return [3 /*break*/, 10];
+                        case 'fSharp': return [3 /*break*/, 10];
+                        case 'java': return [3 /*break*/, 10];
+                    }
+                    return [3 /*break*/, 13];
+                case 10: return [4 /*yield*/, traverseDotNetOrJavaProject_1.traverseProjectCode(projectKind, projectFolder)];
                 case 11:
-                    functions = _a.sent();
-                    return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder)];
+                    functions = _b.sent();
+                    return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(projectKind, functions, projectFolder)];
                 case 12:
                     // Now enriching it with more info extracted from code
-                    functions = _a.sent();
-                    return [3 /*break*/, 19];
-                case 13:
-                    if (!!!isDotNetIsolatedProject) return [3 /*break*/, 15];
-                    return [4 /*yield*/, traverseDotNetIsolatedOrJavaProject_1.traverseDotNetIsolatedProject(projectFolder)];
+                    functions = _b.sent();
+                    return [3 /*break*/, 16];
+                case 13: return [4 /*yield*/, readFunctionsJson(hostJsonFolder, log)];
                 case 14:
-                    functions = _a.sent();
-                    return [3 /*break*/, 19];
-                case 15: return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
-                case 16:
+                    functions = _b.sent();
+                    return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(projectKind, functions, hostJsonFolder)];
+                case 15:
+                    // Now enriching it with more info extracted from code
+                    functions = _b.sent();
+                    return [3 /*break*/, 16];
+                case 16: return [4 /*yield*/, readProxiesJson(projectFolder, log)];
+                case 17:
+                    proxies = _b.sent();
+                    return [2 /*return*/, { functions: functions, proxies: proxies, tempFolders: tempFolders, projectFolder: projectFolder }];
+            }
+        });
+    });
+}
+exports.traverseFunctionProject = traverseFunctionProject;
+function readFunctionsJson(hostJsonFolder, log) {
+    return __awaiter(this, void 0, void 0, function () {
+        var functions, promises;
+        var _this = this;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    functions = {};
+                    return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
+                case 1:
                     promises = (_a.sent()).map(function (functionName) { return __awaiter(_this, void 0, void 0, function () {
                         var fullPath, functionJsonFilePath, isDirectory, functionJsonExists, functionJsonString, functionJson, err_1;
                         return __generator(this, function (_a) {
@@ -164,22 +177,13 @@ function traverseFunctionProject(projectFolder, log) {
                         });
                     }); });
                     return [4 /*yield*/, Promise.all(promises)];
-                case 17:
+                case 2:
                     _a.sent();
-                    return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder)];
-                case 18:
-                    // Now enriching data from function.json with more info extracted from code
-                    functions = _a.sent();
-                    _a.label = 19;
-                case 19: return [4 /*yield*/, readProxiesJson(projectFolder, log)];
-                case 20:
-                    proxies = _a.sent();
-                    return [2 /*return*/, { functions: functions, proxies: proxies, tempFolders: tempFolders, projectFolder: projectFolder }];
+                    return [2 /*return*/, functions];
             }
         });
     });
 }
-exports.traverseFunctionProject = traverseFunctionProject;
 // Tries to read proxies.json file from project folder
 function readProxiesJson(projectFolder, log) {
     return __awaiter(this, void 0, void 0, function () {
@@ -202,7 +206,7 @@ function readProxiesJson(projectFolder, log) {
                         return [2 /*return*/, {}];
                     }
                     notAddedToCsProjFile = false;
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)];
+                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isCSharpProjectAsync(projectFolder)];
                 case 3:
                     if (!_a.sent()) return [3 /*break*/, 5];
                     return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, '.+\\.csproj$', true)];
@@ -239,43 +243,30 @@ function readProxiesJson(projectFolder, log) {
     });
 }
 // Tries to match orchestrations and their activities by parsing source code
-function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFolder) {
+function mapOrchestratorsAndActivitiesAsync(projectKind, functions, projectFolder) {
     var _a, _b, _c, _d;
     return __awaiter(this, void 0, void 0, function () {
-        var projectKind, functionNames, orchestratorNames, orchestrators, activityNames, activities, entityNames, entities, otherFunctionNames, otherFunctions, _i, orchestrators_1, orch, regex, _e, otherFunctions_1, func, _f, orchestrators_2, subOrch, regex_1, eventNames, _g, eventNames_1, eventName, regex_2, _h, otherFunctions_2, func, _j, entities_1, entity, _k, otherFunctions_3, func, regex, _l, _m, func, bindingsFromFunctionJson, bindingsFromCode, existingBindingTypes, _o, bindingsFromCode_1, binding, _loop_1, _p, bindingsFromFunctionJson_1, binding, _q, _r, func;
-        return __generator(this, function (_s) {
-            switch (_s.label) {
+        var functionNames, orchestratorNames, orchestrators, activityNames, activities, entityNames, entities, otherFunctionNames, otherFunctions, _i, orchestrators_1, orch, regex, _e, otherFunctions_1, func, _f, orchestrators_2, subOrch, regex_1, eventNames, _g, eventNames_1, eventName, regex_2, _h, otherFunctions_2, func, _j, entities_1, entity, _k, otherFunctions_3, func, regex, _l, _m, func;
+        return __generator(this, function (_o) {
+            switch (_o.label) {
                 case 0:
-                    projectKind = 'other';
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isDotNetProjectAsync(projectFolder)];
-                case 1:
-                    if (!_s.sent()) return [3 /*break*/, 2];
-                    projectKind = 'dotNet';
-                    return [3 /*break*/, 4];
-                case 2: return [4 /*yield*/, traverseFunctionProjectUtils_1.isJavaProjectAsync(projectFolder)];
-                case 3:
-                    if (_s.sent()) {
-                        projectKind = 'java';
-                    }
-                    _s.label = 4;
-                case 4:
                     functionNames = Object.keys(functions);
                     orchestratorNames = functionNames.filter(function (name) { return functions[name].bindings.some(function (b) { return b.type === 'orchestrationTrigger'; }); });
-                    return [4 /*yield*/, getFunctionsAndTheirCodesAsync(orchestratorNames, projectKind, projectFolder, hostJsonFolder)];
-                case 5:
-                    orchestrators = _s.sent();
+                    return [4 /*yield*/, getFunctionsAndTheirCodesAsync(orchestratorNames, projectKind, projectFolder)];
+                case 1:
+                    orchestrators = _o.sent();
                     activityNames = Object.keys(functions).filter(function (name) { return functions[name].bindings.some(function (b) { return b.type === 'activityTrigger'; }); });
-                    return [4 /*yield*/, getFunctionsAndTheirCodesAsync(activityNames, projectKind, projectFolder, hostJsonFolder)];
-                case 6:
-                    activities = _s.sent();
+                    return [4 /*yield*/, getFunctionsAndTheirCodesAsync(activityNames, projectKind, projectFolder)];
+                case 2:
+                    activities = _o.sent();
                     entityNames = functionNames.filter(function (name) { return functions[name].bindings.some(function (b) { return b.type === 'entityTrigger'; }); });
-                    return [4 /*yield*/, getFunctionsAndTheirCodesAsync(entityNames, projectKind, projectFolder, hostJsonFolder)];
-                case 7:
-                    entities = _s.sent();
+                    return [4 /*yield*/, getFunctionsAndTheirCodesAsync(entityNames, projectKind, projectFolder)];
+                case 3:
+                    entities = _o.sent();
                     otherFunctionNames = functionNames.filter(function (name) { return !functions[name].bindings.some(function (b) { return ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type); }); });
-                    return [4 /*yield*/, getFunctionsAndTheirCodesAsync(otherFunctionNames, projectKind, projectFolder, hostJsonFolder)];
-                case 8:
-                    otherFunctions = _s.sent();
+                    return [4 /*yield*/, getFunctionsAndTheirCodesAsync(otherFunctionNames, projectKind, projectFolder)];
+                case 4:
+                    otherFunctions = _o.sent();
                     for (_i = 0, orchestrators_1 = orchestrators; _i < orchestrators_1.length; _i++) {
                         orch = orchestrators_1[_i];
                         regex = traverseFunctionProjectUtils_1.TraversalRegexes.getStartNewOrchestrationRegex(orch.name);
@@ -332,40 +323,9 @@ function mapOrchestratorsAndActivitiesAsync(functions, projectFolder, hostJsonFo
                             }
                         }
                     }
-                    if (projectKind === 'dotNet') {
-                        // Trying to extract extra binding info from C# code
-                        for (_l = 0, _m = activities.concat(otherFunctions); _l < _m.length; _l++) {
-                            func = _m[_l];
-                            bindingsFromFunctionJson = functions[func.name].bindings;
-                            bindingsFromCode = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.code);
-                            existingBindingTypes = bindingsFromFunctionJson.map(function (b) { return b.type; });
-                            for (_o = 0, bindingsFromCode_1 = bindingsFromCode; _o < bindingsFromCode_1.length; _o++) {
-                                binding = bindingsFromCode_1[_o];
-                                // Only pushing extracted binding, if a binding with that type doesn't exist yet in function.json,
-                                // so that no duplicates are produced
-                                if (!existingBindingTypes.includes(binding.type)) {
-                                    bindingsFromFunctionJson.push(binding);
-                                }
-                            }
-                            _loop_1 = function (binding) {
-                                if (!binding.direction) {
-                                    var bindingsOfThisTypeFromCode = bindingsFromCode.filter(function (b) { return b.type === binding.type; });
-                                    // If we were able to unambiguosly detect the binding of this type
-                                    if (bindingsOfThisTypeFromCode.length === 1) {
-                                        binding.direction = bindingsOfThisTypeFromCode[0].direction;
-                                    }
-                                }
-                            };
-                            // Also setting default direction
-                            for (_p = 0, bindingsFromFunctionJson_1 = bindingsFromFunctionJson; _p < bindingsFromFunctionJson_1.length; _p++) {
-                                binding = bindingsFromFunctionJson_1[_p];
-                                _loop_1(binding);
-                            }
-                        }
-                    }
                     // Also adding file paths and code positions
-                    for (_q = 0, _r = otherFunctions.concat(orchestrators).concat(activities).concat(entities); _q < _r.length; _q++) {
-                        func = _r[_q];
+                    for (_l = 0, _m = otherFunctions.concat(orchestrators).concat(activities).concat(entities); _l < _m.length; _l++) {
+                        func = _m[_l];
                         functions[func.name].filePath = func.filePath;
                         functions[func.name].pos = func.pos;
                         functions[func.name].lineNr = func.lineNr;
@@ -386,7 +346,7 @@ function getEventNames(orchestratorCode) {
     return result;
 }
 // Tries to load code for functions of certain type
-function getFunctionsAndTheirCodesAsync(functionNames, projectKind, projectFolder, hostJsonFolder) {
+function getFunctionsAndTheirCodesAsync(functionNames, projectKind, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function () {
         var promises;
         var _this = this;
@@ -400,23 +360,28 @@ function getFunctionsAndTheirCodesAsync(functionNames, projectKind, projectFolde
                                 case 0:
                                     _a = projectKind;
                                     switch (_a) {
-                                        case 'dotNet': return [3 /*break*/, 1];
-                                        case 'java': return [3 /*break*/, 3];
+                                        case 'cSharp': return [3 /*break*/, 1];
+                                        case 'fSharp': return [3 /*break*/, 3];
+                                        case 'java': return [3 /*break*/, 5];
                                     }
-                                    return [3 /*break*/, 5];
-                                case 1: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, '.+\\.(f|c)s$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
+                                    return [3 /*break*/, 7];
+                                case 1: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(hostJsonFolder, '.+\\.cs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
                                 case 2:
                                     match = _b.sent();
-                                    return [3 /*break*/, 7];
-                                case 3: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, '.+\\.java$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
+                                    return [3 /*break*/, 9];
+                                case 3: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(hostJsonFolder, '.+\\.fs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
                                 case 4:
                                     match = _b.sent();
-                                    return [3 /*break*/, 7];
-                                case 5: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true)];
+                                    return [3 /*break*/, 9];
+                                case 5: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(hostJsonFolder, '.+\\.java$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
                                 case 6:
                                     match = _b.sent();
-                                    _b.label = 7;
-                                case 7:
+                                    return [3 /*break*/, 9];
+                                case 7: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true)];
+                                case 8:
+                                    match = _b.sent();
+                                    _b.label = 9;
+                                case 9:
                                     if (!match) {
                                         return [2 /*return*/, undefined];
                                     }
