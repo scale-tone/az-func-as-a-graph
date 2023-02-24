@@ -55,32 +55,21 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.traverseFunctionProject = void 0;
+exports.traverseFunctions = void 0;
 var fs = __importStar(require("fs"));
 var path = __importStar(require("path"));
 var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 var traverseDotNetOrJavaProject_1 = require("./traverseDotNetOrJavaProject");
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
-// extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
+// extracted from code (if the project is .Net or Java). Also parses and organizes orchestrators/activities 
 // (if the project uses Durable Functions)
-function traverseFunctionProject(projectFolder, log) {
+function traverseFunctions(projectFolder, log) {
     return __awaiter(this, void 0, void 0, function () {
-        var tempFolders, gitInfo, hostJsonMatch, hostJsonFolder, projectKind, functions, _a, proxies;
+        var hostJsonMatch, hostJsonFolder, projectKind, functions, _a, proxies;
         return __generator(this, function (_b) {
             switch (_b.label) {
-                case 0:
-                    tempFolders = [];
-                    if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 2];
-                    log("Cloning " + projectFolder);
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder)];
+                case 0: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, 'host.json', false)];
                 case 1:
-                    gitInfo = _b.sent();
-                    log("Successfully cloned to " + gitInfo.gitTempFolder);
-                    tempFolders.push(gitInfo.gitTempFolder);
-                    projectFolder = gitInfo.projectFolder;
-                    _b.label = 2;
-                case 2: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, 'host.json', false)];
-                case 3:
                     hostJsonMatch = _b.sent();
                     if (!hostJsonMatch) {
                         throw new Error('host.json file not found under the provided project path');
@@ -88,55 +77,55 @@ function traverseFunctionProject(projectFolder, log) {
                     log(">>> Found host.json at " + hostJsonMatch.filePath);
                     hostJsonFolder = path.dirname(hostJsonMatch.filePath);
                     projectKind = 'other';
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isCSharpProjectAsync(projectFolder)];
+                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isCSharpProjectAsync(hostJsonFolder)];
+                case 2:
+                    if (!_b.sent()) return [3 /*break*/, 3];
+                    projectKind = 'cSharp';
+                    return [3 /*break*/, 7];
+                case 3: return [4 /*yield*/, traverseFunctionProjectUtils_1.isFSharpProjectAsync(hostJsonFolder)];
                 case 4:
                     if (!_b.sent()) return [3 /*break*/, 5];
-                    projectKind = 'cSharp';
-                    return [3 /*break*/, 9];
-                case 5: return [4 /*yield*/, traverseFunctionProjectUtils_1.isFSharpProjectAsync(projectFolder)];
-                case 6:
-                    if (!_b.sent()) return [3 /*break*/, 7];
                     projectKind = 'fSharp';
-                    return [3 /*break*/, 9];
-                case 7: return [4 /*yield*/, traverseFunctionProjectUtils_1.isJavaProjectAsync(projectFolder)];
-                case 8:
+                    return [3 /*break*/, 7];
+                case 5: return [4 /*yield*/, traverseFunctionProjectUtils_1.isJavaProjectAsync(hostJsonFolder)];
+                case 6:
                     if (_b.sent()) {
                         projectKind = 'java';
                     }
-                    _b.label = 9;
-                case 9:
+                    _b.label = 7;
+                case 7:
                     _a = projectKind;
                     switch (_a) {
-                        case 'cSharp': return [3 /*break*/, 10];
-                        case 'fSharp': return [3 /*break*/, 10];
-                        case 'java': return [3 /*break*/, 10];
+                        case 'cSharp': return [3 /*break*/, 8];
+                        case 'fSharp': return [3 /*break*/, 8];
+                        case 'java': return [3 /*break*/, 8];
                     }
-                    return [3 /*break*/, 13];
-                case 10: return [4 /*yield*/, traverseDotNetOrJavaProject_1.traverseProjectCode(projectKind, projectFolder)];
-                case 11:
+                    return [3 /*break*/, 11];
+                case 8: return [4 /*yield*/, traverseDotNetOrJavaProject_1.traverseProjectCode(projectKind, projectFolder)];
+                case 9:
                     functions = _b.sent();
                     return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(projectKind, functions, projectFolder)];
-                case 12:
+                case 10:
                     // Now enriching it with more info extracted from code
                     functions = _b.sent();
-                    return [3 /*break*/, 16];
-                case 13: return [4 /*yield*/, readFunctionsJson(hostJsonFolder, log)];
-                case 14:
+                    return [3 /*break*/, 14];
+                case 11: return [4 /*yield*/, readFunctionsJson(hostJsonFolder, log)];
+                case 12:
                     functions = _b.sent();
                     return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(projectKind, functions, hostJsonFolder)];
-                case 15:
+                case 13:
                     // Now enriching it with more info extracted from code
                     functions = _b.sent();
-                    return [3 /*break*/, 16];
-                case 16: return [4 /*yield*/, readProxiesJson(projectFolder, log)];
-                case 17:
+                    return [3 /*break*/, 14];
+                case 14: return [4 /*yield*/, readProxiesJson(projectFolder, log)];
+                case 15:
                     proxies = _b.sent();
-                    return [2 /*return*/, { functions: functions, proxies: proxies, tempFolders: tempFolders, projectFolder: projectFolder }];
+                    return [2 /*return*/, { functions: functions, proxies: proxies, projectFolder: projectFolder }];
             }
         });
     });
 }
-exports.traverseFunctionProject = traverseFunctionProject;
+exports.traverseFunctions = traverseFunctions;
 function readFunctionsJson(hostJsonFolder, log) {
     return __awaiter(this, void 0, void 0, function () {
         var functions, promises;

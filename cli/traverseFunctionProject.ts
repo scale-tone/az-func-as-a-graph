@@ -5,31 +5,16 @@ import { FunctionsMap, ProxiesMap, TraverseFunctionResult } from '../ui/src/shar
 
 import {
     getCodeInBrackets, TraversalRegexes,
-    isCSharpProjectAsync, isFSharpProjectAsync, posToLineNr, cloneFromGitHub, findFileRecursivelyAsync, isJavaProjectAsync, FunctionProjectKind
+    isCSharpProjectAsync, isFSharpProjectAsync, posToLineNr, findFileRecursivelyAsync, isJavaProjectAsync, FunctionProjectKind
 } from './traverseFunctionProjectUtils';
 
 import { traverseProjectCode } from './traverseDotNetOrJavaProject';
 
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
-// extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
+// extracted from code (if the project is .Net or Java). Also parses and organizes orchestrators/activities 
 // (if the project uses Durable Functions)
-export async function traverseFunctionProject(projectFolder: string, log: (s: any) => void)
+export async function traverseFunctions(projectFolder: string, log: (s: any) => void)
     : Promise<TraverseFunctionResult> {
-
-    let tempFolders = [];
-    
-    // If it is a git repo, cloning it
-    if (projectFolder.toLowerCase().startsWith('http')) {
-
-        log(`Cloning ${projectFolder}`);
-
-        const gitInfo = await cloneFromGitHub(projectFolder);
-
-        log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
-
-        tempFolders.push(gitInfo.gitTempFolder);
-        projectFolder = gitInfo.projectFolder;
-    }
     
     const hostJsonMatch = await findFileRecursivelyAsync(projectFolder, 'host.json', false);
     if (!hostJsonMatch) {
@@ -42,11 +27,11 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
 
     let projectKind: FunctionProjectKind = 'other';
 
-    if (await isCSharpProjectAsync(projectFolder)) {
+    if (await isCSharpProjectAsync(hostJsonFolder)) {
         projectKind = 'cSharp';
-    } else if (await isFSharpProjectAsync(projectFolder)) {
+    } else if (await isFSharpProjectAsync(hostJsonFolder)) {
         projectKind = 'fSharp';
-    } else if (await isJavaProjectAsync(projectFolder)) {
+    } else if (await isJavaProjectAsync(hostJsonFolder)) {
         projectKind = 'java';
     }
 
@@ -76,7 +61,7 @@ export async function traverseFunctionProject(projectFolder: string, log: (s: an
     // Also reading proxies
     const proxies = await readProxiesJson(projectFolder, log);
 
-    return { functions, proxies, tempFolders, projectFolder };
+    return { functions, proxies, projectFolder };
 }
 
 async function readFunctionsJson(hostJsonFolder: string, log: (s: any) => void): Promise<FunctionsMap> {

@@ -1,20 +1,33 @@
 import { Context, HttpRequest } from "@azure/functions"
 import * as rimraf from 'rimraf';
 
-import { traverseFunctionProject } from '../cli/traverseFunctionProject';
+import { traverseFunctions } from '../cli/traverseFunctionProject';
 import { getGitRepoInfo, convertLocalPathsToRemote } from '../cli/renderDiagramWithCli';
+import { cloneFromGitHub } from "../cli/traverseFunctionProjectUtils";
 
 // Main function
 export default async function (context: Context, req: HttpRequest): Promise<void> {
 
-    var tempFolders = [];
+    let tempFolders = [];
     try {
 
-        var projectFolder = req.body as string;
+        let projectFolder = req.body as string;
 
-        const result = await traverseFunctionProject(projectFolder, context.log);
+        // If it is a git repo, cloning it
+        if (projectFolder.toLowerCase().startsWith('http')) {
+
+            context.log(`Cloning ${projectFolder}`);
+
+            const gitInfo = await cloneFromGitHub(projectFolder);
+
+            context.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
+
+            tempFolders.push(gitInfo.gitTempFolder);
+            projectFolder = gitInfo.projectFolder;
+        }
+
+        const result = await traverseFunctions(projectFolder, context.log);
         projectFolder = result.projectFolder;
-        tempFolders.push(...result.tempFolders);
 
         // Trying to convert local source file paths into links to remote repo
         const repoInfo = await getGitRepoInfo(projectFolder);

@@ -12,15 +12,23 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const rimraf = require("rimraf");
 const traverseFunctionProject_1 = require("../cli/traverseFunctionProject");
 const renderDiagramWithCli_1 = require("../cli/renderDiagramWithCli");
+const traverseFunctionProjectUtils_1 = require("../cli/traverseFunctionProjectUtils");
 // Main function
 function default_1(context, req) {
     return __awaiter(this, void 0, void 0, function* () {
-        var tempFolders = [];
+        let tempFolders = [];
         try {
-            var projectFolder = req.body;
-            const result = yield traverseFunctionProject_1.traverseFunctionProject(projectFolder, context.log);
+            let projectFolder = req.body;
+            // If it is a git repo, cloning it
+            if (projectFolder.toLowerCase().startsWith('http')) {
+                context.log(`Cloning ${projectFolder}`);
+                const gitInfo = yield traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder);
+                context.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
+                tempFolders.push(gitInfo.gitTempFolder);
+                projectFolder = gitInfo.projectFolder;
+            }
+            const result = yield traverseFunctionProject_1.traverseFunctions(projectFolder, context.log);
             projectFolder = result.projectFolder;
-            tempFolders.push(...result.tempFolders);
             // Trying to convert local source file paths into links to remote repo
             const repoInfo = yield renderDiagramWithCli_1.getGitRepoInfo(projectFolder);
             if (!!repoInfo) {

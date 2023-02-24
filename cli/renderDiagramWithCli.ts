@@ -8,9 +8,10 @@ import * as crypto from 'crypto';
 import * as util from 'util';
 const execAsync = util.promisify(cp.exec);
 
-import { traverseFunctionProject } from './traverseFunctionProject';
+import { traverseFunctions } from './traverseFunctionProject';
 import { buildFunctionDiagramCode, GraphSettings } from '../ui/src/buildFunctionDiagramCode';
 import { TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
+import { cloneFromGitHub } from './traverseFunctionProjectUtils';
 
 export type GraphCliSettings = GraphSettings & {
     templateFile?: string;
@@ -46,7 +47,20 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
 
     try {
 
-        const traverseResult = await traverseFunctionProject(projectFolder, console.log);
+        // If it is a git repo, cloning it
+        if (projectFolder.toLowerCase().startsWith('http')) {
+
+            console.log(`Cloning ${projectFolder}`);
+    
+            const gitInfo = await cloneFromGitHub(projectFolder);
+    
+            console.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
+    
+            tempFilesAndFolders.push(gitInfo.gitTempFolder);
+            projectFolder = gitInfo.projectFolder;
+        }
+
+        const traverseResult = await traverseFunctions(projectFolder, console.log);
         projectFolder = traverseResult.projectFolder;
 
         // Trying to convert local source file paths into links to remote repo
@@ -74,8 +88,6 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
 
             return;
         }
-
-        tempFilesAndFolders.push(...traverseResult.tempFolders);
 
         var diagramCode = await buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings);
         diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');

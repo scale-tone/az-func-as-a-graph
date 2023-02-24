@@ -20,6 +20,7 @@ const util = require("util");
 const execAsync = util.promisify(cp.exec);
 const traverseFunctionProject_1 = require("./traverseFunctionProject");
 const buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
+const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -41,7 +42,15 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
         }
         var tempFilesAndFolders = [];
         try {
-            const traverseResult = yield traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log);
+            // If it is a git repo, cloning it
+            if (projectFolder.toLowerCase().startsWith('http')) {
+                console.log(`Cloning ${projectFolder}`);
+                const gitInfo = yield traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder);
+                console.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
+                tempFilesAndFolders.push(gitInfo.gitTempFolder);
+                projectFolder = gitInfo.projectFolder;
+            }
+            const traverseResult = yield traverseFunctionProject_1.traverseFunctions(projectFolder, console.log);
             projectFolder = traverseResult.projectFolder;
             // Trying to convert local source file paths into links to remote repo
             const repoInfo = yield getGitRepoInfo(projectFolder, settings.repoInfo);
@@ -61,7 +70,6 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
                 console.log(`Functions Map saved to ${outputFile}`);
                 return;
             }
-            tempFilesAndFolders.push(...traverseResult.tempFolders);
             var diagramCode = yield buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings);
             diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');
             console.log('Diagram code:');

@@ -66,11 +66,12 @@ var util = __importStar(require("util"));
 var execAsync = util.promisify(cp.exec);
 var traverseFunctionProject_1 = require("./traverseFunctionProject");
 var buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
+var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings) {
     if (settings === void 0) { settings = {}; }
     return __awaiter(this, void 0, void 0, function () {
-        var outputFolder, tempFilesAndFolders, traverseResult, repoInfo, outputFileExt, diagramCode, tempInputFile, isHtmlOutput, tempOutputFile, _i, tempFilesAndFolders_1, tempFolder;
+        var outputFolder, tempFilesAndFolders, gitInfo, traverseResult, repoInfo, outputFileExt, diagramCode, tempInputFile, isHtmlOutput, tempOutputFile, _i, tempFilesAndFolders_1, tempFolder;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -93,13 +94,22 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                     tempFilesAndFolders = [];
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, , 17, 18]);
-                    return [4 /*yield*/, traverseFunctionProject_1.traverseFunctionProject(projectFolder, console.log)];
+                    _a.trys.push([1, , 19, 20]);
+                    if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 3];
+                    console.log("Cloning " + projectFolder);
+                    return [4 /*yield*/, traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder)];
                 case 2:
+                    gitInfo = _a.sent();
+                    console.log("Successfully cloned to " + gitInfo.gitTempFolder);
+                    tempFilesAndFolders.push(gitInfo.gitTempFolder);
+                    projectFolder = gitInfo.projectFolder;
+                    _a.label = 3;
+                case 3: return [4 /*yield*/, traverseFunctionProject_1.traverseFunctions(projectFolder, console.log)];
+                case 4:
                     traverseResult = _a.sent();
                     projectFolder = traverseResult.projectFolder;
                     return [4 /*yield*/, getGitRepoInfo(projectFolder, settings.repoInfo)];
-                case 3:
+                case 5:
                     repoInfo = _a.sent();
                     if (!!repoInfo) {
                         console.log("Using repo URI: " + repoInfo.originUrl + ", repo name: " + repoInfo.repoName + ", branch: " + repoInfo.branchName + ", tag: " + repoInfo.tagName);
@@ -108,71 +118,69 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                         convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
                     }
                     outputFileExt = path.extname(outputFile).toLowerCase();
-                    if (!(outputFileExt === '.json')) return [3 /*break*/, 5];
+                    if (!(outputFileExt === '.json')) return [3 /*break*/, 7];
                     // just saving the Function Graph as JSON and quitting
                     return [4 /*yield*/, fs.promises.writeFile(outputFile, JSON.stringify({
                             functions: traverseResult.functions,
                             proxies: traverseResult.proxies
                         }, null, 4))];
-                case 4:
+                case 6:
                     // just saving the Function Graph as JSON and quitting
                     _a.sent();
                     console.log("Functions Map saved to " + outputFile);
                     return [2 /*return*/];
-                case 5:
-                    tempFilesAndFolders.push.apply(tempFilesAndFolders, traverseResult.tempFolders);
-                    return [4 /*yield*/, buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings)];
-                case 6:
+                case 7: return [4 /*yield*/, buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings)];
+                case 8:
                     diagramCode = _a.sent();
                     diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');
                     console.log('Diagram code:');
                     console.log(diagramCode);
-                    if (!(outputFileExt === '.md')) return [3 /*break*/, 8];
+                    if (!(outputFileExt === '.md')) return [3 /*break*/, 10];
                     // just saving the diagram as a Markdown file and quitting
                     return [4 /*yield*/, saveOutputAsMarkdown(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, diagramCode, settings)];
-                case 7:
+                case 9:
                     // just saving the diagram as a Markdown file and quitting
                     _a.sent();
                     console.log("Diagram was successfully generated and saved to " + outputFile);
                     console.log(tempFilesAndFolders);
                     return [2 /*return*/];
-                case 8:
+                case 10:
                     tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
                     return [4 /*yield*/, fs.promises.writeFile(tempInputFile, diagramCode)];
-                case 9:
+                case 11:
                     _a.sent();
                     tempFilesAndFolders.push(tempInputFile);
                     isHtmlOutput = ['.htm', '.html'].includes(outputFileExt);
                     tempOutputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + (isHtmlOutput ? '.svg' : outputFileExt));
                     tempFilesAndFolders.push(tempOutputFile);
                     return [4 /*yield*/, runMermaidCli(tempInputFile, tempOutputFile)];
-                case 10:
-                    _a.sent();
-                    if (!isHtmlOutput) return [3 /*break*/, 12];
-                    return [4 /*yield*/, saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings)];
-                case 11:
-                    _a.sent();
-                    return [3 /*break*/, 16];
                 case 12:
-                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 14];
-                    return [4 /*yield*/, saveOutputAsSvg(outputFile, tempOutputFile)];
+                    _a.sent();
+                    if (!isHtmlOutput) return [3 /*break*/, 14];
+                    return [4 /*yield*/, saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings)];
                 case 13:
                     _a.sent();
-                    return [3 /*break*/, 16];
-                case 14: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
+                    return [3 /*break*/, 18];
+                case 14:
+                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 16];
+                    return [4 /*yield*/, saveOutputAsSvg(outputFile, tempOutputFile)];
                 case 15:
                     _a.sent();
-                    _a.label = 16;
-                case 16:
-                    console.log("Diagram was successfully generated and saved to " + outputFile);
                     return [3 /*break*/, 18];
+                case 16: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
                 case 17:
+                    _a.sent();
+                    _a.label = 18;
+                case 18:
+                    console.log("Diagram was successfully generated and saved to " + outputFile);
+                    return [3 /*break*/, 20];
+                case 19:
                     for (_i = 0, tempFilesAndFolders_1 = tempFilesAndFolders; _i < tempFilesAndFolders_1.length; _i++) {
                         tempFolder = tempFilesAndFolders_1[_i];
                         rimraf.sync(tempFolder);
                     }
                     return [7 /*endfinally*/];
-                case 18: return [2 /*return*/];
+                case 20: return [2 /*return*/];
             }
         });
     });

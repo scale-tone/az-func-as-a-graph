@@ -9,25 +9,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.traverseFunctionProject = void 0;
+exports.traverseFunctions = void 0;
 const fs = require("fs");
 const path = require("path");
 const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 const traverseDotNetOrJavaProject_1 = require("./traverseDotNetOrJavaProject");
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
-// extracted from .Net code (if the project is .Net). Also parses and organizes orchestrators/activities 
+// extracted from code (if the project is .Net or Java). Also parses and organizes orchestrators/activities 
 // (if the project uses Durable Functions)
-function traverseFunctionProject(projectFolder, log) {
+function traverseFunctions(projectFolder, log) {
     return __awaiter(this, void 0, void 0, function* () {
-        let tempFolders = [];
-        // If it is a git repo, cloning it
-        if (projectFolder.toLowerCase().startsWith('http')) {
-            log(`Cloning ${projectFolder}`);
-            const gitInfo = yield traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder);
-            log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
-            tempFolders.push(gitInfo.gitTempFolder);
-            projectFolder = gitInfo.projectFolder;
-        }
         const hostJsonMatch = yield traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, 'host.json', false);
         if (!hostJsonMatch) {
             throw new Error('host.json file not found under the provided project path');
@@ -35,13 +26,13 @@ function traverseFunctionProject(projectFolder, log) {
         log(`>>> Found host.json at ${hostJsonMatch.filePath}`);
         let hostJsonFolder = path.dirname(hostJsonMatch.filePath);
         let projectKind = 'other';
-        if (yield traverseFunctionProjectUtils_1.isCSharpProjectAsync(projectFolder)) {
+        if (yield traverseFunctionProjectUtils_1.isCSharpProjectAsync(hostJsonFolder)) {
             projectKind = 'cSharp';
         }
-        else if (yield traverseFunctionProjectUtils_1.isFSharpProjectAsync(projectFolder)) {
+        else if (yield traverseFunctionProjectUtils_1.isFSharpProjectAsync(hostJsonFolder)) {
             projectKind = 'fSharp';
         }
-        else if (yield traverseFunctionProjectUtils_1.isJavaProjectAsync(projectFolder)) {
+        else if (yield traverseFunctionProjectUtils_1.isJavaProjectAsync(hostJsonFolder)) {
             projectKind = 'java';
         }
         let functions;
@@ -61,10 +52,10 @@ function traverseFunctionProject(projectFolder, log) {
         }
         // Also reading proxies
         const proxies = yield readProxiesJson(projectFolder, log);
-        return { functions, proxies, tempFolders, projectFolder };
+        return { functions, proxies, projectFolder };
     });
 }
-exports.traverseFunctionProject = traverseFunctionProject;
+exports.traverseFunctions = traverseFunctions;
 function readFunctionsJson(hostJsonFolder, log) {
     return __awaiter(this, void 0, void 0, function* () {
         let functions = {};

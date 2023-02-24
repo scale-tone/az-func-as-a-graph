@@ -175,7 +175,6 @@ export function getCodeInBracketsReverse(str: string, openingBracket: string, cl
     return { code: '', openBracketPos: -1 };
 }
 
-
 // fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
 export async function findFileRecursivelyAsync(folder: string, fileName: string | RegExp, returnFileContents: boolean, pattern?: RegExp)
@@ -183,18 +182,18 @@ export async function findFileRecursivelyAsync(folder: string, fileName: string 
 
     const fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;
 
+    const subFolders: string[] = [];
+
     for (const name of await fs.promises.readdir(folder)) {
-        var fullPath = path.join(folder, name);
 
-        if ((await fs.promises.lstat(fullPath)).isDirectory()) {
+        const fullPath = path.join(folder, name);
+        const isDirectory = (await fs.promises.lstat(fullPath)).isDirectory();
 
-            if (ExcludedFolders.includes(name.toLowerCase())) {
-                continue;
-            }
+        if (!!isDirectory) {
 
-            const result = await findFileRecursivelyAsync(fullPath, fileNameRegex, returnFileContents, pattern);
-            if (!!result) {
-                return result;
+            if (!ExcludedFolders.includes(name.toLowerCase())) {
+
+                subFolders.push(fullPath);
             }
 
         } else if (!!fileNameRegex.exec(name)) {
@@ -217,6 +216,15 @@ export async function findFileRecursivelyAsync(folder: string, fileName: string 
                     length: match[0].length
                 };
             }
+        }
+    }
+
+    // Now recursively trying subfolders. Doing this _after_ checking the current folder.
+    for (const subFolder of subFolders) {
+        
+        const result = await findFileRecursivelyAsync(subFolder, fileNameRegex, returnFileContents, pattern);
+        if (!!result) {
+            return result;
         }
     }
 

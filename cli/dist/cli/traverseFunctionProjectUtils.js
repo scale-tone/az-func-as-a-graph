@@ -239,52 +239,48 @@ exports.getCodeInBracketsReverse = getCodeInBracketsReverse;
 // If returnFileContents == true, returns file content. Otherwise returns full path to the file.
 function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
     return __awaiter(this, void 0, void 0, function () {
-        var fileNameRegex, _i, _a, name_1, fullPath, result, _b, _c, code, match;
-        return __generator(this, function (_d) {
-            switch (_d.label) {
+        var fileNameRegex, subFolders, _i, _a, name_1, fullPath, isDirectory, _b, _c, code, match, _d, subFolders_1, subFolder, result;
+        return __generator(this, function (_e) {
+            switch (_e.label) {
                 case 0:
                     fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;
+                    subFolders = [];
                     _i = 0;
                     return [4 /*yield*/, fs.promises.readdir(folder)];
                 case 1:
-                    _a = _d.sent();
-                    _d.label = 2;
+                    _a = _e.sent();
+                    _e.label = 2;
                 case 2:
-                    if (!(_i < _a.length)) return [3 /*break*/, 12];
+                    if (!(_i < _a.length)) return [3 /*break*/, 11];
                     name_1 = _a[_i];
                     fullPath = path.join(folder, name_1);
                     return [4 /*yield*/, fs.promises.lstat(fullPath)];
                 case 3:
-                    if (!(_d.sent()).isDirectory()) return [3 /*break*/, 5];
-                    if (exports.ExcludedFolders.includes(name_1.toLowerCase())) {
-                        return [3 /*break*/, 11];
+                    isDirectory = (_e.sent()).isDirectory();
+                    if (!!!isDirectory) return [3 /*break*/, 4];
+                    if (!exports.ExcludedFolders.includes(name_1.toLowerCase())) {
+                        subFolders.push(fullPath);
                     }
-                    return [4 /*yield*/, findFileRecursivelyAsync(fullPath, fileNameRegex, returnFileContents, pattern)];
+                    return [3 /*break*/, 10];
                 case 4:
-                    result = _d.sent();
-                    if (!!result) {
-                        return [2 /*return*/, result];
-                    }
-                    return [3 /*break*/, 11];
-                case 5:
-                    if (!!!fileNameRegex.exec(name_1)) return [3 /*break*/, 11];
-                    if (!!pattern) return [3 /*break*/, 9];
+                    if (!!!fileNameRegex.exec(name_1)) return [3 /*break*/, 10];
+                    if (!!pattern) return [3 /*break*/, 8];
                     _b = {
                         filePath: fullPath
                     };
-                    if (!returnFileContents) return [3 /*break*/, 7];
+                    if (!returnFileContents) return [3 /*break*/, 6];
                     return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
+                case 5:
+                    _c = (_e.sent());
+                    return [3 /*break*/, 7];
                 case 6:
-                    _c = (_d.sent());
-                    return [3 /*break*/, 8];
-                case 7:
                     _c = undefined;
-                    _d.label = 8;
-                case 8: return [2 /*return*/, (_b.code = _c,
+                    _e.label = 7;
+                case 7: return [2 /*return*/, (_b.code = _c,
                         _b)];
-                case 9: return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
-                case 10:
-                    code = _d.sent();
+                case 8: return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
+                case 9:
+                    code = _e.sent();
                     match = pattern.exec(code);
                     if (!!match) {
                         return [2 /*return*/, {
@@ -294,11 +290,27 @@ function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern)
                                 length: match[0].length
                             }];
                     }
-                    _d.label = 11;
-                case 11:
+                    _e.label = 10;
+                case 10:
                     _i++;
                     return [3 /*break*/, 2];
-                case 12: return [2 /*return*/, undefined];
+                case 11:
+                    _d = 0, subFolders_1 = subFolders;
+                    _e.label = 12;
+                case 12:
+                    if (!(_d < subFolders_1.length)) return [3 /*break*/, 15];
+                    subFolder = subFolders_1[_d];
+                    return [4 /*yield*/, findFileRecursivelyAsync(subFolder, fileNameRegex, returnFileContents, pattern)];
+                case 13:
+                    result = _e.sent();
+                    if (!!result) {
+                        return [2 /*return*/, result];
+                    }
+                    _e.label = 14;
+                case 14:
+                    _d++;
+                    return [3 /*break*/, 12];
+                case 15: return [2 /*return*/, undefined];
             }
         });
     });

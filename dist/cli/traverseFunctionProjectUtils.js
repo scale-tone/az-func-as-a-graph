@@ -158,15 +158,13 @@ exports.getCodeInBracketsReverse = getCodeInBracketsReverse;
 function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
     return __awaiter(this, void 0, void 0, function* () {
         const fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;
+        const subFolders = [];
         for (const name of yield fs.promises.readdir(folder)) {
-            var fullPath = path.join(folder, name);
-            if ((yield fs.promises.lstat(fullPath)).isDirectory()) {
-                if (exports.ExcludedFolders.includes(name.toLowerCase())) {
-                    continue;
-                }
-                const result = yield findFileRecursivelyAsync(fullPath, fileNameRegex, returnFileContents, pattern);
-                if (!!result) {
-                    return result;
+            const fullPath = path.join(folder, name);
+            const isDirectory = (yield fs.promises.lstat(fullPath)).isDirectory();
+            if (!!isDirectory) {
+                if (!exports.ExcludedFolders.includes(name.toLowerCase())) {
+                    subFolders.push(fullPath);
                 }
             }
             else if (!!fileNameRegex.exec(name)) {
@@ -186,6 +184,13 @@ function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern)
                         length: match[0].length
                     };
                 }
+            }
+        }
+        // Now recursively trying subfolders. Doing this _after_ checking the current folder.
+        for (const subFolder of subFolders) {
+            const result = yield findFileRecursivelyAsync(subFolder, fileNameRegex, returnFileContents, pattern);
+            if (!!result) {
+                return result;
             }
         }
         return undefined;
