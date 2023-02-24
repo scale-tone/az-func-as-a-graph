@@ -588,6 +588,10 @@ export class BindingsParser {
                     result.push({ type: 'entityTrigger', direction: 'in' });
                     break;
                 }
+                default: {
+                    result.push({ type: attributeName, direction: isReturn || isOut ? 'out' : 'in' });
+                    break;
+                }
             }
         }
 

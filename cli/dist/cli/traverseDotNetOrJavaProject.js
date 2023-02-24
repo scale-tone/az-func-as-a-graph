@@ -121,8 +121,13 @@ function traverseProjectCode(projectKind, projectFolder) {
                 case 3:
                     if (!(_c = _g.sent(), !_c.done)) return [3 /*break*/, 7];
                     func = _c.value;
+                    if (func.functionName === 'GetSpeciesActivity') {
+                        debugger;
+                    }
                     bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
-                    if (!(projectKind === 'cSharp')) return [3 /*break*/, 5];
+                    if (!(projectKind === 'cSharp' && !(bindings.some(function (b) { return b.type === 'orchestrationTrigger'; }) ||
+                        bindings.some(function (b) { return b.type === 'entityTrigger'; }) ||
+                        bindings.some(function (b) { return b.type === 'activityTrigger'; })))) return [3 /*break*/, 5];
                     _e = 
                     // Also trying to extract multiple output bindings
                     (_d = bindings.push).apply;

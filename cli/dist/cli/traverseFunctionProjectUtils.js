@@ -609,6 +609,10 @@ var BindingsParser = /** @class */ (function () {
                     result.push({ type: 'entityTrigger', direction: 'in' });
                     break;
                 }
+                default: {
+                    result.push({ type: attributeName, direction: isReturn || isOut ? 'out' : 'in' });
+                    break;
+                }
             }
         }
         return result;

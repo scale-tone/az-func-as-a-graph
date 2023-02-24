@@ -61,8 +61,13 @@ function traverseProjectCode(projectKind, projectFolder) {
         try {
             for (var _b = __asyncValues(findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, funcAttributeRegex, funcNamePosIndex)), _c; _c = yield _b.next(), !_c.done;) {
                 const func = _c.value;
+                if (func.functionName === 'GetSpeciesActivity') {
+                    debugger;
+                }
                 const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
-                if (projectKind === 'cSharp') {
+                if (projectKind === 'cSharp' && !(bindings.some(b => b.type === 'orchestrationTrigger') ||
+                    bindings.some(b => b.type === 'entityTrigger') ||
+                    bindings.some(b => b.type === 'activityTrigger'))) {
                     // Also trying to extract multiple output bindings
                     bindings.push(...yield extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex));
                 }

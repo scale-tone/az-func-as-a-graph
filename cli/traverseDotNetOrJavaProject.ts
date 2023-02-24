@@ -37,9 +37,17 @@ export async function traverseProjectCode(projectKind: FunctionProjectKind, proj
     
     for await (const func of findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, funcAttributeRegex, funcNamePosIndex)) {
 
+        if (func.functionName === 'GetSpeciesActivity') {
+            debugger;
+        }
+
         const bindings = BindingsParser.tryExtractBindings(func.declarationCode);
    
-        if (projectKind === 'cSharp') {
+        if (projectKind === 'cSharp' && !(
+            bindings.some(b => b.type === 'orchestrationTrigger') ||
+            bindings.some(b => b.type === 'entityTrigger') ||
+            bindings.some(b => b.type === 'activityTrigger')
+        )) {
             
             // Also trying to extract multiple output bindings
             bindings.push(...await extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex));
