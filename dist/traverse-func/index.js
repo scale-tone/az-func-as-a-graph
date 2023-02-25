@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const rimraf = require("rimraf");
 const traverseFunctionProject_1 = require("../cli/traverseFunctionProject");
 const renderDiagramWithCli_1 = require("../cli/renderDiagramWithCli");
-const traverseFunctionProjectUtils_1 = require("../cli/traverseFunctionProjectUtils");
+const fileSystemUtils_1 = require("../cli/fileSystemUtils");
 // Main function
 function default_1(context, req) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -22,7 +22,7 @@ function default_1(context, req) {
             // If it is a git repo, cloning it
             if (projectFolder.toLowerCase().startsWith('http')) {
                 context.log(`Cloning ${projectFolder}`);
-                const gitInfo = yield traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder);
+                const gitInfo = yield fileSystemUtils_1.cloneFromGitHub(projectFolder);
                 context.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
                 tempFolders.push(gitInfo.gitTempFolder);
                 projectFolder = gitInfo.projectFolder;

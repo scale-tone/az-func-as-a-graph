@@ -66,7 +66,7 @@ var util = __importStar(require("util"));
 var execAsync = util.promisify(cp.exec);
 var traverseFunctionProject_1 = require("./traverseFunctionProject");
 var buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
-var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
+var fileSystemUtils_1 = require("./fileSystemUtils");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings) {
     if (settings === void 0) { settings = {}; }
@@ -97,7 +97,7 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                     _a.trys.push([1, , 19, 20]);
                     if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 3];
                     console.log("Cloning " + projectFolder);
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder)];
+                    return [4 /*yield*/, fileSystemUtils_1.cloneFromGitHub(projectFolder)];
                 case 2:
                     gitInfo = _a.sent();
                     console.log("Successfully cloned to " + gitInfo.gitTempFolder);

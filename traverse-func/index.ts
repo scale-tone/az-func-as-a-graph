@@ -3,7 +3,7 @@ import * as rimraf from 'rimraf';
 
 import { traverseFunctions } from '../cli/traverseFunctionProject';
 import { getGitRepoInfo, convertLocalPathsToRemote } from '../cli/renderDiagramWithCli';
-import { cloneFromGitHub } from "../cli/traverseFunctionProjectUtils";
+import { cloneFromGitHub } from "../cli/fileSystemUtils";
 
 // Main function
 export default async function (context: Context, req: HttpRequest): Promise<void> {

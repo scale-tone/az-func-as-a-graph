@@ -1,138 +1,58 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [op[0] & 2, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BindingsParser = exports.TraversalRegexes = exports.findFileRecursivelyAsync = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.isJavaProjectAsync = exports.isFSharpProjectAsync = exports.isCSharpProjectAsync = exports.posToLineNr = exports.cloneFromGitHub = exports.ExcludedFolders = void 0;
-var os = __importStar(require("os"));
-var fs = __importStar(require("fs"));
-var path = __importStar(require("path"));
-var util = __importStar(require("util"));
-var child_process_1 = require("child_process");
-var execAsync = util.promisify(child_process_1.exec);
-var gitCloneTimeoutInSeconds = 60;
-exports.ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
-// Does a git clone into a temp folder and returns info about that cloned code
-function cloneFromGitHub(url) {
-    return __awaiter(this, void 0, void 0, function () {
-        var repoName, branchName, relativePath, gitTempFolder, restOfUrl, match, orgUrl, getGitTimeoutPromise, i, assumedBranchName, clonePromise, _a, clonePromise;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0:
-                    repoName = '', branchName = '', relativePath = '', gitTempFolder = '';
-                    restOfUrl = [];
-                    match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(url);
-                    if (!match || match.length < 5) {
-                        // expecting repo name to be the last segment of remote origin URL
-                        repoName = url.substr(url.lastIndexOf('/') + 1);
-                    }
-                    else {
-                        orgUrl = match[1];
-                        repoName = match[2];
-                        if (repoName.toLowerCase().endsWith('.git')) {
-                            repoName = repoName.substr(0, repoName.length - 4);
-                        }
-                        url = orgUrl + "/" + repoName + ".git";
-                        if (!!match[4]) {
-                            restOfUrl = match[4].split('/').filter(function (s) { return !!s; });
-                        }
-                    }
-                    return [4 /*yield*/, fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'))];
-                case 1:
-                    gitTempFolder = _b.sent();
-                    getGitTimeoutPromise = function () {
-                        return new Promise(function (resolve, reject) { return setTimeout(function () { return reject(new Error("git clone timed out after " + gitCloneTimeoutInSeconds + " sec.")); }, gitCloneTimeoutInSeconds * 1000); });
-                    };
-                    i = restOfUrl.length;
-                    _b.label = 2;
-                case 2:
-                    if (!(i > 0)) return [3 /*break*/, 7];
-                    _b.label = 3;
-                case 3:
-                    _b.trys.push([3, 5, , 6]);
-                    assumedBranchName = restOfUrl.slice(0, i).join('/');
-                    clonePromise = execAsync("git clone " + url + " --branch " + assumedBranchName, { cwd: gitTempFolder });
-                    // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
-                    return [4 /*yield*/, Promise.race([clonePromise, getGitTimeoutPromise()])];
-                case 4:
-                    // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
-                    _b.sent();
-                    branchName = assumedBranchName;
-                    relativePath = path.join.apply(path, restOfUrl.slice(i, restOfUrl.length));
-                    return [3 /*break*/, 7];
-                case 5:
-                    _a = _b.sent();
-                    return [3 /*break*/, 6];
-                case 6:
-                    i--;
-                    return [3 /*break*/, 2];
-                case 7:
-                    if (!!branchName) return [3 /*break*/, 9];
-                    clonePromise = execAsync("git clone " + url, { cwd: gitTempFolder });
-                    // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
-                    return [4 /*yield*/, Promise.race([clonePromise, getGitTimeoutPromise()])];
-                case 8:
-                    // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
-                    _b.sent();
-                    _b.label = 9;
-                case 9: return [2 /*return*/, { gitTempFolder: gitTempFolder, projectFolder: path.join(gitTempFolder, repoName, relativePath) }];
-            }
-        });
-    });
+exports.BindingsParser = exports.TraversalRegexes = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.posToLineNr = exports.mapActivitiesToOrchestrator = exports.getEventNames = exports.removeNamespace = exports.cleanupFunctionName = void 0;
+function cleanupFunctionName(name) {
+    if (!name) {
+        return name;
+    }
+    var nameofMatch = new RegExp("nameof\\s*\\(\\s*([\\w\\.]+)\\s*\\)").exec(name);
+    if (!!nameofMatch) {
+        return removeNamespace(nameofMatch[1]);
+    }
+    name = name.trim();
+    if (name.startsWith('"')) {
+        return name.replace(/^"/, '').replace(/"$/, '');
+    }
+    return removeNamespace(name);
 }
-exports.cloneFromGitHub = cloneFromGitHub;
+exports.cleanupFunctionName = cleanupFunctionName;
+function removeNamespace(name) {
+    if (!name) {
+        return name;
+    }
+    var dotPos = name.lastIndexOf('.');
+    if (dotPos >= 0) {
+        name = name.substring(dotPos + 1);
+    }
+    return name.trim();
+}
+exports.removeNamespace = removeNamespace;
+// Tries to extract event names that this orchestrator is awaiting
+function getEventNames(orchestratorCode) {
+    var result = [];
+    var regex = TraversalRegexes.waitForExternalEventRegex;
+    var match;
+    while (!!(match = regex.exec(orchestratorCode))) {
+        result.push(match[4]);
+    }
+    return result;
+}
+exports.getEventNames = getEventNames;
+// Tries to match orchestrator with its activities
+function mapActivitiesToOrchestrator(functions, orch, activityNames) {
+    var _a;
+    for (var _i = 0, activityNames_1 = activityNames; _i < activityNames_1.length; _i++) {
+        var activityName = activityNames_1[_i];
+        // If this orchestrator seems to be calling this activity
+        var regex = TraversalRegexes.getCallActivityRegex(activityName);
+        if (!!regex.exec(orch.code)) {
+            // Then mapping this activity to this orchestrator
+            functions[activityName].isCalledBy = (_a = functions[activityName].isCalledBy) !== null && _a !== void 0 ? _a : [];
+            functions[activityName].isCalledBy.push(orch.name);
+        }
+    }
+}
+exports.mapActivitiesToOrchestrator = mapActivitiesToOrchestrator;
 // Primitive way of getting a line number out of symbol position
 function posToLineNr(code, pos) {
     if (!code) {
@@ -142,51 +62,6 @@ function posToLineNr(code, pos) {
     return !lineBreaks ? 1 : lineBreaks.length + 1;
 }
 exports.posToLineNr = posToLineNr;
-// Checks if the given folder looks like a C# function project
-function isCSharpProjectAsync(projectFolder) {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, fs.promises.readdir(projectFolder)];
-                case 1: return [2 /*return*/, (_a.sent()).some(function (fn) {
-                        fn = fn.toLowerCase();
-                        return (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
-                    })];
-            }
-        });
-    });
-}
-exports.isCSharpProjectAsync = isCSharpProjectAsync;
-// Checks if the given folder looks like a F# function project
-function isFSharpProjectAsync(projectFolder) {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, fs.promises.readdir(projectFolder)];
-                case 1: return [2 /*return*/, (_a.sent()).some(function (fn) {
-                        fn = fn.toLowerCase();
-                        return fn.endsWith('.fsproj');
-                    })];
-            }
-        });
-    });
-}
-exports.isFSharpProjectAsync = isFSharpProjectAsync;
-// Checks if the given folder looks like a Java Functions project
-function isJavaProjectAsync(projectFolder) {
-    return __awaiter(this, void 0, void 0, function () {
-        var javaFileMatch;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, findFileRecursivelyAsync(projectFolder, ".+\\.java$", false)];
-                case 1:
-                    javaFileMatch = _a.sent();
-                    return [2 /*return*/, !!javaFileMatch];
-            }
-        });
-    });
-}
-exports.isJavaProjectAsync = isJavaProjectAsync;
 // Complements regex's inability to keep up with nested brackets
 function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols) {
     if (mustHaveSymbols === void 0) { mustHaveSymbols = ''; }
@@ -235,87 +110,6 @@ function getCodeInBracketsReverse(str, openingBracket, closingBracket) {
     return { code: '', openBracketPos: -1 };
 }
 exports.getCodeInBracketsReverse = getCodeInBracketsReverse;
-// fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
-// If returnFileContents == true, returns file content. Otherwise returns full path to the file.
-function findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
-    return __awaiter(this, void 0, void 0, function () {
-        var fileNameRegex, subFolders, _i, _a, name_1, fullPath, isDirectory, _b, _c, code, match, _d, subFolders_1, subFolder, result;
-        return __generator(this, function (_e) {
-            switch (_e.label) {
-                case 0:
-                    fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;
-                    subFolders = [];
-                    _i = 0;
-                    return [4 /*yield*/, fs.promises.readdir(folder)];
-                case 1:
-                    _a = _e.sent();
-                    _e.label = 2;
-                case 2:
-                    if (!(_i < _a.length)) return [3 /*break*/, 11];
-                    name_1 = _a[_i];
-                    fullPath = path.join(folder, name_1);
-                    return [4 /*yield*/, fs.promises.lstat(fullPath)];
-                case 3:
-                    isDirectory = (_e.sent()).isDirectory();
-                    if (!!!isDirectory) return [3 /*break*/, 4];
-                    if (!exports.ExcludedFolders.includes(name_1.toLowerCase())) {
-                        subFolders.push(fullPath);
-                    }
-                    return [3 /*break*/, 10];
-                case 4:
-                    if (!!!fileNameRegex.exec(name_1)) return [3 /*break*/, 10];
-                    if (!!pattern) return [3 /*break*/, 8];
-                    _b = {
-                        filePath: fullPath
-                    };
-                    if (!returnFileContents) return [3 /*break*/, 6];
-                    return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
-                case 5:
-                    _c = (_e.sent());
-                    return [3 /*break*/, 7];
-                case 6:
-                    _c = undefined;
-                    _e.label = 7;
-                case 7: return [2 /*return*/, (_b.code = _c,
-                        _b)];
-                case 8: return [4 /*yield*/, fs.promises.readFile(fullPath, { encoding: 'utf8' })];
-                case 9:
-                    code = _e.sent();
-                    match = pattern.exec(code);
-                    if (!!match) {
-                        return [2 /*return*/, {
-                                filePath: fullPath,
-                                code: returnFileContents ? code : undefined,
-                                pos: match.index,
-                                length: match[0].length
-                            }];
-                    }
-                    _e.label = 10;
-                case 10:
-                    _i++;
-                    return [3 /*break*/, 2];
-                case 11:
-                    _d = 0, subFolders_1 = subFolders;
-                    _e.label = 12;
-                case 12:
-                    if (!(_d < subFolders_1.length)) return [3 /*break*/, 15];
-                    subFolder = subFolders_1[_d];
-                    return [4 /*yield*/, findFileRecursivelyAsync(subFolder, fileNameRegex, returnFileContents, pattern)];
-                case 13:
-                    result = _e.sent();
-                    if (!!result) {
-                        return [2 /*return*/, result];
-                    }
-                    _e.label = 14;
-                case 14:
-                    _d++;
-                    return [3 /*break*/, 12];
-                case 15: return [2 /*return*/, undefined];
-            }
-        });
-    });
-}
-exports.findFileRecursivelyAsync = findFileRecursivelyAsync;
 // General-purpose regexes
 var TraversalRegexes = /** @class */ (function () {
     function TraversalRegexes() {

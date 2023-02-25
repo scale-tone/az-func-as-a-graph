@@ -11,7 +11,7 @@ const execAsync = util.promisify(cp.exec);
 import { traverseFunctions } from './traverseFunctionProject';
 import { buildFunctionDiagramCode, GraphSettings } from '../ui/src/buildFunctionDiagramCode';
 import { TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
-import { cloneFromGitHub } from './traverseFunctionProjectUtils';
+import { cloneFromGitHub } from './fileSystemUtils';
 
 export type GraphCliSettings = GraphSettings & {
     templateFile?: string;

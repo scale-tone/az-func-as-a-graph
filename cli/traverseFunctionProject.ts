@@ -1,14 +1,10 @@
-import * as fs from 'fs';
 import * as path from 'path';
 
-import { FunctionsMap, ProxiesMap, TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
+import { FunctionsMap, TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
+import { getCodeInBrackets, TraversalRegexes, posToLineNr, mapActivitiesToOrchestrator, getEventNames, BindingsParser, removeNamespace } from './traverseFunctionProjectUtils';
+import { isCSharpProjectAsync, isFSharpProjectAsync, findFileRecursivelyAsync, isJavaProjectAsync, findFunctionsRecursivelyAsync, readFunctionsJson, readProxiesJson } from './fileSystemUtils';
 
-import {
-    getCodeInBrackets, TraversalRegexes,
-    isCSharpProjectAsync, isFSharpProjectAsync, posToLineNr, findFileRecursivelyAsync, isJavaProjectAsync, FunctionProjectKind
-} from './traverseFunctionProjectUtils';
-
-import { traverseProjectCode } from './traverseDotNetOrJavaProject';
+type FunctionProjectKind = 'cSharp' | 'fSharp' | 'java' | 'other';
 
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
 // extracted from code (if the project is .Net or Java). Also parses and organizes orchestrators/activities 
@@ -62,94 +58,6 @@ export async function traverseFunctions(projectFolder: string, log: (s: any) => 
     const proxies = await readProxiesJson(projectFolder, log);
 
     return { functions, proxies, projectFolder };
-}
-
-async function readFunctionsJson(hostJsonFolder: string, log: (s: any) => void): Promise<FunctionsMap> {
-
-    let functions: FunctionsMap = {};
-
-        // Reading function.json files, in parallel
-        const promises = (await fs.promises.readdir(hostJsonFolder)).map(async functionName => {
-
-            const fullPath = path.join(hostJsonFolder, functionName);
-            const functionJsonFilePath = path.join(fullPath, 'function.json');
-
-            const isDirectory = (await fs.promises.lstat(fullPath)).isDirectory();
-            const functionJsonExists = fs.existsSync(functionJsonFilePath);
-
-            if (isDirectory && functionJsonExists) {
-
-                try {
-                    const functionJsonString = await fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' });
-                    const functionJson = JSON.parse(functionJsonString);
-
-                    functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
-
-                } catch (err) {
-                    log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
-                }
-            }
-        });
-        await Promise.all(promises);
-    
-    return functions;
-}
-
-// Tries to read proxies.json file from project folder
-async function readProxiesJson(projectFolder: string, log: (s: any) => void): Promise<ProxiesMap> {
-
-    const proxiesJsonPath = path.join(projectFolder, 'proxies.json');
-    if (!fs.existsSync(proxiesJsonPath)) {
-        return {};
-    }
-    
-    const proxiesJsonString = await fs.promises.readFile(proxiesJsonPath, { encoding: 'utf8' });
-    try {
-
-        const proxies = JSON.parse(proxiesJsonString).proxies as ProxiesMap;
-        if (!proxies) {
-            return {};
-        }
-
-        var notAddedToCsProjFile = false;
-        if (await isCSharpProjectAsync(projectFolder)) {
-
-            // Also checking that proxies.json is added to .csproj file
-
-            const csProjFile = await findFileRecursivelyAsync(projectFolder, '.+\\.csproj$', true);
-            const proxiesJsonEntryRegex = new RegExp(`\\s*=\\s*"proxies.json"\\s*>`);
-
-            if (!!csProjFile && csProjFile.code && (!proxiesJsonEntryRegex.exec(csProjFile.code))) {
-                
-                notAddedToCsProjFile = true;
-            }            
-        }
-
-        // Also adding filePath and lineNr
-        for (var proxyName in proxies) {
-
-            const proxy = proxies[proxyName];
-            proxy.filePath = proxiesJsonPath;
-            if (notAddedToCsProjFile) {
-                proxy.warningNotAddedToCsProjFile = true;
-            }
-
-            const proxyNameRegex = new RegExp(`"${proxyName}"\\s*:`);
-            const match = proxyNameRegex.exec(proxiesJsonString);
-            if (!!match) {
-                
-                proxy.pos = match.index;
-                proxy.lineNr = posToLineNr(proxiesJsonString, proxy.pos);
-            }
-        }
-
-        return proxies;
-
-    } catch(err) {
-
-        log(`>>> Failed to parse ${proxiesJsonPath}: ${err}`);
-        return {};
-    }
 }
 
 // Tries to match orchestrations and their activities by parsing source code
@@ -247,20 +155,6 @@ async function mapOrchestratorsAndActivitiesAsync(projectKind: FunctionProjectKi
     return functions;
 }
 
-// Tries to extract event names that this orchestrator is awaiting
-function getEventNames(orchestratorCode: string): string[] {
-
-    const result = [];
-
-    const regex = TraversalRegexes.waitForExternalEventRegex;
-    var match: RegExpExecArray | null;
-    while (!!(match = regex.exec(orchestratorCode))) {
-        result.push(match[4]);
-    }
-
-    return result;
-}
-
 // Tries to load code for functions of certain type
 async function getFunctionsAndTheirCodesAsync(functionNames: string[], projectKind: FunctionProjectKind, hostJsonFolder: string)
     : Promise<{ name: string, code: string, filePath: string, pos: number, lineNr: number }[]> {
@@ -297,18 +191,82 @@ async function getFunctionsAndTheirCodesAsync(functionNames: string[], projectKi
     return (await Promise.all(promises)).filter(f => !!f) as any;
 }
 
-// Tries to match orchestrator with its activities
-function mapActivitiesToOrchestrator(functions: FunctionsMap, orch: {name: string, code: string}, activityNames: string[]): void {
+export async function traverseProjectCode(projectKind: FunctionProjectKind, projectFolder: string): Promise<FunctionsMap> {
 
-    for (const activityName of activityNames) {
+    let result: any = {};
 
-        // If this orchestrator seems to be calling this activity
-        const regex = TraversalRegexes.getCallActivityRegex(activityName);
-        if (!!regex.exec(orch.code)) {
+    let fileNameRegex: RegExp;
+    let funcAttributeRegex: RegExp;
+    let funcNamePosIndex: number;
 
-            // Then mapping this activity to this orchestrator
-            functions[activityName].isCalledBy = functions[activityName].isCalledBy ?? [];
-            functions[activityName].isCalledBy.push(orch.name);
-        }
+    switch (projectKind) {
+        case 'cSharp':
+            fileNameRegex = new RegExp('.+\\.cs$', 'i');
+            funcAttributeRegex = BindingsParser.functionAttributeRegex;
+            funcNamePosIndex = 3;
+            break;
+        case 'fSharp':
+            fileNameRegex = new RegExp('.+\\.fs$', 'i');
+            funcAttributeRegex = BindingsParser.fSharpFunctionAttributeRegex;
+            funcNamePosIndex = 2;
+            break;
+        case 'java':
+            fileNameRegex = new RegExp('.+\\.java$', 'i');
+            funcAttributeRegex = BindingsParser.javaFunctionAttributeRegex;
+            funcNamePosIndex = 1;
+            break;
+        default:
+            return;
     }
+    
+    for await (const func of findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, funcAttributeRegex, funcNamePosIndex)) {
+        
+        const bindings = BindingsParser.tryExtractBindings(func.declarationCode);
+   
+        if (projectKind === 'cSharp' && !(
+            bindings.some(b => b.type === 'orchestrationTrigger') ||
+            bindings.some(b => b.type === 'entityTrigger') ||
+            bindings.some(b => b.type === 'activityTrigger')
+        )) {
+            
+            // Also trying to extract multiple output bindings
+            bindings.push(...await extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex));
+        }
+
+        result[func.functionName] = {
+
+            filePath: func.filePath,
+            pos: func.pos,
+            lineNr: func.lineNr,
+
+            bindings: [...bindings]
+        };
+    }
+
+    return result;
+}
+
+async function extractOutputBindings(projectFolder: string, functionCode: string, fileNameRegex: RegExp): Promise<{ type: string, direction: string }[]> {
+    
+    const returnTypeMatch = BindingsParser.functionReturnTypeRegex.exec(functionCode);
+    if (!returnTypeMatch) {
+        return [];
+    }
+
+    const returnTypeName = removeNamespace(returnTypeMatch[3]);
+    if (!returnTypeName) {
+        return [];
+    }
+
+    const returnTypeDefinition = await findFileRecursivelyAsync(projectFolder, fileNameRegex, true, TraversalRegexes.getClassDefinitionRegex(returnTypeName));
+    if (!returnTypeDefinition) {
+        return [];
+    }
+
+    const classBody = getCodeInBrackets(returnTypeDefinition.code!, (returnTypeDefinition.pos ?? 0) + (returnTypeDefinition.length ?? 0), '{', '}');
+    if (!classBody.code) {
+        return [];
+    }
+
+    return BindingsParser.tryExtractBindings(classBody.code);
 }

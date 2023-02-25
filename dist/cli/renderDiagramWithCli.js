@@ -20,7 +20,7 @@ const util = require("util");
 const execAsync = util.promisify(cp.exec);
 const traverseFunctionProject_1 = require("./traverseFunctionProject");
 const buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
-const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
+const fileSystemUtils_1 = require("./fileSystemUtils");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -45,7 +45,7 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
             // If it is a git repo, cloning it
             if (projectFolder.toLowerCase().startsWith('http')) {
                 console.log(`Cloning ${projectFolder}`);
-                const gitInfo = yield traverseFunctionProjectUtils_1.cloneFromGitHub(projectFolder);
+                const gitInfo = yield fileSystemUtils_1.cloneFromGitHub(projectFolder);
                 console.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
                 tempFilesAndFolders.push(gitInfo.gitTempFolder);
                 projectFolder = gitInfo.projectFolder;

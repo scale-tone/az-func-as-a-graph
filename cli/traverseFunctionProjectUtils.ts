@@ -1,84 +1,68 @@
-import * as os from 'os';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as util from 'util';
-import { exec } from 'child_process';
-const execAsync = util.promisify(exec);
+import { FunctionsMap } from "../ui/src/shared/FunctionsMap";
 
-const gitCloneTimeoutInSeconds = 60;
+export function cleanupFunctionName(name: string): string {
 
-export type FunctionProjectKind = 'cSharp' | 'fSharp' | 'java' | 'other';
-
-export const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
-
-// Does a git clone into a temp folder and returns info about that cloned code
-export async function cloneFromGitHub(url: string): Promise<{gitTempFolder: string, projectFolder: string}> {
-
-    let repoName = '', branchName = '', relativePath = '', gitTempFolder = '';
-
-    let restOfUrl: string[] = [];
-    const match = /(https:\/\/github.com\/.*?)\/([^\/]+)(\/tree\/)?(.*)/i.exec(url);
-
-    if (!match || match.length < 5) {
-
-        // expecting repo name to be the last segment of remote origin URL
-        repoName = url.substr(url.lastIndexOf('/') + 1);
-
-    } else {
-
-        const orgUrl = match[1];
-
-        repoName = match[2];
-        if (repoName.toLowerCase().endsWith('.git')) {
-            repoName = repoName.substr(0, repoName.length - 4);
-        }
-
-        url = `${orgUrl}/${repoName}.git`;
-
-        if (!!match[4]) {
-            restOfUrl = match[4].split('/').filter(s => !!s);
-        }
+    if (!name) {
+        return name;
     }
 
-    gitTempFolder = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-clone-'));
+    const nameofMatch = new RegExp(`nameof\\s*\\(\\s*([\\w\\.]+)\\s*\\)`).exec(name);
+    if (!!nameofMatch) {
 
-    let getGitTimeoutPromise = () => {
+        return removeNamespace(nameofMatch[1]);
+    }
 
-        return new Promise<void>((resolve, reject) => setTimeout(() => reject(new Error(`git clone timed out after ${gitCloneTimeoutInSeconds} sec.`)), gitCloneTimeoutInSeconds * 1000));
-    };
+    name = name.trim();
 
-    // The provided URL might contain both branch name and relative path. The only way to separate one from another
-    // is to repeatedly try cloning assumed branch names, until we finally succeed.
-    for (let i = restOfUrl.length; i > 0; i--) {
+    if (name.startsWith('"')) {
+        return name.replace(/^"/, '').replace(/"$/, '');
+    }
 
-        try {
+    return removeNamespace(name);
+}
 
-            const assumedBranchName = restOfUrl.slice(0, i).join('/');
+export function removeNamespace(name: string): string {
 
-            const clonePromise = execAsync(`git clone ${url} --branch ${assumedBranchName}`, { cwd: gitTempFolder });
-    
-            // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
-            await Promise.race([clonePromise, getGitTimeoutPromise()]);
+    if (!name) {
+        return name;
+    }
 
-            branchName = assumedBranchName;
-            relativePath = path.join(...restOfUrl.slice(i, restOfUrl.length));
+    const dotPos = name.lastIndexOf('.');
+    if (dotPos >= 0) {
+        name = name.substring(dotPos + 1);
+    }
 
-            break;
-        } catch {
-            continue;
+    return name.trim();
+}
+
+// Tries to extract event names that this orchestrator is awaiting
+export function getEventNames(orchestratorCode: string): string[] {
+
+    const result = [];
+
+    const regex = TraversalRegexes.waitForExternalEventRegex;
+    var match: RegExpExecArray | null;
+    while (!!(match = regex.exec(orchestratorCode))) {
+        result.push(match[4]);
+    }
+
+    return result;
+}
+
+// Tries to match orchestrator with its activities
+export function mapActivitiesToOrchestrator(functions: FunctionsMap, orch: {name: string, code: string}, activityNames: string[]): void {
+
+    for (const activityName of activityNames) {
+
+        // If this orchestrator seems to be calling this activity
+        const regex = TraversalRegexes.getCallActivityRegex(activityName);
+        if (!!regex.exec(orch.code)) {
+
+            // Then mapping this activity to this orchestrator
+            functions[activityName].isCalledBy = functions[activityName].isCalledBy ?? [];
+            functions[activityName].isCalledBy.push(orch.name);
         }
     }
-
-    if (!branchName) {
-
-        // Just doing a normal git clone
-        const clonePromise = execAsync(`git clone ${url}`, { cwd: gitTempFolder });
-
-        // It turned out that the above command can hang forever for unknown reason. So need to put a timeout.
-        await Promise.race([clonePromise, getGitTimeoutPromise()]);
-    }
-
-    return { gitTempFolder, projectFolder: path.join(gitTempFolder, repoName, relativePath) };
 }
 
 // Primitive way of getting a line number out of symbol position
@@ -88,29 +72,6 @@ export function posToLineNr(code: string | undefined, pos: number): number {
     }
     const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
     return !lineBreaks ? 1 : lineBreaks.length + 1;
-}
-
-// Checks if the given folder looks like a C# function project
-export async function isCSharpProjectAsync(projectFolder: string): Promise<boolean> {
-    return (await fs.promises.readdir(projectFolder)).some(fn => {
-        fn = fn.toLowerCase();
-        return (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
-    });
-}
-
-// Checks if the given folder looks like a F# function project
-export async function isFSharpProjectAsync(projectFolder: string): Promise<boolean> {
-    return (await fs.promises.readdir(projectFolder)).some(fn => {
-        fn = fn.toLowerCase();
-        return fn.endsWith('.fsproj');
-    });
-}
-
-// Checks if the given folder looks like a Java Functions project
-export async function isJavaProjectAsync(projectFolder: string): Promise<boolean> {
-
-    const javaFileMatch = await findFileRecursivelyAsync(projectFolder, `.+\\.java$`, false);
-    return !!javaFileMatch;
 }
 
 // Complements regex's inability to keep up with nested brackets
@@ -173,62 +134,6 @@ export function getCodeInBracketsReverse(str: string, openingBracket: string, cl
         }
     }
     return { code: '', openBracketPos: -1 };
-}
-
-// fileName can be a regex, pattern should be a regex (which will be searched for in the matching files).
-// If returnFileContents == true, returns file content. Otherwise returns full path to the file.
-export async function findFileRecursivelyAsync(folder: string, fileName: string | RegExp, returnFileContents: boolean, pattern?: RegExp)
-    : Promise<{ filePath: string, code?: string, pos?: number, length?: number } | undefined> {
-
-    const fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;
-
-    const subFolders: string[] = [];
-
-    for (const name of await fs.promises.readdir(folder)) {
-
-        const fullPath = path.join(folder, name);
-        const isDirectory = (await fs.promises.lstat(fullPath)).isDirectory();
-
-        if (!!isDirectory) {
-
-            if (!ExcludedFolders.includes(name.toLowerCase())) {
-
-                subFolders.push(fullPath);
-            }
-
-        } else if (!!fileNameRegex.exec(name)) {
-
-            if (!pattern) {
-                return {
-                    filePath: fullPath,
-                    code: returnFileContents ? (await fs.promises.readFile(fullPath, { encoding: 'utf8' })) : undefined
-                };
-            }
-
-            const code = await fs.promises.readFile(fullPath, { encoding: 'utf8' });
-            const match = pattern.exec(code);
-
-            if (!!match) {
-                return {
-                    filePath: fullPath,
-                    code: returnFileContents ? code : undefined,
-                    pos: match.index,
-                    length: match[0].length
-                };
-            }
-        }
-    }
-
-    // Now recursively trying subfolders. Doing this _after_ checking the current folder.
-    for (const subFolder of subFolders) {
-        
-        const result = await findFileRecursivelyAsync(subFolder, fileNameRegex, returnFileContents, pattern);
-        if (!!result) {
-            return result;
-        }
-    }
-
-    return undefined;
 }
 
 // General-purpose regexes

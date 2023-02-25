@@ -54,12 +54,25 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __asyncValues = (this && this.__asyncValues) || function (o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+};
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.traverseFunctions = void 0;
-var fs = __importStar(require("fs"));
+exports.traverseProjectCode = exports.traverseFunctions = void 0;
 var path = __importStar(require("path"));
 var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
-var traverseDotNetOrJavaProject_1 = require("./traverseDotNetOrJavaProject");
+var fileSystemUtils_1 = require("./fileSystemUtils");
 // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
 // extracted from code (if the project is .Net or Java). Also parses and organizes orchestrators/activities 
 // (if the project uses Durable Functions)
@@ -68,7 +81,7 @@ function traverseFunctions(projectFolder, log) {
         var hostJsonMatch, hostJsonFolder, projectKind, functions, _a, proxies;
         return __generator(this, function (_b) {
             switch (_b.label) {
-                case 0: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, 'host.json', false)];
+                case 0: return [4 /*yield*/, fileSystemUtils_1.findFileRecursivelyAsync(projectFolder, 'host.json', false)];
                 case 1:
                     hostJsonMatch = _b.sent();
                     if (!hostJsonMatch) {
@@ -77,17 +90,17 @@ function traverseFunctions(projectFolder, log) {
                     log(">>> Found host.json at " + hostJsonMatch.filePath);
                     hostJsonFolder = path.dirname(hostJsonMatch.filePath);
                     projectKind = 'other';
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isCSharpProjectAsync(hostJsonFolder)];
+                    return [4 /*yield*/, fileSystemUtils_1.isCSharpProjectAsync(hostJsonFolder)];
                 case 2:
                     if (!_b.sent()) return [3 /*break*/, 3];
                     projectKind = 'cSharp';
                     return [3 /*break*/, 7];
-                case 3: return [4 /*yield*/, traverseFunctionProjectUtils_1.isFSharpProjectAsync(hostJsonFolder)];
+                case 3: return [4 /*yield*/, fileSystemUtils_1.isFSharpProjectAsync(hostJsonFolder)];
                 case 4:
                     if (!_b.sent()) return [3 /*break*/, 5];
                     projectKind = 'fSharp';
                     return [3 /*break*/, 7];
-                case 5: return [4 /*yield*/, traverseFunctionProjectUtils_1.isJavaProjectAsync(hostJsonFolder)];
+                case 5: return [4 /*yield*/, fileSystemUtils_1.isJavaProjectAsync(hostJsonFolder)];
                 case 6:
                     if (_b.sent()) {
                         projectKind = 'java';
@@ -101,7 +114,7 @@ function traverseFunctions(projectFolder, log) {
                         case 'java': return [3 /*break*/, 8];
                     }
                     return [3 /*break*/, 11];
-                case 8: return [4 /*yield*/, traverseDotNetOrJavaProject_1.traverseProjectCode(projectKind, projectFolder)];
+                case 8: return [4 /*yield*/, traverseProjectCode(projectKind, projectFolder)];
                 case 9:
                     functions = _b.sent();
                     return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(projectKind, functions, projectFolder)];
@@ -109,7 +122,7 @@ function traverseFunctions(projectFolder, log) {
                     // Now enriching it with more info extracted from code
                     functions = _b.sent();
                     return [3 /*break*/, 14];
-                case 11: return [4 /*yield*/, readFunctionsJson(hostJsonFolder, log)];
+                case 11: return [4 /*yield*/, fileSystemUtils_1.readFunctionsJson(hostJsonFolder, log)];
                 case 12:
                     functions = _b.sent();
                     return [4 /*yield*/, mapOrchestratorsAndActivitiesAsync(projectKind, functions, hostJsonFolder)];
@@ -117,7 +130,7 @@ function traverseFunctions(projectFolder, log) {
                     // Now enriching it with more info extracted from code
                     functions = _b.sent();
                     return [3 /*break*/, 14];
-                case 14: return [4 /*yield*/, readProxiesJson(projectFolder, log)];
+                case 14: return [4 /*yield*/, fileSystemUtils_1.readProxiesJson(projectFolder, log)];
                 case 15:
                     proxies = _b.sent();
                     return [2 /*return*/, { functions: functions, proxies: proxies, projectFolder: projectFolder }];
@@ -126,111 +139,6 @@ function traverseFunctions(projectFolder, log) {
     });
 }
 exports.traverseFunctions = traverseFunctions;
-function readFunctionsJson(hostJsonFolder, log) {
-    return __awaiter(this, void 0, void 0, function () {
-        var functions, promises;
-        var _this = this;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    functions = {};
-                    return [4 /*yield*/, fs.promises.readdir(hostJsonFolder)];
-                case 1:
-                    promises = (_a.sent()).map(function (functionName) { return __awaiter(_this, void 0, void 0, function () {
-                        var fullPath, functionJsonFilePath, isDirectory, functionJsonExists, functionJsonString, functionJson, err_1;
-                        return __generator(this, function (_a) {
-                            switch (_a.label) {
-                                case 0:
-                                    fullPath = path.join(hostJsonFolder, functionName);
-                                    functionJsonFilePath = path.join(fullPath, 'function.json');
-                                    return [4 /*yield*/, fs.promises.lstat(fullPath)];
-                                case 1:
-                                    isDirectory = (_a.sent()).isDirectory();
-                                    functionJsonExists = fs.existsSync(functionJsonFilePath);
-                                    if (!(isDirectory && functionJsonExists)) return [3 /*break*/, 5];
-                                    _a.label = 2;
-                                case 2:
-                                    _a.trys.push([2, 4, , 5]);
-                                    return [4 /*yield*/, fs.promises.readFile(functionJsonFilePath, { encoding: 'utf8' })];
-                                case 3:
-                                    functionJsonString = _a.sent();
-                                    functionJson = JSON.parse(functionJsonString);
-                                    functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
-                                    return [3 /*break*/, 5];
-                                case 4:
-                                    err_1 = _a.sent();
-                                    log(">>> Failed to parse " + functionJsonFilePath + ": " + err_1);
-                                    return [3 /*break*/, 5];
-                                case 5: return [2 /*return*/];
-                            }
-                        });
-                    }); });
-                    return [4 /*yield*/, Promise.all(promises)];
-                case 2:
-                    _a.sent();
-                    return [2 /*return*/, functions];
-            }
-        });
-    });
-}
-// Tries to read proxies.json file from project folder
-function readProxiesJson(projectFolder, log) {
-    return __awaiter(this, void 0, void 0, function () {
-        var proxiesJsonPath, proxiesJsonString, proxies, notAddedToCsProjFile, csProjFile, proxiesJsonEntryRegex, proxyName, proxy, proxyNameRegex, match, err_2;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    proxiesJsonPath = path.join(projectFolder, 'proxies.json');
-                    if (!fs.existsSync(proxiesJsonPath)) {
-                        return [2 /*return*/, {}];
-                    }
-                    return [4 /*yield*/, fs.promises.readFile(proxiesJsonPath, { encoding: 'utf8' })];
-                case 1:
-                    proxiesJsonString = _a.sent();
-                    _a.label = 2;
-                case 2:
-                    _a.trys.push([2, 6, , 7]);
-                    proxies = JSON.parse(proxiesJsonString).proxies;
-                    if (!proxies) {
-                        return [2 /*return*/, {}];
-                    }
-                    notAddedToCsProjFile = false;
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.isCSharpProjectAsync(projectFolder)];
-                case 3:
-                    if (!_a.sent()) return [3 /*break*/, 5];
-                    return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(projectFolder, '.+\\.csproj$', true)];
-                case 4:
-                    csProjFile = _a.sent();
-                    proxiesJsonEntryRegex = new RegExp("\\s*=\\s*\"proxies.json\"\\s*>");
-                    if (!!csProjFile && csProjFile.code && (!proxiesJsonEntryRegex.exec(csProjFile.code))) {
-                        notAddedToCsProjFile = true;
-                    }
-                    _a.label = 5;
-                case 5:
-                    // Also adding filePath and lineNr
-                    for (proxyName in proxies) {
-                        proxy = proxies[proxyName];
-                        proxy.filePath = proxiesJsonPath;
-                        if (notAddedToCsProjFile) {
-                            proxy.warningNotAddedToCsProjFile = true;
-                        }
-                        proxyNameRegex = new RegExp("\"" + proxyName + "\"\\s*:");
-                        match = proxyNameRegex.exec(proxiesJsonString);
-                        if (!!match) {
-                            proxy.pos = match.index;
-                            proxy.lineNr = traverseFunctionProjectUtils_1.posToLineNr(proxiesJsonString, proxy.pos);
-                        }
-                    }
-                    return [2 /*return*/, proxies];
-                case 6:
-                    err_2 = _a.sent();
-                    log(">>> Failed to parse " + proxiesJsonPath + ": " + err_2);
-                    return [2 /*return*/, {}];
-                case 7: return [2 /*return*/];
-            }
-        });
-    });
-}
 // Tries to match orchestrations and their activities by parsing source code
 function mapOrchestratorsAndActivitiesAsync(projectKind, functions, projectFolder) {
     var _a, _b, _c, _d;
@@ -281,12 +189,12 @@ function mapOrchestratorsAndActivitiesAsync(projectKind, functions, projectFolde
                             }
                         }
                         // Mapping activities to orchestrators
-                        mapActivitiesToOrchestrator(functions, orch, activityNames);
+                        traverseFunctionProjectUtils_1.mapActivitiesToOrchestrator(functions, orch, activityNames);
                         // Checking whether orchestrator calls itself
                         if (!!traverseFunctionProjectUtils_1.TraversalRegexes.continueAsNewRegex.exec(orch.code)) {
                             functions[orch.name].isCalledByItself = true;
                         }
-                        eventNames = getEventNames(orch.code);
+                        eventNames = traverseFunctionProjectUtils_1.getEventNames(orch.code);
                         for (_g = 0, eventNames_1 = eventNames; _g < eventNames_1.length; _g++) {
                             eventName = eventNames_1[_g];
                             regex_2 = traverseFunctionProjectUtils_1.TraversalRegexes.getRaiseEventRegex(eventName);
@@ -324,16 +232,6 @@ function mapOrchestratorsAndActivitiesAsync(projectKind, functions, projectFolde
         });
     });
 }
-// Tries to extract event names that this orchestrator is awaiting
-function getEventNames(orchestratorCode) {
-    var result = [];
-    var regex = traverseFunctionProjectUtils_1.TraversalRegexes.waitForExternalEventRegex;
-    var match;
-    while (!!(match = regex.exec(orchestratorCode))) {
-        result.push(match[4]);
-    }
-    return result;
-}
 // Tries to load code for functions of certain type
 function getFunctionsAndTheirCodesAsync(functionNames, projectKind, hostJsonFolder) {
     return __awaiter(this, void 0, void 0, function () {
@@ -354,19 +252,19 @@ function getFunctionsAndTheirCodesAsync(functionNames, projectKind, hostJsonFold
                                         case 'java': return [3 /*break*/, 5];
                                     }
                                     return [3 /*break*/, 7];
-                                case 1: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(hostJsonFolder, '.+\\.cs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
+                                case 1: return [4 /*yield*/, fileSystemUtils_1.findFileRecursivelyAsync(hostJsonFolder, '.+\\.cs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
                                 case 2:
                                     match = _b.sent();
                                     return [3 /*break*/, 9];
-                                case 3: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(hostJsonFolder, '.+\\.fs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
+                                case 3: return [4 /*yield*/, fileSystemUtils_1.findFileRecursivelyAsync(hostJsonFolder, '.+\\.fs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
                                 case 4:
                                     match = _b.sent();
                                     return [3 /*break*/, 9];
-                                case 5: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(hostJsonFolder, '.+\\.java$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
+                                case 5: return [4 /*yield*/, fileSystemUtils_1.findFileRecursivelyAsync(hostJsonFolder, '.+\\.java$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name))];
                                 case 6:
                                     match = _b.sent();
                                     return [3 /*break*/, 9];
-                                case 7: return [4 /*yield*/, traverseFunctionProjectUtils_1.findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true)];
+                                case 7: return [4 /*yield*/, fileSystemUtils_1.findFileRecursivelyAsync(path.join(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true)];
                                 case 8:
                                     match = _b.sent();
                                     _b.label = 9;
@@ -387,17 +285,116 @@ function getFunctionsAndTheirCodesAsync(functionNames, projectKind, hostJsonFold
         });
     });
 }
-// Tries to match orchestrator with its activities
-function mapActivitiesToOrchestrator(functions, orch, activityNames) {
-    var _a;
-    for (var _i = 0, activityNames_1 = activityNames; _i < activityNames_1.length; _i++) {
-        var activityName = activityNames_1[_i];
-        // If this orchestrator seems to be calling this activity
-        var regex = traverseFunctionProjectUtils_1.TraversalRegexes.getCallActivityRegex(activityName);
-        if (!!regex.exec(orch.code)) {
-            // Then mapping this activity to this orchestrator
-            functions[activityName].isCalledBy = (_a = functions[activityName].isCalledBy) !== null && _a !== void 0 ? _a : [];
-            functions[activityName].isCalledBy.push(orch.name);
-        }
-    }
+function traverseProjectCode(projectKind, projectFolder) {
+    var e_1, _a;
+    return __awaiter(this, void 0, void 0, function () {
+        var result, fileNameRegex, funcAttributeRegex, funcNamePosIndex, _b, _c, func, bindings, _d, _e, _f, e_1_1;
+        return __generator(this, function (_g) {
+            switch (_g.label) {
+                case 0:
+                    result = {};
+                    switch (projectKind) {
+                        case 'cSharp':
+                            fileNameRegex = new RegExp('.+\\.cs$', 'i');
+                            funcAttributeRegex = traverseFunctionProjectUtils_1.BindingsParser.functionAttributeRegex;
+                            funcNamePosIndex = 3;
+                            break;
+                        case 'fSharp':
+                            fileNameRegex = new RegExp('.+\\.fs$', 'i');
+                            funcAttributeRegex = traverseFunctionProjectUtils_1.BindingsParser.fSharpFunctionAttributeRegex;
+                            funcNamePosIndex = 2;
+                            break;
+                        case 'java':
+                            fileNameRegex = new RegExp('.+\\.java$', 'i');
+                            funcAttributeRegex = traverseFunctionProjectUtils_1.BindingsParser.javaFunctionAttributeRegex;
+                            funcNamePosIndex = 1;
+                            break;
+                        default:
+                            return [2 /*return*/];
+                    }
+                    _g.label = 1;
+                case 1:
+                    _g.trys.push([1, 8, 9, 14]);
+                    _b = __asyncValues(fileSystemUtils_1.findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, funcAttributeRegex, funcNamePosIndex));
+                    _g.label = 2;
+                case 2: return [4 /*yield*/, _b.next()];
+                case 3:
+                    if (!(_c = _g.sent(), !_c.done)) return [3 /*break*/, 7];
+                    func = _c.value;
+                    bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
+                    if (!(projectKind === 'cSharp' && !(bindings.some(function (b) { return b.type === 'orchestrationTrigger'; }) ||
+                        bindings.some(function (b) { return b.type === 'entityTrigger'; }) ||
+                        bindings.some(function (b) { return b.type === 'activityTrigger'; })))) return [3 /*break*/, 5];
+                    _e = 
+                    // Also trying to extract multiple output bindings
+                    (_d = bindings.push).apply;
+                    _f = [
+                        // Also trying to extract multiple output bindings
+                        bindings];
+                    return [4 /*yield*/, extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex)];
+                case 4:
+                    // Also trying to extract multiple output bindings
+                    _e.apply(_d, _f.concat([_g.sent()]));
+                    _g.label = 5;
+                case 5:
+                    result[func.functionName] = {
+                        filePath: func.filePath,
+                        pos: func.pos,
+                        lineNr: func.lineNr,
+                        bindings: __spreadArrays(bindings)
+                    };
+                    _g.label = 6;
+                case 6: return [3 /*break*/, 2];
+                case 7: return [3 /*break*/, 14];
+                case 8:
+                    e_1_1 = _g.sent();
+                    e_1 = { error: e_1_1 };
+                    return [3 /*break*/, 14];
+                case 9:
+                    _g.trys.push([9, , 12, 13]);
+                    if (!(_c && !_c.done && (_a = _b.return))) return [3 /*break*/, 11];
+                    return [4 /*yield*/, _a.call(_b)];
+                case 10:
+                    _g.sent();
+                    _g.label = 11;
+                case 11: return [3 /*break*/, 13];
+                case 12:
+                    if (e_1) throw e_1.error;
+                    return [7 /*endfinally*/];
+                case 13: return [7 /*endfinally*/];
+                case 14: return [2 /*return*/, result];
+            }
+        });
+    });
+}
+exports.traverseProjectCode = traverseProjectCode;
+function extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
+    var _a, _b;
+    return __awaiter(this, void 0, void 0, function () {
+        var returnTypeMatch, returnTypeName, returnTypeDefinition, classBody;
+        return __generator(this, function (_c) {
+            switch (_c.label) {
+                case 0:
+                    returnTypeMatch = traverseFunctionProjectUtils_1.BindingsParser.functionReturnTypeRegex.exec(functionCode);
+                    if (!returnTypeMatch) {
+                        return [2 /*return*/, []];
+                    }
+                    returnTypeName = traverseFunctionProjectUtils_1.removeNamespace(returnTypeMatch[3]);
+                    if (!returnTypeName) {
+                        return [2 /*return*/, []];
+                    }
+                    return [4 /*yield*/, fileSystemUtils_1.findFileRecursivelyAsync(projectFolder, fileNameRegex, true, traverseFunctionProjectUtils_1.TraversalRegexes.getClassDefinitionRegex(returnTypeName))];
+                case 1:
+                    returnTypeDefinition = _c.sent();
+                    if (!returnTypeDefinition) {
+                        return [2 /*return*/, []];
+                    }
+                    classBody = traverseFunctionProjectUtils_1.getCodeInBrackets(returnTypeDefinition.code, ((_a = returnTypeDefinition.pos) !== null && _a !== void 0 ? _a : 0) + ((_b = returnTypeDefinition.length) !== null && _b !== void 0 ? _b : 0), '{', '}');
+                    if (!classBody.code) {
+                        return [2 /*return*/, []];
+                    }
+                    return [2 /*return*/, traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(classBody.code)];
+            }
+        });
+    });
 }
