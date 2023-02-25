@@ -55,7 +55,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.convertLocalPathsToRemote = exports.getGitRepoInfo = exports.renderDiagramWithCli = void 0;
+exports.renderDiagramWithCli = void 0;
 var rimraf = __importStar(require("rimraf"));
 var os = __importStar(require("os"));
 var fs = __importStar(require("fs"));
@@ -64,9 +64,10 @@ var cp = __importStar(require("child_process"));
 var crypto = __importStar(require("crypto"));
 var util = __importStar(require("util"));
 var execAsync = util.promisify(cp.exec);
-var traverseFunctionProject_1 = require("./traverseFunctionProject");
 var buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
-var fileSystemUtils_1 = require("./fileSystemUtils");
+var gitUtils_1 = require("./gitUtils");
+var functionProjectParser_1 = require("./functionProjectParser");
+var fileSystemWrapper_1 = require("./fileSystemWrapper");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings) {
     if (settings === void 0) { settings = {}; }
@@ -97,25 +98,25 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                     _a.trys.push([1, , 19, 20]);
                     if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 3];
                     console.log("Cloning " + projectFolder);
-                    return [4 /*yield*/, fileSystemUtils_1.cloneFromGitHub(projectFolder)];
+                    return [4 /*yield*/, gitUtils_1.cloneFromGitHub(projectFolder)];
                 case 2:
                     gitInfo = _a.sent();
                     console.log("Successfully cloned to " + gitInfo.gitTempFolder);
                     tempFilesAndFolders.push(gitInfo.gitTempFolder);
                     projectFolder = gitInfo.projectFolder;
                     _a.label = 3;
-                case 3: return [4 /*yield*/, traverseFunctionProject_1.traverseFunctions(projectFolder, console.log)];
+                case 3: return [4 /*yield*/, functionProjectParser_1.FunctionProjectParser.parseFunctions(projectFolder, new fileSystemWrapper_1.FileSystemWrapper(), console.log)];
                 case 4:
                     traverseResult = _a.sent();
                     projectFolder = traverseResult.projectFolder;
-                    return [4 /*yield*/, getGitRepoInfo(projectFolder, settings.repoInfo)];
+                    return [4 /*yield*/, gitUtils_1.getGitRepoInfo(projectFolder, settings.repoInfo)];
                 case 5:
                     repoInfo = _a.sent();
                     if (!!repoInfo) {
                         console.log("Using repo URI: " + repoInfo.originUrl + ", repo name: " + repoInfo.repoName + ", branch: " + repoInfo.branchName + ", tag: " + repoInfo.tagName);
                         // changing local paths to remote repo URLs
-                        convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
-                        convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
+                        gitUtils_1.convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
+                        gitUtils_1.convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
                     }
                     outputFileExt = path.extname(outputFile).toLowerCase();
                     if (!(outputFileExt === '.json')) return [3 /*break*/, 7];
@@ -315,122 +316,3 @@ function applyIcons(svg) {
         });
     });
 }
-// Tries to get remote origin info from git
-function getGitRepoInfo(projectFolder, repoInfoFromSettings) {
-    if (repoInfoFromSettings === void 0) { repoInfoFromSettings = null; }
-    return __awaiter(this, void 0, void 0, function () {
-        var localGitFolder, parentFolder, execParams, originUrl, err_1, branchName, tagName, err_2, repoName, p;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    localGitFolder = projectFolder;
-                    while (!fs.existsSync(path.join(localGitFolder, '.git'))) {
-                        parentFolder = path.dirname(localGitFolder);
-                        if (!parentFolder || localGitFolder === parentFolder) {
-                            return [2 /*return*/, null];
-                        }
-                        localGitFolder = parentFolder;
-                    }
-                    execParams = { env: { GIT_DIR: path.join(localGitFolder, '.git') } };
-                    originUrl = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.originUrl;
-                    if (!!originUrl) return [3 /*break*/, 4];
-                    _a.label = 1;
-                case 1:
-                    _a.trys.push([1, 3, , 4]);
-                    return [4 /*yield*/, execAsync('git config --get remote.origin.url', execParams)];
-                case 2:
-                    originUrl = (_a.sent())
-                        .stdout
-                        .toString()
-                        .replace(/\n+$/, '') // trims end-of-line, if any
-                        .replace(/\/+$/, ''); // trims the trailing slash, if any
-                    return [3 /*break*/, 4];
-                case 3:
-                    err_1 = _a.sent();
-                    console.warn("Unable to get remote origin URL. " + err_1);
-                    return [2 /*return*/, null];
-                case 4:
-                    // This tool should never expose any credentials
-                    originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
-                    if (originUrl.endsWith('.git')) {
-                        originUrl = originUrl.substr(0, originUrl.length - 4);
-                    }
-                    branchName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.branchName, tagName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.tagName;
-                    if (!(!branchName && !tagName)) return [3 /*break*/, 11];
-                    _a.label = 5;
-                case 5:
-                    _a.trys.push([5, 9, , 10]);
-                    return [4 /*yield*/, execAsync('git rev-parse --abbrev-ref HEAD', execParams)];
-                case 6:
-                    branchName = (_a.sent())
-                        .stdout
-                        .toString()
-                        .replace(/\n+$/, ''); // trims end-of-line, if any
-                    if (!(branchName === 'HEAD')) return [3 /*break*/, 8];
-                    return [4 /*yield*/, execAsync('git describe --tags', execParams)];
-                case 7:
-                    // trying to get that tag name
-                    tagName = (_a.sent())
-                        .stdout
-                        .toString()
-                        .replace(/\n+$/, ''); // trims end-of-line, if any
-                    _a.label = 8;
-                case 8: return [3 /*break*/, 10];
-                case 9:
-                    err_2 = _a.sent();
-                    console.warn("Unable to detect branch/tag name. " + err_2);
-                    return [3 /*break*/, 10];
-                case 10:
-                    // defaulting to master
-                    if (!branchName) {
-                        branchName = 'master';
-                    }
-                    _a.label = 11;
-                case 11:
-                    repoName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.repoName;
-                    if (!repoName) {
-                        p = originUrl.lastIndexOf('/');
-                        if (p < 0) {
-                            return [2 /*return*/, null];
-                        }
-                        repoName = originUrl.substr(p + 1);
-                    }
-                    return [2 /*return*/, { originUrl: originUrl, repoName: repoName, branchName: branchName, tagName: tagName }];
-            }
-        });
-    });
-}
-exports.getGitRepoInfo = getGitRepoInfo;
-// tries to point source links to the remote repo
-function convertLocalPathsToRemote(map, sourcesRootFolder, repoInfo) {
-    var isGitHub = repoInfo.originUrl.match(/^https:\/\/[^\/]*github.(com|dev)\//i);
-    var isAzDevOps = repoInfo.originUrl.match(/^https:\/\/[^\/]*dev.azure.com\//i);
-    for (var funcName in map) {
-        var func = map[funcName];
-        if (!func.filePath) {
-            continue;
-        }
-        var relativePathStartPos;
-        // if root folder for sources is known, then anchoring to it
-        if (func.filePath.startsWith(sourcesRootFolder)) {
-            relativePathStartPos = sourcesRootFolder.length;
-        }
-        else {
-            // otherwise trying to anchor to repo name (which needs to be present in the path)
-            var repoNameWithSeparators = path.sep + repoInfo.repoName + path.sep;
-            relativePathStartPos = func.filePath.indexOf(repoNameWithSeparators);
-            if (relativePathStartPos < 0) {
-                continue;
-            }
-            relativePathStartPos = relativePathStartPos + repoNameWithSeparators.length;
-        }
-        var relativePath = func.filePath.substr(relativePathStartPos).split(path.sep).filter(function (s) { return !!s; });
-        if (!!isGitHub) {
-            func.filePath = repoInfo.originUrl + "/blob/" + (!repoInfo.tagName ? repoInfo.branchName : repoInfo.tagName) + "/" + relativePath.join('/') + "#L" + func.lineNr;
-        }
-        else if (!!isAzDevOps) {
-            func.filePath = repoInfo.originUrl + "?path=" + encodeURIComponent('/' + relativePath.join('/')) + "&version=" + (!repoInfo.tagName ? 'GB' + repoInfo.branchName : 'GT' + repoInfo.tagName) + "&line=" + func.lineNr + "&lineEnd=" + (func.lineNr + 1) + "&lineStartColumn=1";
-        }
-    }
-}
-exports.convertLocalPathsToRemote = convertLocalPathsToRemote;

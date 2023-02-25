@@ -10,9 +10,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const rimraf = require("rimraf");
-const traverseFunctionProject_1 = require("../cli/traverseFunctionProject");
-const renderDiagramWithCli_1 = require("../cli/renderDiagramWithCli");
-const fileSystemUtils_1 = require("../cli/fileSystemUtils");
+const gitUtils_1 = require("../cli/gitUtils");
+const functionProjectParser_1 = require("../cli/functionProjectParser");
+const fileSystemWrapper_1 = require("../cli/fileSystemWrapper");
 // Main function
 function default_1(context, req) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -22,20 +22,20 @@ function default_1(context, req) {
             // If it is a git repo, cloning it
             if (projectFolder.toLowerCase().startsWith('http')) {
                 context.log(`Cloning ${projectFolder}`);
-                const gitInfo = yield fileSystemUtils_1.cloneFromGitHub(projectFolder);
+                const gitInfo = yield gitUtils_1.cloneFromGitHub(projectFolder);
                 context.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
                 tempFolders.push(gitInfo.gitTempFolder);
                 projectFolder = gitInfo.projectFolder;
             }
-            const result = yield traverseFunctionProject_1.traverseFunctions(projectFolder, context.log);
+            const result = yield functionProjectParser_1.FunctionProjectParser.parseFunctions(projectFolder, new fileSystemWrapper_1.FileSystemWrapper(), context.log);
             projectFolder = result.projectFolder;
             // Trying to convert local source file paths into links to remote repo
-            const repoInfo = yield renderDiagramWithCli_1.getGitRepoInfo(projectFolder);
+            const repoInfo = yield gitUtils_1.getGitRepoInfo(projectFolder);
             if (!!repoInfo) {
                 context.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
                 // changing local paths to remote repo URLs
-                renderDiagramWithCli_1.convertLocalPathsToRemote(result.functions, null, repoInfo);
-                renderDiagramWithCli_1.convertLocalPathsToRemote(result.proxies, null, repoInfo);
+                gitUtils_1.convertLocalPathsToRemote(result.functions, null, repoInfo);
+                gitUtils_1.convertLocalPathsToRemote(result.proxies, null, repoInfo);
             }
             context.res = { body: { functions: result.functions, proxies: result.proxies } };
         }

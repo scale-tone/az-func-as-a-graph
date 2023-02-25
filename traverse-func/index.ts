@@ -1,9 +1,9 @@
 import { Context, HttpRequest } from "@azure/functions"
 import * as rimraf from 'rimraf';
 
-import { traverseFunctions } from '../cli/traverseFunctionProject';
-import { getGitRepoInfo, convertLocalPathsToRemote } from '../cli/renderDiagramWithCli';
-import { cloneFromGitHub } from "../cli/fileSystemUtils";
+import { cloneFromGitHub, getGitRepoInfo, convertLocalPathsToRemote } from "../cli/gitUtils";
+import { FunctionProjectParser } from "../cli/functionProjectParser";
+import { FileSystemWrapper } from "../cli/fileSystemWrapper";
 
 // Main function
 export default async function (context: Context, req: HttpRequest): Promise<void> {
@@ -26,7 +26,7 @@ export default async function (context: Context, req: HttpRequest): Promise<void
             projectFolder = gitInfo.projectFolder;
         }
 
-        const result = await traverseFunctions(projectFolder, context.log);
+        const result = await FunctionProjectParser.parseFunctions(projectFolder, new FileSystemWrapper(), context.log);
         projectFolder = result.projectFolder;
 
         // Trying to convert local source file paths into links to remote repo

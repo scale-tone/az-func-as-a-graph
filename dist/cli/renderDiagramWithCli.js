@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.convertLocalPathsToRemote = exports.getGitRepoInfo = exports.renderDiagramWithCli = void 0;
+exports.renderDiagramWithCli = void 0;
 const rimraf = require("rimraf");
 const os = require("os");
 const fs = require("fs");
@@ -18,9 +18,10 @@ const cp = require("child_process");
 const crypto = require("crypto");
 const util = require("util");
 const execAsync = util.promisify(cp.exec);
-const traverseFunctionProject_1 = require("./traverseFunctionProject");
 const buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
-const fileSystemUtils_1 = require("./fileSystemUtils");
+const gitUtils_1 = require("./gitUtils");
+const functionProjectParser_1 = require("./functionProjectParser");
+const fileSystemWrapper_1 = require("./fileSystemWrapper");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -45,20 +46,20 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
             // If it is a git repo, cloning it
             if (projectFolder.toLowerCase().startsWith('http')) {
                 console.log(`Cloning ${projectFolder}`);
-                const gitInfo = yield fileSystemUtils_1.cloneFromGitHub(projectFolder);
+                const gitInfo = yield gitUtils_1.cloneFromGitHub(projectFolder);
                 console.log(`Successfully cloned to ${gitInfo.gitTempFolder}`);
                 tempFilesAndFolders.push(gitInfo.gitTempFolder);
                 projectFolder = gitInfo.projectFolder;
             }
-            const traverseResult = yield traverseFunctionProject_1.traverseFunctions(projectFolder, console.log);
+            const traverseResult = yield functionProjectParser_1.FunctionProjectParser.parseFunctions(projectFolder, new fileSystemWrapper_1.FileSystemWrapper(), console.log);
             projectFolder = traverseResult.projectFolder;
             // Trying to convert local source file paths into links to remote repo
-            const repoInfo = yield getGitRepoInfo(projectFolder, settings.repoInfo);
+            const repoInfo = yield gitUtils_1.getGitRepoInfo(projectFolder, settings.repoInfo);
             if (!!repoInfo) {
                 console.log(`Using repo URI: ${repoInfo.originUrl}, repo name: ${repoInfo.repoName}, branch: ${repoInfo.branchName}, tag: ${repoInfo.tagName}`);
                 // changing local paths to remote repo URLs
-                convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
-                convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
+                gitUtils_1.convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
+                gitUtils_1.convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
             }
             const outputFileExt = path.extname(outputFile).toLowerCase();
             if (outputFileExt === '.json') {
@@ -179,107 +180,4 @@ function applyIcons(svg) {
         return svg;
     });
 }
-// Tries to get remote origin info from git
-function getGitRepoInfo(projectFolder, repoInfoFromSettings = null) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // looking for .git folder
-        var localGitFolder = projectFolder;
-        while (!fs.existsSync(path.join(localGitFolder, '.git'))) {
-            const parentFolder = path.dirname(localGitFolder);
-            if (!parentFolder || localGitFolder === parentFolder) {
-                return null;
-            }
-            localGitFolder = parentFolder;
-        }
-        const execParams = { env: { GIT_DIR: path.join(localGitFolder, '.git') } };
-        var originUrl = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.originUrl;
-        if (!originUrl) {
-            // trying to get remote origin URL via git
-            try {
-                originUrl = (yield execAsync('git config --get remote.origin.url', execParams))
-                    .stdout
-                    .toString()
-                    .replace(/\n+$/, '') // trims end-of-line, if any
-                    .replace(/\/+$/, ''); // trims the trailing slash, if any
-            }
-            catch (err) {
-                console.warn(`Unable to get remote origin URL. ${err}`);
-                return null;
-            }
-        }
-        // This tool should never expose any credentials
-        originUrl = originUrl.replace(/:\/\/[^\/]*@/i, '://');
-        if (originUrl.endsWith('.git')) {
-            originUrl = originUrl.substr(0, originUrl.length - 4);
-        }
-        var branchName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.branchName, tagName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.tagName;
-        if (!branchName && !tagName) {
-            // trying to get branch/tag name (which might be different from default) via git
-            try {
-                branchName = (yield execAsync('git rev-parse --abbrev-ref HEAD', execParams))
-                    .stdout
-                    .toString()
-                    .replace(/\n+$/, ''); // trims end-of-line, if any
-                if (branchName === 'HEAD') { // this indicates that we're on a tag
-                    // trying to get that tag name
-                    tagName = (yield execAsync('git describe --tags', execParams))
-                        .stdout
-                        .toString()
-                        .replace(/\n+$/, ''); // trims end-of-line, if any
-                }
-            }
-            catch (err) {
-                console.warn(`Unable to detect branch/tag name. ${err}`);
-            }
-            // defaulting to master
-            if (!branchName) {
-                branchName = 'master';
-            }
-        }
-        var repoName = repoInfoFromSettings === null || repoInfoFromSettings === void 0 ? void 0 : repoInfoFromSettings.repoName;
-        if (!repoName) {
-            // expecting repo name to be the last segment of remote origin URL
-            const p = originUrl.lastIndexOf('/');
-            if (p < 0) {
-                return null;
-            }
-            repoName = originUrl.substr(p + 1);
-        }
-        return { originUrl, repoName, branchName, tagName };
-    });
-}
-exports.getGitRepoInfo = getGitRepoInfo;
-// tries to point source links to the remote repo
-function convertLocalPathsToRemote(map, sourcesRootFolder, repoInfo) {
-    const isGitHub = repoInfo.originUrl.match(/^https:\/\/[^\/]*github.(com|dev)\//i);
-    const isAzDevOps = repoInfo.originUrl.match(/^https:\/\/[^\/]*dev.azure.com\//i);
-    for (const funcName in map) {
-        const func = map[funcName];
-        if (!func.filePath) {
-            continue;
-        }
-        var relativePathStartPos;
-        // if root folder for sources is known, then anchoring to it
-        if (func.filePath.startsWith(sourcesRootFolder)) {
-            relativePathStartPos = sourcesRootFolder.length;
-        }
-        else {
-            // otherwise trying to anchor to repo name (which needs to be present in the path)
-            const repoNameWithSeparators = path.sep + repoInfo.repoName + path.sep;
-            relativePathStartPos = func.filePath.indexOf(repoNameWithSeparators);
-            if (relativePathStartPos < 0) {
-                continue;
-            }
-            relativePathStartPos = relativePathStartPos + repoNameWithSeparators.length;
-        }
-        const relativePath = func.filePath.substr(relativePathStartPos).split(path.sep).filter(s => !!s);
-        if (!!isGitHub) {
-            func.filePath = `${repoInfo.originUrl}/blob/${!repoInfo.tagName ? repoInfo.branchName : repoInfo.tagName}/${relativePath.join('/')}#L${func.lineNr}`;
-        }
-        else if (!!isAzDevOps) {
-            func.filePath = `${repoInfo.originUrl}?path=${encodeURIComponent('/' + relativePath.join('/'))}&version=${!repoInfo.tagName ? 'GB' + repoInfo.branchName : 'GT' + repoInfo.tagName}&line=${func.lineNr}&lineEnd=${func.lineNr + 1}&lineStartColumn=1`;
-        }
-    }
-}
-exports.convertLocalPathsToRemote = convertLocalPathsToRemote;
 //# sourceMappingURL=renderDiagramWithCli.js.map
