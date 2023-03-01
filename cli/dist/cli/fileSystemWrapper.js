@@ -70,12 +70,19 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileSystemWrapper = void 0;
 var fileSystem = __importStar(require("fs"));
-var fileSystemWrapperBase_1 = require("./fileSystemWrapperBase");
+var path = __importStar(require("path"));
+var fileSystemWrapperBase_1 = require("../func-project-parser/fileSystemWrapperBase");
 var FileSystemWrapper = /** @class */ (function (_super) {
     __extends(FileSystemWrapper, _super);
     function FileSystemWrapper() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
+    FileSystemWrapper.prototype.joinPath = function (path1, path2) {
+        return path.join(path1, path2);
+    };
+    FileSystemWrapper.prototype.dirName = function (path1) {
+        return path.dirname(path1);
+    };
     FileSystemWrapper.prototype.readFile = function (path) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -107,7 +114,11 @@ var FileSystemWrapper = /** @class */ (function (_super) {
         });
     };
     FileSystemWrapper.prototype.pathExists = function (path) {
-        return fileSystem.existsSync(path);
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, fileSystem.existsSync(path)];
+            });
+        });
     };
     return FileSystemWrapper;
 }(fileSystemWrapperBase_1.FileSystemWrapperBase));

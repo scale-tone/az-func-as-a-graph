@@ -11,8 +11,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileSystemWrapper = void 0;
 const fileSystem = require("fs");
-const fileSystemWrapperBase_1 = require("./fileSystemWrapperBase");
+const path = require("path");
+const fileSystemWrapperBase_1 = require("../func-project-parser/fileSystemWrapperBase");
 class FileSystemWrapper extends fileSystemWrapperBase_1.FileSystemWrapperBase {
+    joinPath(path1, path2) {
+        return path.join(path1, path2);
+    }
+    dirName(path1) {
+        return path.dirname(path1);
+    }
     readFile(path) {
         return __awaiter(this, void 0, void 0, function* () {
             return yield fileSystem.promises.readFile(path, { encoding: 'utf8' });
@@ -29,7 +36,9 @@ class FileSystemWrapper extends fileSystemWrapperBase_1.FileSystemWrapperBase {
         });
     }
     pathExists(path) {
-        return fileSystem.existsSync(path);
+        return __awaiter(this, void 0, void 0, function* () {
+            return fileSystem.existsSync(path);
+        });
     }
 }
 exports.FileSystemWrapper = FileSystemWrapper;

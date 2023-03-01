@@ -11,7 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const rimraf = require("rimraf");
 const gitUtils_1 = require("../cli/gitUtils");
-const functionProjectParser_1 = require("../cli/functionProjectParser");
+const functionProjectParser_1 = require("../func-project-parser/functionProjectParser");
 const fileSystemWrapper_1 = require("../cli/fileSystemWrapper");
 // Main function
 function default_1(context, req) {

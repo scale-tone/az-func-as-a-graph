@@ -1,7 +1,18 @@
 import * as fileSystem from 'fs';
-import { FileSystemWrapperBase } from './fileSystemWrapperBase';
+import * as path from 'path';
+import { FileSystemWrapperBase } from '../func-project-parser/fileSystemWrapperBase';
 
 export class FileSystemWrapper extends FileSystemWrapperBase {
+
+    public joinPath(path1: string, path2: string): string {
+
+        return path.join(path1, path2);
+    }
+
+	public dirName(path1: string): string {
+
+        return path.dirname(path1);
+	}
 
     protected async readFile(path: string): Promise<string> {
 
@@ -18,7 +29,7 @@ export class FileSystemWrapper extends FileSystemWrapperBase {
         return await fileSystem.promises.readdir(path);
     }
 
-    protected pathExists(path: string): boolean {
+    protected async pathExists(path: string): Promise<boolean> {
 
         return fileSystem.existsSync(path);
     }

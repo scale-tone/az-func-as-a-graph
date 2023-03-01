@@ -9,9 +9,9 @@ import * as util from 'util';
 const execAsync = util.promisify(cp.exec);
 
 import { buildFunctionDiagramCode, GraphSettings } from '../ui/src/buildFunctionDiagramCode';
-import { TraverseFunctionResult } from '../ui/src/shared/FunctionsMap';
+import { TraverseFunctionResult } from '../func-project-parser/FunctionsMap';
 import { cloneFromGitHub, getGitRepoInfo, convertLocalPathsToRemote, GitRepositoryInfo } from './gitUtils';
-import { FunctionProjectParser } from './functionProjectParser';
+import { FunctionProjectParser } from '../func-project-parser/functionProjectParser';
 import { FileSystemWrapper } from './fileSystemWrapper';
 
 export type GraphCliSettings = GraphSettings & {

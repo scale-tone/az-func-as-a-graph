@@ -20,7 +20,7 @@ const util = require("util");
 const execAsync = util.promisify(cp.exec);
 const buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
 const gitUtils_1 = require("./gitUtils");
-const functionProjectParser_1 = require("./functionProjectParser");
+const functionProjectParser_1 = require("../func-project-parser/functionProjectParser");
 const fileSystemWrapper_1 = require("./fileSystemWrapper");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {

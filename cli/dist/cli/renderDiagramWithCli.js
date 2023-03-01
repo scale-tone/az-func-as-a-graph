@@ -66,7 +66,7 @@ var util = __importStar(require("util"));
 var execAsync = util.promisify(cp.exec);
 var buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
 var gitUtils_1 = require("./gitUtils");
-var functionProjectParser_1 = require("./functionProjectParser");
+var functionProjectParser_1 = require("../func-project-parser/functionProjectParser");
 var fileSystemWrapper_1 = require("./fileSystemWrapper");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings) {

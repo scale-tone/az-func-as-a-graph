@@ -2,7 +2,7 @@ import { Context, HttpRequest } from "@azure/functions"
 import * as rimraf from 'rimraf';
 
 import { cloneFromGitHub, getGitRepoInfo, convertLocalPathsToRemote } from "../cli/gitUtils";
-import { FunctionProjectParser } from "../cli/functionProjectParser";
+import { FunctionProjectParser } from "../func-project-parser/functionProjectParser";
 import { FileSystemWrapper } from "../cli/fileSystemWrapper";
 
 // Main function

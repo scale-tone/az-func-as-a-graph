@@ -8,6 +8,6 @@
     "strict": false,
     "skipLibCheck": true
   },
-  "exclude": ["ui", "__test"],
+  "exclude": ["ui", "__test", "vscode-web-ext", "vscode-web-ext-ui"],
   "include": [".", "ui/src/shared"]
 }

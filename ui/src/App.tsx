@@ -56,7 +56,6 @@ export default class App extends React.Component<{ state: AppState }> {
                         margin="dense"
                         label="GitHub link or local path to Functions project"
                         InputLabelProps={{ shrink: true }}
-                        placeholder="e.g. 'https://github.com/scale-tone/repka-durable-func'"
                         disabled={state.inProgress}
                         value={state.pathText}
                         onChange={(evt) => state.pathText = evt.target.value as string}
