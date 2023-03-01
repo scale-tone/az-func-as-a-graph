@@ -1,5 +1,5 @@
 
-import { BindingsParser } from '../cli/traverseFunctionProjectUtils';
+import { BindingsParser } from '../func-project-parser/traverseFunctionProjectUtils';
 
 test('bindingAttributeRegex', () => {
 
