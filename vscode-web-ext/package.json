@@ -1,28 +1,42 @@
 {
   "name": "az-func-as-a-graph",
   "displayName": "az-func-as-a-graph",
-  "description": "",
-  "version": "0.0.1",
+  "description": "Visualizes your Azure Functions project in form of an interactive graph",
+  "version": "1.0.0",
   "engines": {
     "vscode": "^1.75.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Visualization"
   ],
+  "homepage": "https://github.com/scale-tone/az-func-as-a-graph",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scale-tone/az-func-as-a-graph"
+  },
+  "bugs": {
+    "url": "https://github.com/scale-tone/az-func-as-a-graph/issues"
+  },
+  "icon": "logo.svg",
+  "keywords": [
+    "Azure Functions",
+    "Serverless",
+    "Azure"
+  ],
+  "publisher": "DurableFunctionsMonitor",
+  "license": "MIT",
   "activationEvents": [
     "*"
   ],
   "browser": "./dist/web/extension.js",
-
   "contributes": {
-
     "commands": [
       {
         "command": "az-func-as-a-graph.ShowGraph",
         "title": "az-func-as-a-graph: Show..."
       }
     ],
-
     "menus": {
       "explorer/context": [
         {
@@ -31,8 +45,17 @@
           "group": "az-func-as-a-graph@1"
         }
       ]
+    },
+    "configuration": {
+      "title": "az-func-as-a-graph",
+      "properties": {
+        "az-func-as-a-graph.showGraphAtStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show Functions Graph when an Azure Functions project is being opened"
+        }
+      }
     }
-
   },
   "scripts": {
     "test": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --extensionTestsPath=dist/web/test/suite/index.js",

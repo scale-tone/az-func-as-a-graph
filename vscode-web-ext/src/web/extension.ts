@@ -5,13 +5,13 @@ import { FunctionGraphView } from './FunctionGraphView';
 
 let graphViews: FunctionGraphView[] = [];
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+
+	const fsWrapper = new FileSystemWrapper();
 
 	context.subscriptions.push(
 
 		vscode.commands.registerCommand('az-func-as-a-graph.ShowGraph', async (item?: vscode.Uri) => {
-
-			const fsWrapper = new FileSystemWrapper();
 
 			if (!!item) {
 				
@@ -49,6 +49,27 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		})		
 	);
+
+	if (!vscode.workspace.workspaceFolders) {
+		return;
+	}
+
+    const config = vscode.workspace.getConfiguration('az-func-as-a-graph');
+
+	if (!config.get<boolean>('showGraphAtStartup', true)) {
+		return;
+	}
+
+	// Showing graphs of all Functions in the workspace
+	for (const folder of vscode.workspace.workspaceFolders) {
+
+		const hostJsonPath = vscode.Uri.joinPath(folder.uri, 'host.json').toString();
+		
+		if (await fsWrapper.pathExists(hostJsonPath)) {
+			
+			graphViews.push(new FunctionGraphView(context, folder.uri));
+		}
+	}
 }
 
 // This method is called when your extension is deactivated

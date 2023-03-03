@@ -35,9 +35,9 @@ function default_1(context) {
                 fileName: `${wwwroot}/static/icons/${p3}`,
                 contentType: 'image/svg+xml; charset=UTF-8'
             },
-            'favicon.ico/undefined': {
-                fileName: `${wwwroot}/favicon.ico`,
-                contentType: 'image/x-icon'
+            'logo.svg/undefined': {
+                fileName: `${wwwroot}/logo.svg`,
+                contentType: 'image/svg+xml; charset=UTF-8'
             }
         };
         const mapEntry = fileMap[`${p1}/${p2}`];
