@@ -2,7 +2,7 @@
   "name": "az-func-as-a-graph",
   "displayName": "az-func-as-a-graph",
   "description": "Visualizes your Azure Functions project in form of an interactive graph",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -18,7 +18,7 @@
   "bugs": {
     "url": "https://github.com/scale-tone/az-func-as-a-graph/issues"
   },
-  "icon": "logo.svg",
+  "icon": "logo.png",
   "keywords": [
     "Azure Functions",
     "Serverless",
@@ -81,7 +81,6 @@
     "webpack-cli": "^5.0.1",
     "@types/webpack-env": "^1.18.0",
     "assert": "^2.0.0",
-    "process": "^0.11.10",
-    "func-project-parser": "file:../func-project-parser"
+    "process": "^0.11.10"
   }
 }
