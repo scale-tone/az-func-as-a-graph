@@ -226,7 +226,7 @@ class CSharpFunctionProjectParser extends FunctionProjectCodeParser {
 
         const fileNameRegex = new RegExp('.+\\.cs$', 'i');
 
-        for await (const func of this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, BindingsParser.functionAttributeRegex, 3)) {
+        for await (const func of this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, BindingsParser.getFunctionAttributeRegex(), 3)) {
             
             const bindings = BindingsParser.tryExtractBindings(func.declarationCode);
        
@@ -305,7 +305,7 @@ class FSharpFunctionProjectParser extends FunctionProjectCodeParser {
 
         const result: any = {};
 
-        for await (const func of this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.fs$', 'i'), BindingsParser.fSharpFunctionAttributeRegex, 2)) {
+        for await (const func of this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.fs$', 'i'), BindingsParser.getFSharpFunctionAttributeRegex(), 2)) {
             
             const bindings = BindingsParser.tryExtractBindings(func.declarationCode);
     
@@ -349,7 +349,7 @@ class JavaFunctionProjectParser extends FunctionProjectCodeParser {
 
         const result: any = {};
 
-        for await (const func of this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.java$', 'i'), BindingsParser.javaFunctionAttributeRegex, 1)) {
+        for await (const func of this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.java$', 'i'), BindingsParser.getJavaFunctionAttributeRegex(), 1)) {
             
             const bindings = BindingsParser.tryExtractBindings(func.declarationCode);
     

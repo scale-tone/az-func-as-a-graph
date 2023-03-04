@@ -13,6 +13,9 @@ declare const acquireVsCodeApi: () => any;
 
 export class AppState {
 
+    @observable
+    menuAnchorElement?: Element;
+
     @computed
     get diagramSvg(): string { return this._diagramSvg; }
 
@@ -118,19 +121,24 @@ export class AppState {
         this._vsCodeApi.postMessage({ kind: 'GotoFunctionCode', data: functionName });
     }
 
+    copyToClipboard(): void {
+        this.menuAnchorElement = undefined;
+
+        window.navigator.clipboard.writeText(this.diagramCode);
+
+        this._vsCodeApi.postMessage({ kind: 'ShowMessage', data: 'Diagram code was copied to Clipboard' });
+    }
+
     saveAsSvg(): void {
+        this.menuAnchorElement = undefined;
 
         this._vsCodeApi.postMessage({ kind: 'SaveAs', data: this._diagramSvg });
     }
 
     saveAsJson(): void {
+        this.menuAnchorElement = undefined;
 
         this._vsCodeApi.postMessage({ kind: 'SaveFunctionGraphAsJson' });
-    }
-
-    showMessage(msg: string): void {
-
-        this._vsCodeApi.postMessage({ kind: 'ShowMessage', data: msg });
     }
 
     private applyIcons(svg: string): string {

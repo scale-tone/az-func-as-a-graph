@@ -5,9 +5,44 @@ import { FunctionGraphView } from './FunctionGraphView';
 
 let graphViews: FunctionGraphView[] = [];
 
-export async function activate(context: vscode.ExtensionContext) {
+const fsWrapper = new FileSystemWrapper();
 
-	const fsWrapper = new FileSystemWrapper();
+const MaxProjectsToShowAutomatically = 5;
+
+async function showAllFunctionProjects(context: vscode.ExtensionContext) {
+
+	if (!vscode.workspace.workspaceFolders) {
+		return;
+	}
+
+	const hostJsonFolders = [];
+
+	for (const folder of vscode.workspace.workspaceFolders) {
+
+		for await (const hostJsonPath of fsWrapper.findFilesRecursivelyAsync(folder.uri.toString(), new RegExp('host.json', 'i'))) {
+			
+			hostJsonFolders.push(fsWrapper.dirName(hostJsonPath));
+		}
+	}
+
+	if (hostJsonFolders.length > MaxProjectsToShowAutomatically) {
+		
+		const userResponse = await vscode.window.showWarningMessage(
+			`az-func-as-a-graph found ${hostJsonFolders.length} Azure Functions projects in current workspace. Do you want to visualize all of them?`,
+			'Yes', 'No');
+
+		if (userResponse !== 'Yes') {
+			return;
+		}
+	}
+
+	for (const hostJsonFolder of hostJsonFolders) {
+		
+		graphViews.push(new FunctionGraphView(context, vscode.Uri.parse(hostJsonFolder)));
+	}
+}
+
+export async function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 
@@ -25,28 +60,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
-			if (!vscode.workspace.workspaceFolders) {
-				return;
-			}
-
-			let hostJsonFound = false;
-
-			for (const folder of vscode.workspace.workspaceFolders) {
-
-				const hostJsonPath = vscode.Uri.joinPath(folder.uri, 'host.json').toString();
-				
-				if (await fsWrapper.pathExists(hostJsonPath)) {
-					
-					graphViews.push(new FunctionGraphView(context, folder.uri));
-					hostJsonFound = true;
-				}
-			}
-
-			if (!hostJsonFound && !!vscode.workspace.workspaceFolders.length) {
-
-				// Just trying the first workspace folder, in a hope that host.json is somewhere inside
-				graphViews.push(new FunctionGraphView(context, vscode.workspace.workspaceFolders[0].uri));
-			}
+			await showAllFunctionProjects(context);
 		})		
 	);
 
@@ -56,19 +70,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
     const config = vscode.workspace.getConfiguration('az-func-as-a-graph');
 
-	if (!config.get<boolean>('showGraphAtStartup', true)) {
-		return;
-	}
+	if (!!config.get<boolean>('showGraphAtStartup', true)) {
 
-	// Showing graphs of all Functions in the workspace
-	for (const folder of vscode.workspace.workspaceFolders) {
-
-		const hostJsonPath = vscode.Uri.joinPath(folder.uri, 'host.json').toString();
-		
-		if (await fsWrapper.pathExists(hostJsonPath)) {
-			
-			graphViews.push(new FunctionGraphView(context, folder.uri));
-		}
+		// Showing graphs of all Functions in the workspace
+		await showAllFunctionProjects(context);
 	}
 }
 

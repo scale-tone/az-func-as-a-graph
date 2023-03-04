@@ -1,7 +1,7 @@
 import { cleanupFunctionName, getCodeInBrackets, posToLineNr } from './traverseFunctionProjectUtils';
 import { FunctionsMap, ProxiesMap } from './FunctionsMap';
 
-const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
+const ExcludedFolders = ['node_modules', 'target', 'bin', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 
 export abstract class FileSystemWrapperBase {
 
@@ -178,7 +178,7 @@ export abstract class FileSystemWrapperBase {
         return undefined;
     }
 
-    async * findFunctionsRecursivelyAsync(folder: string, fileNameRegex: RegExp, functionAttributeRegex: RegExp, functionNamePosInRegex: number): AsyncGenerator<any> {
+    async * findFilesRecursivelyAsync(folder: string, fileNameRegex: RegExp): AsyncGenerator<any> {
 
         for (const name of await this.readDir(folder)) {
     
@@ -191,53 +191,61 @@ export abstract class FileSystemWrapperBase {
                     continue;
                 }
     
-                for await (const file of this.findFunctionsRecursivelyAsync(fullPath, fileNameRegex, functionAttributeRegex, functionNamePosInRegex)) {
+                for await (const path of this.findFilesRecursivelyAsync(fullPath, fileNameRegex)) {
     
-                    yield file;
+                    yield path;
                 }
     
             } else if (!!fileNameRegex.exec(name)) {
     
-                const code = await this.readFile(fullPath);
-    
-                var match: RegExpExecArray | null;
-                while (!!(match = functionAttributeRegex.exec(code))) {
-    
-                    let functionName = cleanupFunctionName(match[functionNamePosInRegex]);
-    
-                    const functionAttributeEndPos = match.index + match[0].length;
-    
-                    const body = getCodeInBrackets(code, functionAttributeEndPos, '{', '}', '\n');
-    
-                    if (body.openBracketPos >= 0 && !!body.code) {
-    
-                        yield {
-                            functionName,
-                            filePath: fullPath,
-                            pos: match.index,
-                            lineNr: posToLineNr(code, match.index),
-                            declarationCode: body.code.substring(0, body.openBracketPos),
-                            bodyCode: body.code.substring(body.openBracketPos)
-                        };
-    
-                    } else {
-    
-                        // Returning the rest of the file
-    
-                        yield {
-                            functionName,
-                            filePath: fullPath,
-                            pos: match.index,
-                            lineNr: posToLineNr(code, match.index),
-    
-                            declarationCode: code.substring(functionAttributeEndPos),
-                            bodyCode: code.substring(functionAttributeEndPos)
-                        };
-    
-                        break;
-                    }
-                }        
+                yield fullPath;
             }
+        }
+    }
+
+    async * findFunctionsRecursivelyAsync(folder: string, fileNameRegex: RegExp, functionAttributeRegex: RegExp, functionNamePosInRegex: number): AsyncGenerator<any> {
+
+        for await (const fullPath of this.findFilesRecursivelyAsync(folder, fileNameRegex)) {
+
+            const code = await this.readFile(fullPath);
+
+            var match: RegExpExecArray | null;
+            while (!!(match = functionAttributeRegex.exec(code))) {
+
+                let functionName = cleanupFunctionName(match[functionNamePosInRegex]);
+
+                const functionAttributeEndPos = match.index + match[0].length;
+
+                const body = getCodeInBrackets(code, functionAttributeEndPos, '{', '}', '\n');
+
+                if (body.openBracketPos >= 0 && !!body.code) {
+
+                    yield {
+                        functionName,
+                        filePath: fullPath,
+                        pos: match.index,
+                        lineNr: posToLineNr(code, match.index),
+                        declarationCode: body.code.substring(0, body.openBracketPos),
+                        bodyCode: body.code.substring(body.openBracketPos)
+                    };
+
+                } else {
+
+                    // Returning the rest of the file
+
+                    yield {
+                        functionName,
+                        filePath: fullPath,
+                        pos: match.index,
+                        lineNr: posToLineNr(code, match.index),
+
+                        declarationCode: code.substring(functionAttributeEndPos),
+                        bodyCode: code.substring(functionAttributeEndPos)
+                    };
+
+                    break;
+                }
+            }        
         }
     }
 }

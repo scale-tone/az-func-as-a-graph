@@ -57,7 +57,7 @@ var __asyncGenerator = (this && this.__asyncGenerator) || function (thisArg, _ar
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileSystemWrapperBase = void 0;
 var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
-var ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
+var ExcludedFolders = ['node_modules', 'target', 'bin', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 var FileSystemWrapperBase = /** @class */ (function () {
     function FileSystemWrapperBase() {
     }
@@ -286,9 +286,9 @@ var FileSystemWrapperBase = /** @class */ (function () {
             });
         });
     };
-    FileSystemWrapperBase.prototype.findFunctionsRecursivelyAsync = function (folder, fileNameRegex, functionAttributeRegex, functionNamePosInRegex) {
-        return __asyncGenerator(this, arguments, function findFunctionsRecursivelyAsync_1() {
-            var _i, _a, name_2, fullPath, isDirectory, _b, _c, file, e_1_1, code, match, functionName, functionAttributeEndPos, body;
+    FileSystemWrapperBase.prototype.findFilesRecursivelyAsync = function (folder, fileNameRegex) {
+        return __asyncGenerator(this, arguments, function findFilesRecursivelyAsync_1() {
+            var _i, _a, name_2, fullPath, isDirectory, _b, _c, path, e_1_1;
             var e_1, _d;
             return __generator(this, function (_e) {
                 switch (_e.label) {
@@ -299,7 +299,7 @@ var FileSystemWrapperBase = /** @class */ (function () {
                         _a = _e.sent();
                         _e.label = 2;
                     case 2:
-                        if (!(_i < _a.length)) return [3 /*break*/, 28];
+                        if (!(_i < _a.length)) return [3 /*break*/, 22];
                         name_2 = _a[_i];
                         fullPath = this.joinPath(folder, name_2);
                         return [4 /*yield*/, __await(this.isDirectory(fullPath))];
@@ -307,18 +307,18 @@ var FileSystemWrapperBase = /** @class */ (function () {
                         isDirectory = _e.sent();
                         if (!!!isDirectory) return [3 /*break*/, 18];
                         if (ExcludedFolders.includes(name_2.toLowerCase())) {
-                            return [3 /*break*/, 27];
+                            return [3 /*break*/, 21];
                         }
                         _e.label = 4;
                     case 4:
                         _e.trys.push([4, 11, 12, 17]);
-                        _b = (e_1 = void 0, __asyncValues(this.findFunctionsRecursivelyAsync(fullPath, fileNameRegex, functionAttributeRegex, functionNamePosInRegex)));
+                        _b = (e_1 = void 0, __asyncValues(this.findFilesRecursivelyAsync(fullPath, fileNameRegex)));
                         _e.label = 5;
                     case 5: return [4 /*yield*/, __await(_b.next())];
                     case 6:
                         if (!(_c = _e.sent(), !_c.done)) return [3 /*break*/, 10];
-                        file = _c.value;
-                        return [4 /*yield*/, __await(file)];
+                        path = _c.value;
+                        return [4 /*yield*/, __await(path)];
                     case 7: return [4 /*yield*/, _e.sent()];
                     case 8:
                         _e.sent();
@@ -341,19 +341,46 @@ var FileSystemWrapperBase = /** @class */ (function () {
                         if (e_1) throw e_1.error;
                         return [7 /*endfinally*/];
                     case 16: return [7 /*endfinally*/];
-                    case 17: return [3 /*break*/, 27];
+                    case 17: return [3 /*break*/, 21];
                     case 18:
-                        if (!!!fileNameRegex.exec(name_2)) return [3 /*break*/, 27];
-                        return [4 /*yield*/, __await(this.readFile(fullPath))];
-                    case 19:
-                        code = _e.sent();
-                        _e.label = 20;
+                        if (!!!fileNameRegex.exec(name_2)) return [3 /*break*/, 21];
+                        return [4 /*yield*/, __await(fullPath)];
+                    case 19: return [4 /*yield*/, _e.sent()];
                     case 20:
-                        if (!!!(match = functionAttributeRegex.exec(code))) return [3 /*break*/, 27];
+                        _e.sent();
+                        _e.label = 21;
+                    case 21:
+                        _i++;
+                        return [3 /*break*/, 2];
+                    case 22: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    FileSystemWrapperBase.prototype.findFunctionsRecursivelyAsync = function (folder, fileNameRegex, functionAttributeRegex, functionNamePosInRegex) {
+        return __asyncGenerator(this, arguments, function findFunctionsRecursivelyAsync_1() {
+            var _a, _b, fullPath, code, match, functionName, functionAttributeEndPos, body, e_2_1;
+            var e_2, _c;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
+                    case 0:
+                        _d.trys.push([0, 13, 14, 19]);
+                        _a = __asyncValues(this.findFilesRecursivelyAsync(folder, fileNameRegex));
+                        _d.label = 1;
+                    case 1: return [4 /*yield*/, __await(_a.next())];
+                    case 2:
+                        if (!(_b = _d.sent(), !_b.done)) return [3 /*break*/, 12];
+                        fullPath = _b.value;
+                        return [4 /*yield*/, __await(this.readFile(fullPath))];
+                    case 3:
+                        code = _d.sent();
+                        _d.label = 4;
+                    case 4:
+                        if (!!!(match = functionAttributeRegex.exec(code))) return [3 /*break*/, 11];
                         functionName = traverseFunctionProjectUtils_1.cleanupFunctionName(match[functionNamePosInRegex]);
                         functionAttributeEndPos = match.index + match[0].length;
                         body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, functionAttributeEndPos, '{', '}', '\n');
-                        if (!(body.openBracketPos >= 0 && !!body.code)) return [3 /*break*/, 23];
+                        if (!(body.openBracketPos >= 0 && !!body.code)) return [3 /*break*/, 7];
                         return [4 /*yield*/, __await({
                                 functionName: functionName,
                                 filePath: fullPath,
@@ -362,11 +389,11 @@ var FileSystemWrapperBase = /** @class */ (function () {
                                 declarationCode: body.code.substring(0, body.openBracketPos),
                                 bodyCode: body.code.substring(body.openBracketPos)
                             })];
-                    case 21: return [4 /*yield*/, _e.sent()];
-                    case 22:
-                        _e.sent();
-                        return [3 /*break*/, 26];
-                    case 23: return [4 /*yield*/, __await({
+                    case 5: return [4 /*yield*/, _d.sent()];
+                    case 6:
+                        _d.sent();
+                        return [3 /*break*/, 10];
+                    case 7: return [4 /*yield*/, __await({
                             functionName: functionName,
                             filePath: fullPath,
                             pos: match.index,
@@ -374,18 +401,33 @@ var FileSystemWrapperBase = /** @class */ (function () {
                             declarationCode: code.substring(functionAttributeEndPos),
                             bodyCode: code.substring(functionAttributeEndPos)
                         })];
-                    case 24: 
+                    case 8: 
                     // Returning the rest of the file
-                    return [4 /*yield*/, _e.sent()];
-                    case 25:
+                    return [4 /*yield*/, _d.sent()];
+                    case 9:
                         // Returning the rest of the file
-                        _e.sent();
-                        return [3 /*break*/, 27];
-                    case 26: return [3 /*break*/, 20];
-                    case 27:
-                        _i++;
-                        return [3 /*break*/, 2];
-                    case 28: return [2 /*return*/];
+                        _d.sent();
+                        return [3 /*break*/, 11];
+                    case 10: return [3 /*break*/, 4];
+                    case 11: return [3 /*break*/, 1];
+                    case 12: return [3 /*break*/, 19];
+                    case 13:
+                        e_2_1 = _d.sent();
+                        e_2 = { error: e_2_1 };
+                        return [3 /*break*/, 19];
+                    case 14:
+                        _d.trys.push([14, , 17, 18]);
+                        if (!(_b && !_b.done && (_c = _a.return))) return [3 /*break*/, 16];
+                        return [4 /*yield*/, __await(_c.call(_a))];
+                    case 15:
+                        _d.sent();
+                        _d.label = 16;
+                    case 16: return [3 /*break*/, 18];
+                    case 17:
+                        if (e_2) throw e_2.error;
+                        return [7 /*endfinally*/];
+                    case 18: return [7 /*endfinally*/];
+                    case 19: return [2 /*return*/];
                 }
             });
         });

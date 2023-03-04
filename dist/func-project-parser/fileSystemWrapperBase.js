@@ -30,7 +30,7 @@ var __asyncGenerator = (this && this.__asyncGenerator) || function (thisArg, _ar
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileSystemWrapperBase = void 0;
 const traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
-const ExcludedFolders = ['node_modules', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
+const ExcludedFolders = ['node_modules', 'target', 'bin', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 class FileSystemWrapperBase {
     readFunctionsJson(hostJsonFolder, log) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -162,8 +162,8 @@ class FileSystemWrapperBase {
             return undefined;
         });
     }
-    findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeRegex, functionNamePosInRegex) {
-        return __asyncGenerator(this, arguments, function* findFunctionsRecursivelyAsync_1() {
+    findFilesRecursivelyAsync(folder, fileNameRegex) {
+        return __asyncGenerator(this, arguments, function* findFilesRecursivelyAsync_1() {
             var e_1, _a;
             for (const name of yield __await(this.readDir(folder))) {
                 var fullPath = this.joinPath(folder, name);
@@ -173,9 +173,9 @@ class FileSystemWrapperBase {
                         continue;
                     }
                     try {
-                        for (var _b = (e_1 = void 0, __asyncValues(this.findFunctionsRecursivelyAsync(fullPath, fileNameRegex, functionAttributeRegex, functionNamePosInRegex))), _c; _c = yield __await(_b.next()), !_c.done;) {
-                            const file = _c.value;
-                            yield yield __await(file);
+                        for (var _b = (e_1 = void 0, __asyncValues(this.findFilesRecursivelyAsync(fullPath, fileNameRegex))), _c; _c = yield __await(_b.next()), !_c.done;) {
+                            const path = _c.value;
+                            yield yield __await(path);
                         }
                     }
                     catch (e_1_1) { e_1 = { error: e_1_1 }; }
@@ -187,6 +187,17 @@ class FileSystemWrapperBase {
                     }
                 }
                 else if (!!fileNameRegex.exec(name)) {
+                    yield yield __await(fullPath);
+                }
+            }
+        });
+    }
+    findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeRegex, functionNamePosInRegex) {
+        return __asyncGenerator(this, arguments, function* findFunctionsRecursivelyAsync_1() {
+            var e_2, _a;
+            try {
+                for (var _b = __asyncValues(this.findFilesRecursivelyAsync(folder, fileNameRegex)), _c; _c = yield __await(_b.next()), !_c.done;) {
+                    const fullPath = _c.value;
                     const code = yield __await(this.readFile(fullPath));
                     var match;
                     while (!!(match = functionAttributeRegex.exec(code))) {
@@ -217,6 +228,13 @@ class FileSystemWrapperBase {
                         }
                     }
                 }
+            }
+            catch (e_2_1) { e_2 = { error: e_2_1 }; }
+            finally {
+                try {
+                    if (_c && !_c.done && (_a = _b.return)) yield __await(_a.call(_b));
+                }
+                finally { if (e_2) throw e_2.error; }
             }
         });
     }

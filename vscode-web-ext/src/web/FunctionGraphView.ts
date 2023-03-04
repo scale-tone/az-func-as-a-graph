@@ -192,6 +192,8 @@ export class FunctionGraphView
 
                 FunctionProjectParser.parseFunctions(this._functionProjectUri.toString(), new FileSystemWrapper(), console.log).then(res => {
 
+                    console.log(`>>>>>> ${this._functionProjectUri}: ${Object.keys(res.functions).length} functions`);
+
                     this._traversalResult = res;
                     webView.postMessage(this._traversalResult);
         

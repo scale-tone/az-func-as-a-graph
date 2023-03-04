@@ -1,12 +1,13 @@
 import React from 'react';
 import { observer } from 'mobx-react';
 
-import { AppBar, Box, Button, Checkbox, FormControlLabel, LinearProgress, Toolbar, Typography } from '@material-ui/core';
+import { AppBar, Box, Button, Checkbox, FormControlLabel, LinearProgress, Menu, MenuItem, Toolbar, Typography } from '@material-ui/core';
 
 import RefreshIcon from '@material-ui/icons/Refresh';
 import FileCopyIcon from '@material-ui/icons/FileCopy';
 import SaveIcon from '@material-ui/icons/Save';
 import SaveAltIcon from '@material-ui/icons/SaveAlt';
+import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown';
 
 import { CustomTabStyle } from './theme';
 import { AppState } from './AppState';
@@ -39,6 +40,35 @@ export default class App extends React.Component<{ state: AppState }> {
         const state = this.props.state;
 
         return (<>
+            
+            <Menu
+                anchorEl={state.menuAnchorElement}
+                keepMounted
+                open={!!state.menuAnchorElement}
+                onClose={() => state.menuAnchorElement = undefined}
+            >
+                <MenuItem
+                    disabled={!state.diagramCode || state.inProgress}
+                    onClick={() => state.copyToClipboard()}
+                >
+                    Copy diagram code to Clipboard
+                </MenuItem>
+
+                <MenuItem
+                    disabled={!state.diagramSvg || state.inProgress}
+                    onClick={() => state.saveAsSvg()}
+                >
+                    Save as .SVG
+                </MenuItem>
+
+                <MenuItem
+                    disabled={!state.diagramSvg || state.inProgress}
+                    onClick={() => state.saveAsJson()}
+                >
+                    Save as JSON
+                </MenuItem>
+
+            </Menu>
 
             <AppBar color="inherit" position="static">
                 <Toolbar>
@@ -65,67 +95,32 @@ export default class App extends React.Component<{ state: AppState }> {
                     
                     <Box width={10} />
 
-                    <Button
-                        className="toolbar-button"
-                        variant="outlined"
-                        color="default"
-                        size="small"
-                        disabled={!state.diagramCode || state.inProgress}
-                        onClick={() => {
-                            window.navigator.clipboard.writeText(state.diagramCode);
-                            state.showMessage('Diagram code was copied to Clipboard');
-                        }}
-                    >
-                        <FileCopyIcon />
-                        <Box width={5} />
-                        <Typography color="inherit">Copy to Clipboard</Typography>
-                    </Button>
-
-                    <Box width={10} />
-
-                    <Button
-                        className="toolbar-button"
-                        variant="outlined"
-                        color="default"
-                        size="small"
-                        disabled={!state.diagramSvg || state.inProgress}
-                        onClick={() => state.saveAsSvg()}
-                    >
-                        <SaveIcon />
-                        <Box width={5} />
-                        <Typography color="inherit">Save as .SVG</Typography>
-                    </Button>
-
-                    <Box width={10} />
-                    
-                    <Button
-                        className="toolbar-button"
-                        variant="outlined"
-                        color="default"
-                        size="small"
-                        disabled={!state.diagramSvg || state.inProgress}
-                        onClick={() => state.saveAsJson()}
-                    >
-                        <SaveAltIcon />
-                        <Box width={5} />
-                        <Typography color="inherit">Save as JSON</Typography>
-                    </Button>
-
-                    <Box width={10} />
                     
                     <Typography style={{ flex: 1 }} />
+
+                    <Button
+                        className="toolbar-button"
+                        variant="outlined"
+                        color="default"
+                        size="medium"
+                        disabled={state.inProgress}
+                        onClick={evt => state.menuAnchorElement = evt.currentTarget}
+                    >
+                        <SaveIcon />
+                        <ArrowDropDownIcon />
+                    </Button>
+
+                    <Box width={10} />
                     
                     <Button
                         className="toolbar-button"
                         variant="outlined"
                         color="default"
-                        size="small"
+                        size="medium"
                         disabled={state.inProgress}
                         onClick={() => state.refresh()}
                     >
                         <RefreshIcon />
-                        <Box width={5} />
-                        <Typography color="inherit">Refresh</Typography>
                     </Button>
                 </Toolbar>
             </AppBar>

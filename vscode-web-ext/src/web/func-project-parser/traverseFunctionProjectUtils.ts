@@ -526,10 +526,17 @@ export class BindingsParser {
     static readonly httpMethods = [`get`, `head`, `post`, `put`, `delete`, `connect`, `options`, `trace`, `patch`];
     static readonly httpTriggerRouteRegex = new RegExp(`Route\\s*=\\s*"(.*)"`);
 
-    static readonly functionAttributeRegex = new RegExp(`\\[\\s*Function(Name)?(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]`, 'g');
     static readonly functionReturnTypeRegex = new RegExp(`public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)`);
 
-    static readonly javaFunctionAttributeRegex = new RegExp(`@\\s*FunctionName\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
+    static getFunctionAttributeRegex(): RegExp {
+        return new RegExp(`\\[\\s*Function(Name)?(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]`, 'g');
+    }
 
-    static readonly fSharpFunctionAttributeRegex = new RegExp(`\\[<\\s*Function(Name)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
+    static getJavaFunctionAttributeRegex(): RegExp {
+        return new RegExp(`@\\s*FunctionName\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
+    }
+
+    static getFSharpFunctionAttributeRegex(): RegExp {
+        return new RegExp(`\\[<\\s*Function(Name)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
+    }
 }

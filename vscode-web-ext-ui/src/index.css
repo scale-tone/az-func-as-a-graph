@@ -37,5 +37,5 @@ body {
 }
 
 .toolbar-button {
-    white-space: nowrap;
+    width: 100px !important;
 }

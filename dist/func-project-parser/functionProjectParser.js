@@ -190,7 +190,7 @@ class CSharpFunctionProjectParser extends FunctionProjectCodeParser {
             const result = {};
             const fileNameRegex = new RegExp('.+\\.cs$', 'i');
             try {
-                for (var _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.functionAttributeRegex, 3)), _c; _c = yield _b.next(), !_c.done;) {
+                for (var _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.getFunctionAttributeRegex(), 3)), _c; _c = yield _b.next(), !_c.done;) {
                     const func = _c.value;
                     const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
                     if (!(bindings.some(b => b.type === 'orchestrationTrigger') ||
@@ -261,7 +261,7 @@ class FSharpFunctionProjectParser extends FunctionProjectCodeParser {
         return __awaiter(this, void 0, void 0, function* () {
             const result = {};
             try {
-                for (var _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.fs$', 'i'), traverseFunctionProjectUtils_1.BindingsParser.fSharpFunctionAttributeRegex, 2)), _c; _c = yield _b.next(), !_c.done;) {
+                for (var _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.fs$', 'i'), traverseFunctionProjectUtils_1.BindingsParser.getFSharpFunctionAttributeRegex(), 2)), _c; _c = yield _b.next(), !_c.done;) {
                     const func = _c.value;
                     const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
                     result[func.functionName] = {
@@ -304,7 +304,7 @@ class JavaFunctionProjectParser extends FunctionProjectCodeParser {
         return __awaiter(this, void 0, void 0, function* () {
             const result = {};
             try {
-                for (var _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.java$', 'i'), traverseFunctionProjectUtils_1.BindingsParser.javaFunctionAttributeRegex, 1)), _c; _c = yield _b.next(), !_c.done;) {
+                for (var _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.java$', 'i'), traverseFunctionProjectUtils_1.BindingsParser.getJavaFunctionAttributeRegex(), 1)), _c; _c = yield _b.next(), !_c.done;) {
                     const func = _c.value;
                     const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
                     result[func.functionName] = {

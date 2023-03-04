@@ -338,7 +338,7 @@ var CSharpFunctionProjectParser = /** @class */ (function (_super) {
                         _g.label = 1;
                     case 1:
                         _g.trys.push([1, 8, 9, 14]);
-                        _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.functionAttributeRegex, 3));
+                        _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.getFunctionAttributeRegex(), 3));
                         _g.label = 2;
                     case 2: return [4 /*yield*/, _b.next()];
                     case 3:
@@ -468,7 +468,7 @@ var FSharpFunctionProjectParser = /** @class */ (function (_super) {
                         _d.label = 1;
                     case 1:
                         _d.trys.push([1, 6, 7, 12]);
-                        _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.fs$', 'i'), traverseFunctionProjectUtils_1.BindingsParser.fSharpFunctionAttributeRegex, 2));
+                        _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.fs$', 'i'), traverseFunctionProjectUtils_1.BindingsParser.getFSharpFunctionAttributeRegex(), 2));
                         _d.label = 2;
                     case 2: return [4 /*yield*/, _b.next()];
                     case 3:
@@ -553,7 +553,7 @@ var JavaFunctionProjectParser = /** @class */ (function (_super) {
                         _d.label = 1;
                     case 1:
                         _d.trys.push([1, 6, 7, 12]);
-                        _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.java$', 'i'), traverseFunctionProjectUtils_1.BindingsParser.javaFunctionAttributeRegex, 1));
+                        _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.java$', 'i'), traverseFunctionProjectUtils_1.BindingsParser.getJavaFunctionAttributeRegex(), 1));
                         _d.label = 2;
                     case 2: return [4 /*yield*/, _b.next()];
                     case 3:

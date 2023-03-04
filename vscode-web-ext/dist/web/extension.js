@@ -1,1 +1,1194 @@
-(()=>{"use strict";var e={1413:(e,t,s)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.FileSystemWrapper=void 0;const i=s(9496),r=s(9519);class n extends r.FileSystemWrapperBase{joinPath(e,t){return i.Uri.joinPath(i.Uri.parse(e),t).toString()}dirName(e){const t=e.lastIndexOf("/");if(t<0)throw new Error(`Failed to extract parent folder name from path ${e}. The path does not contain a separator.`);return e.substring(0,t)}async readFile(e){const t=i.Uri.parse(e),s=await i.workspace.fs.readFile(t);return(new TextDecoder).decode(s)}async isDirectory(e){const t=i.Uri.parse(e);return(await i.workspace.fs.stat(t)).type===i.FileType.Directory}async readDir(e){const t=i.Uri.parse(e);return(await i.workspace.fs.readDirectory(t)).map((e=>e[0]))}async pathExists(e){const t=i.Uri.parse(e);try{const e=await i.workspace.fs.stat(t);return e.type===i.FileType.File||e.type===i.FileType.Directory}catch(e){return!1}}}t.FileSystemWrapper=n},2083:(e,t,s)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.FunctionGraphView=void 0;const i=s(9496),r=s(5970),n=s(1413);class a{constructor(e,t){this._context=e,this._functionProjectUri=t,this._webViewPanel=null,this._staticsFolder=i.Uri.joinPath(this._context.extensionUri,"HtmlStatics"),this._webViewPanel=this.showWebView()}cleanup(){this._webViewPanel&&this._webViewPanel.dispose()}showWebView(){const e=`Functions Graph (${this._functionProjectUri.fsPath})`,t=i.window.createWebviewPanel(a.viewType,e,i.ViewColumn.One,{retainContextWhenHidden:!0,enableScripts:!0,localResourceRoots:[this._staticsFolder]}),s=i.Uri.joinPath(this._staticsFolder,"index.html");return i.workspace.fs.readFile(s).then((e=>{let s=(new TextDecoder).decode(e);s=this.fixLinksToStatics(s,this._staticsFolder,t.webview),s=this.embedTheme(s),t.webview.html=s}),(e=>{i.window.showErrorMessage(`az-func-as-a-graph failed. ${e.message??e}`)})),t.webview.onDidReceiveMessage((e=>this.handleMessageFromWebView(t.webview,e)),void 0,this._context.subscriptions),t}embedTheme(e){return[2,3].includes(i.window.activeColorTheme.kind)?e.replace("<script>var ClientConfig={}<\/script>","<script>var ClientConfig={'theme':'dark'}<\/script>"):e}handleMessageFromWebView(e,t){switch(t.kind){case"ShowMessage":return void i.window.showInformationMessage(t.data);case"ShowError":return void i.window.showErrorMessage(`az-func-as-a-graph failed. ${t.data}`);case"SaveAs":return this.looksLikeSvg(t.data)?void i.window.showSaveDialog({defaultUri:i.Uri.file("func-map.svg"),filters:{"SVG Images":["svg"]}}).then((e=>{if(!e)return;const s=(new TextEncoder).encode(t.data);i.workspace.fs.writeFile(e,s).then((()=>{i.window.showInformationMessage(`SVG image saved to ${e}`)}),(e=>{i.window.showErrorMessage(`Failed to save. ${e.message??e}`)}))})):void i.window.showErrorMessage("Invalid data format. Save failed.");case"SaveFunctionGraphAsJson":if(!this._traversalResult)return;return void i.window.showSaveDialog({defaultUri:i.Uri.file("func-map.json"),filters:{JSON:["json"]}}).then((e=>{if(!e)return;const t=(new TextEncoder).encode(JSON.stringify(this._traversalResult,null,3));i.workspace.fs.writeFile(e,t).then((()=>{i.window.showInformationMessage(`Diagram JSON saved to ${e}`)}),(e=>{i.window.showErrorMessage(`Failed to save. ${e.message??e}`)}))}));case"GotoFunctionCode":if(!this._traversalResult)return;const a=t.data;var s;return s=a.startsWith("proxy.")?this._traversalResult.proxies[a.substr(6)]:this._traversalResult.functions[a],void i.window.showTextDocument(i.Uri.parse(s.filePath)).then((e=>{const t=e.document.positionAt(s.pos?s.pos:0);e.selection=new i.Selection(t,t),e.revealRange(new i.Range(t,t))}));case"Refresh":return void r.FunctionProjectParser.parseFunctions(this._functionProjectUri.toString(),new n.FileSystemWrapper,console.log).then((t=>{this._traversalResult=t,e.postMessage(this._traversalResult)})).catch((t=>{this._traversalResult=void 0,e.postMessage(void 0),i.window.showErrorMessage(`az-func-as-a-graph failed. ${t.message??t}`)}))}}fixLinksToStatics(e,t,s){var r=e;const n=/ (href|src)="\/([0-9a-z.\/]+)"/gi;for(var a;a=n.exec(e);){const e=a[2],n=i.Uri.joinPath(t,e),o=s.asWebviewUri(n).toString();r=r.replace(`/${e}`,o)}return r}looksLikeSvg(e){return e.startsWith("<svg")&&e.endsWith("</svg>")&&!e.toLowerCase().includes("<script")}}t.FunctionGraphView=a,a.viewType="az-func-as-a-graph"},9519:(e,t,s)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.FileSystemWrapperBase=void 0;const i=s(8605),r=["node_modules","obj",".vs",".vscode",".env",".python_packages",".git",".github"];t.FileSystemWrapperBase=class{async readFunctionsJson(e,t){let s={};const i=(await this.readDir(e)).map((async i=>{const r=this.joinPath(e,i),n=this.joinPath(r,"function.json"),a=await this.isDirectory(r),o=await this.pathExists(n);if(a&&o)try{const e=await this.readFile(n),t=JSON.parse(e);s[i]={bindings:t.bindings,isCalledBy:[],isSignalledBy:[]}}catch(e){t(`>>> Failed to parse ${n}: ${e}`)}}));return await Promise.all(i),s}async readProxiesJson(e,t){const s=this.joinPath(e,"proxies.json");if(!await this.pathExists(s))return{};const r=await this.readFile(s);try{const t=JSON.parse(r).proxies;if(!t)return{};var n=!1;if(await this.isCSharpProjectAsync(e)){const t=await this.findFileRecursivelyAsync(e,".+\\.csproj$",!0),s=new RegExp('\\s*=\\s*"proxies.json"\\s*>');t&&t.code&&!s.exec(t.code)&&(n=!0)}for(var a in t){const e=t[a];e.filePath=s,n&&(e.warningNotAddedToCsProjFile=!0);const o=new RegExp(`"${a}"\\s*:`).exec(r);o&&(e.pos=o.index,e.lineNr=(0,i.posToLineNr)(r,e.pos))}return t}catch(e){return t(`>>> Failed to parse ${s}: ${e}`),{}}}async isCSharpProjectAsync(e){return(await this.readDir(e)).some((e=>(e=e.toLowerCase()).endsWith(".csproj")&&"extensions.csproj"!==e))}async isFSharpProjectAsync(e){return(await this.readDir(e)).some((e=>(e=e.toLowerCase()).endsWith(".fsproj")))}async isJavaProjectAsync(e){return!!await this.findFileRecursivelyAsync(e,".+\\.java$",!1)}async findFileRecursivelyAsync(e,t,s,i){const n="string"==typeof t?new RegExp(t,"i"):t,a=[];for(const t of await this.readDir(e)){const o=this.joinPath(e,t);if(await this.isDirectory(o))r.includes(t.toLowerCase())||a.push(o);else if(n.exec(t)){if(!i)return{filePath:o,code:s?await this.readFile(o):void 0};const e=await this.readFile(o),t=i.exec(e);if(t)return{filePath:o,code:s?e:void 0,pos:t.index,length:t[0].length}}}for(const e of a){const t=await this.findFileRecursivelyAsync(e,n,s,i);if(t)return t}}async*findFunctionsRecursivelyAsync(e,t,s,n){for(const c of await this.readDir(e)){var a=this.joinPath(e,c);if(await this.isDirectory(a)){if(r.includes(c.toLowerCase()))continue;for await(const e of this.findFunctionsRecursivelyAsync(a,t,s,n))yield e}else if(t.exec(c)){const e=await this.readFile(a);for(var o;o=s.exec(e);){let t=(0,i.cleanupFunctionName)(o[n]);const s=o.index+o[0].length,r=(0,i.getCodeInBrackets)(e,s,"{","}","\n");if(!(r.openBracketPos>=0&&r.code)){yield{functionName:t,filePath:a,pos:o.index,lineNr:(0,i.posToLineNr)(e,o.index),declarationCode:e.substring(s),bodyCode:e.substring(s)};break}yield{functionName:t,filePath:a,pos:o.index,lineNr:(0,i.posToLineNr)(e,o.index),declarationCode:r.code.substring(0,r.openBracketPos),bodyCode:r.code.substring(r.openBracketPos)}}}}}}},5970:(e,t,s)=>{Object.defineProperty(t,"__esModule",{value:!0}),t.FunctionProjectParser=void 0;const i=s(8605);class r{static async parseFunctions(e,t,s){const i=await t.findFileRecursivelyAsync(e,"host.json",!1);if(!i)throw new Error("host.json file not found under the provided project path");s(`>>> Found host.json at ${i.filePath}`);const r=t.dirName(i.filePath);let a;return await t.isCSharpProjectAsync(r)?a=new o(t,s):await t.isFSharpProjectAsync(r)?a=new c(t,s):await t.isJavaProjectAsync(r)?a=new u(t,s):(a=new n(t,s),e=r),{functions:await a.traverseFunctions(e),proxies:await t.readProxiesJson(e,s),projectFolder:e}}constructor(e,t){this._fileSystemWrapper=e,this._log=t}async mapOrchestratorsAndActivitiesAsync(e,t){const s=Object.keys(e),r=s.filter((t=>e[t].bindings.some((e=>"orchestrationTrigger"===e.type)))),n=await this.getFunctionsAndTheirCodesAsync(r,t),a=Object.keys(e).filter((t=>e[t].bindings.some((e=>"activityTrigger"===e.type)))),o=await this.getFunctionsAndTheirCodesAsync(a,t),c=s.filter((t=>e[t].bindings.some((e=>"entityTrigger"===e.type)))),u=await this.getFunctionsAndTheirCodesAsync(c,t),l=s.filter((t=>!e[t].bindings.some((e=>["orchestrationTrigger","activityTrigger","entityTrigger"].includes(e.type))))),g=await this.getFunctionsAndTheirCodesAsync(l,t);for(const t of n){const s=i.TraversalRegexes.getStartNewOrchestrationRegex(t.name);for(const i of g)s.exec(i.code)&&(e[t.name].isCalledBy=e[t.name].isCalledBy??[],e[t.name].isCalledBy.push(i.name));for(const s of n)t.name!==s.name&&i.TraversalRegexes.getCallSubOrchestratorRegex(s.name).exec(t.code)&&(e[s.name].isCalledBy=e[s.name].isCalledBy??[],e[s.name].isCalledBy.push(t.name));(0,i.mapActivitiesToOrchestrator)(e,t,a),i.TraversalRegexes.continueAsNewRegex.exec(t.code)&&(e[t.name].isCalledByItself=!0);const r=(0,i.getEventNames)(t.code);for(const s of r){const r=i.TraversalRegexes.getRaiseEventRegex(s);for(const i of g)r.exec(i.code)&&(e[t.name].isSignalledBy=e[t.name].isSignalledBy??[],e[t.name].isSignalledBy.push({name:i.name,signalName:s}))}}for(const t of u)for(const s of g)i.TraversalRegexes.getSignalEntityRegex(t.name).exec(s.code)&&(e[t.name].isCalledBy=e[t.name].isCalledBy??[],e[t.name].isCalledBy.push(s.name));for(const t of g.concat(n).concat(o).concat(u))e[t.name].filePath=t.filePath,e[t.name].pos=t.pos,e[t.name].lineNr=t.lineNr;return e}}t.FunctionProjectParser=r;class n extends r{async traverseFunctions(e){let t;return t=await this._fileSystemWrapper.readFunctionsJson(e,this._log),t=await this.mapOrchestratorsAndActivitiesAsync(t,e),t}async getFunctionsAndTheirCodesAsync(e,t){const s=e.map((async e=>{let s=await this._fileSystemWrapper.findFileRecursivelyAsync(this._fileSystemWrapper.joinPath(t,e),"(index\\.ts|index\\.js|__init__\\.py)$",!0);if(!s)return;const r=s.pos?s.pos:0,n=(0,i.posToLineNr)(s.code,r);return{name:e,code:s.code,filePath:s.filePath,pos:r,lineNr:n}}));return(await Promise.all(s)).filter((e=>!!e))}}class a extends r{async traverseFunctions(e){let t;return t=await this.traverseProjectCode(e),t=await this.mapOrchestratorsAndActivitiesAsync(t,e),t}}class o extends a{async getFunctionsAndTheirCodesAsync(e,t){const s=e.map((async e=>{const s=await this._fileSystemWrapper.findFileRecursivelyAsync(t,".+\\.cs$",!0,i.TraversalRegexes.getDotNetFunctionNameRegex(e));if(!s)return;const r=s.pos?s.pos:0,n=(0,i.posToLineNr)(s.code,r);return{name:e,code:(0,i.getCodeInBrackets)(s.code,s.pos+s.length,"{","}","\n").code,filePath:s.filePath,pos:r,lineNr:n}}));return(await Promise.all(s)).filter((e=>!!e))}async traverseProjectCode(e){const t={},s=new RegExp(".+\\.cs$","i");for await(const r of this._fileSystemWrapper.findFunctionsRecursivelyAsync(e,s,i.BindingsParser.functionAttributeRegex,3)){const n=i.BindingsParser.tryExtractBindings(r.declarationCode);n.some((e=>"orchestrationTrigger"===e.type))||n.some((e=>"entityTrigger"===e.type))||n.some((e=>"activityTrigger"===e.type))||n.push(...await this.extractOutputBindings(e,r.declarationCode,s)),t[r.functionName]={filePath:r.filePath,pos:r.pos,lineNr:r.lineNr,bindings:[...n]}}return t}async extractOutputBindings(e,t,s){const r=i.BindingsParser.functionReturnTypeRegex.exec(t);if(!r)return[];const n=(0,i.removeNamespace)(r[3]);if(!n)return[];const a=await this._fileSystemWrapper.findFileRecursivelyAsync(e,s,!0,i.TraversalRegexes.getClassDefinitionRegex(n));if(!a)return[];const o=(0,i.getCodeInBrackets)(a.code,(a.pos??0)+(a.length??0),"{","}");return o.code?i.BindingsParser.tryExtractBindings(o.code):[]}}class c extends a{async getFunctionsAndTheirCodesAsync(e,t){const s=e.map((async e=>{const s=await this._fileSystemWrapper.findFileRecursivelyAsync(t,".+\\.fs$",!0,i.TraversalRegexes.getDotNetFunctionNameRegex(e));if(!s)return;const r=(0,i.getCodeInBrackets)(s.code,s.pos+s.length,"{","}","\n").code,n=s.pos?s.pos:0,a=(0,i.posToLineNr)(s.code,n);return{name:e,code:r,filePath:s.filePath,pos:n,lineNr:a}}));return(await Promise.all(s)).filter((e=>!!e))}async traverseProjectCode(e){const t={};for await(const s of this._fileSystemWrapper.findFunctionsRecursivelyAsync(e,new RegExp(".+\\.fs$","i"),i.BindingsParser.fSharpFunctionAttributeRegex,2)){const e=i.BindingsParser.tryExtractBindings(s.declarationCode);t[s.functionName]={filePath:s.filePath,pos:s.pos,lineNr:s.lineNr,bindings:[...e]}}return t}}class u extends a{async getFunctionsAndTheirCodesAsync(e,t){const s=e.map((async e=>{const s=await this._fileSystemWrapper.findFileRecursivelyAsync(t,".+\\.java$",!0,i.TraversalRegexes.getDotNetFunctionNameRegex(e));if(!s)return;const r=(0,i.getCodeInBrackets)(s.code,s.pos+s.length,"{","}","\n").code,n=s.pos?s.pos:0,a=(0,i.posToLineNr)(s.code,n);return{name:e,code:r,filePath:s.filePath,pos:n,lineNr:a}}));return(await Promise.all(s)).filter((e=>!!e))}async traverseProjectCode(e){const t={};for await(const s of this._fileSystemWrapper.findFunctionsRecursivelyAsync(e,new RegExp(".+\\.java$","i"),i.BindingsParser.javaFunctionAttributeRegex,1)){const e=i.BindingsParser.tryExtractBindings(s.declarationCode);t[s.functionName]={filePath:s.filePath,pos:s.pos,lineNr:s.lineNr,bindings:[...e]}}return t}}},8605:(e,t)=>{function s(e){if(!e)return e;const t=e.lastIndexOf(".");return t>=0&&(e=e.substring(t+1)),e.trim()}function i(e,t,s,i,r=""){for(var n=0,a=-1,o=!r,c=t;c<e.length;c++){switch(e[c]){case s:n<=0&&(a=c),n++;break;case i:if(--n<=0&&o)return{code:e.substring(t,c+1),openBracketPos:a-t}}n>0&&r.includes(e[c])&&(o=!0)}return{code:"",openBracketPos:-1}}Object.defineProperty(t,"__esModule",{value:!0}),t.BindingsParser=t.TraversalRegexes=t.getCodeInBracketsReverse=t.getCodeInBrackets=t.posToLineNr=t.mapActivitiesToOrchestrator=t.getEventNames=t.removeNamespace=t.cleanupFunctionName=void 0,t.cleanupFunctionName=function(e){if(!e)return e;const t=new RegExp("nameof\\s*\\(\\s*([\\w\\.]+)\\s*\\)").exec(e);return t?s(t[1]):(e=e.trim()).startsWith('"')?e.replace(/^"/,"").replace(/"$/,""):s(e)},t.removeNamespace=s,t.getEventNames=function(e){const t=[],s=r.waitForExternalEventRegex;for(var i;i=s.exec(e);)t.push(i[4]);return t},t.mapActivitiesToOrchestrator=function(e,t,s){for(const i of s)r.getCallActivityRegex(i).exec(t.code)&&(e[i].isCalledBy=e[i].isCalledBy??[],e[i].isCalledBy.push(t.name))},t.posToLineNr=function(e,t){if(!e)return 0;const s=e.substr(0,t).match(/(\r\n|\r|\n)/g);return s?s.length+1:1},t.getCodeInBrackets=i,t.getCodeInBracketsReverse=function(e,t,s){for(var i=0,r=0,n=e.length-1;n>=0;n--)switch(e[n]){case s:i<=0&&(r=n),i++;break;case t:if(--i<=0)return{code:e.substring(0,r+1),openBracketPos:n}}return{code:"",openBracketPos:-1}};class r{static getStartNewOrchestrationRegex(e){return new RegExp(`(StartNew|StartNewAsync|start_new|scheduleNewOrchestrationInstance)(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${e}\\s*["'\\),]{1}`,"i")}static getCallSubOrchestratorRegex(e){return new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${e}\\s*["'\\),]{1}`,"i")}static getRaiseEventRegex(e){return new RegExp(`(RaiseEvent|raise_event)(Async)?(.|\r|\n)*${e}`,"i")}static getSignalEntityRegex(e){return new RegExp(`${e}\\s*["'>]{1}`)}static getDotNetFunctionNameRegex(e){return new RegExp(`FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)${e}\\s*["'\`\\)]{1}`)}static getJavaFunctionNameRegex(e){return new RegExp(`@\\s*FunctionName\\s*\\(["\\s\\w\\.-]*${e}"?\\)`)}static getCallActivityRegex(e){return new RegExp(`(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*["'\`]?${e}\\s*["'\`\\),]{1}`,"i")}static getClassDefinitionRegex(e){return new RegExp(`class\\s*${e}`)}}t.TraversalRegexes=r,r.continueAsNewRegex=new RegExp("ContinueAsNew\\s*\\(","i"),r.waitForExternalEventRegex=new RegExp("(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w,\\.-\\[\\]\\(\\)\\<\\>]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)?([\\s\\w\\.-]+)\\s*[\"'`\\),]{1}","gi");class n{static tryExtractBindings(e){const t=[];if(!e)return t;const s=this.bindingAttributeRegex;for(var r;r=s.exec(e);){const s=!!r[3];let n=r[4];n.endsWith("Attribute")&&(n=n.substring(0,n.length-"Attribute".length));const a=r.index+r[0].length,o=i(e,a,"(",")","").code;this.isOutRegex.lastIndex=a+o.length;const c=!!this.isOutRegex.exec(e);switch(n){case"BlobInput":case"BlobOutput":case"Blob":{const e={type:"blob",direction:"Blob"===n?s||c?"out":"in":"BlobOutput"===n?"out":"in"},i=this.blobParamsRegex.exec(o);i&&(e.path=i[1]),t.push(e);break}case"BlobTrigger":{const e={type:"blobTrigger"},s=this.blobParamsRegex.exec(o);s&&(e.path=s[1]),t.push(e);break}case"TableInput":case"TableOutput":case"Table":{const e={type:"table",direction:"Table"===n?s||c?"out":"in":"TableOutput"===n?"out":"in"},i=this.singleParamRegex.exec(o);i&&(e.tableName=i[2]),t.push(e);break}case"CosmosDBInput":case"CosmosDBOutput":case"CosmosDB":{const e={type:"cosmosDB",direction:"CosmosDB"===n?s||c?"out":"in":"CosmosDBOutput"===n?"out":"in"},i=this.cosmosDbParamsRegex.exec(o);i&&(e.databaseName=i[1],e.collectionName=i[3]),t.push(e);break}case"CosmosDBTrigger":{const e={type:"cosmosDBTrigger"},s=this.singleParamRegex.exec(o);s&&(e.databaseName=s[2]),t.push(e);break}case"EventGrid":case"EventGridOutput":{const e={type:"eventGrid",direction:"out"},s=this.eventGridParamsRegex.exec(o);s&&(e.topicEndpointUri=s[1],e.topicKeySetting=s[3]),t.push(e);break}case"EventGridTrigger":{const e={type:"eventGridTrigger"},s=this.eventGridParamsRegex.exec(o);s&&(e.topicEndpointUri=s[1],e.topicKeySetting=s[3]),t.push(e);break}case"EventHub":case"EventHubOutput":{const e={type:"eventHub",direction:"out"},s=this.eventHubParamsRegex.exec(o);s&&(e.eventHubName=s[1]),t.push(e);break}case"EventHubTrigger":{const e={type:"eventHubTrigger"},s=this.eventHubParamsRegex.exec(o);s&&(e.eventHubName=s[1]),t.push(e);break}case"Kafka":case"KafkaOutput":{const e={type:"kafka",direction:"out"},s=this.singleParamRegex.exec(o);s&&(e.brokerList=s[2]),t.push(e);break}case"KafkaTrigger":{const e={type:"kafkaTrigger"},s=this.singleParamRegex.exec(o);s&&(e.brokerList=s[2]),t.push(e);break}case"Queue":case"QueueOutput":{const e={type:"queue",direction:"out"},s=this.singleParamRegex.exec(o);s&&(e.queueName=s[2]),t.push(e);break}case"QueueTrigger":{const e={type:"queueTrigger"},s=this.singleParamRegex.exec(o);s&&(e.queueName=s[2]),t.push(e);break}case"ServiceBus":case"ServiceBusOutput":{const e={type:"serviceBus",direction:"out"},s=this.singleParamRegex.exec(o);s&&(e.queueName=s[2]),t.push(e);break}case"ServiceBusTrigger":case"ServiceBusQueueTrigger":case"ServiceBusTopicTrigger":{const e={type:"serviceBusTrigger"},s=this.singleParamRegex.exec(o);s&&(e.queueName=s[2]),t.push(e);break}case"SignalRConnectionInfo":case"SignalRConnectionInfoInput":{const e={type:"signalRConnectionInfo",direction:"in"},s=this.signalRConnInfoParamsRegex.exec(o);s&&(e.hubName=s[1]),t.push(e);break}case"SignalR":case"SignalROutput":{const e={type:"signalR",direction:"out"},s=this.signalRParamsRegex.exec(o);s&&(e.hubName=s[1]),t.push(e);break}case"SignalRTrigger":{const e={type:"signalRTrigger"},s=this.signalRParamsRegex.exec(o);s&&(e.hubName=s[1]),t.push(e);break}case"RabbitMQ":case"RabbitMQOutput":{const e={type:"rabbitMQ",direction:"out"},s=this.rabbitMqParamsRegex.exec(o);s&&(e.queueName=s[1]),t.push(e);break}case"RabbitMQTrigger":{const e={type:"rabbitMQTrigger"},s=this.rabbitMqParamsRegex.exec(o);s&&(e.queueName=s[1]),t.push(e);break}case"SendGrid":case"SendGridOutput":t.push({type:"sendGrid",direction:"out"});break;case"TwilioSms":t.push({type:"twilioSms",direction:"out"});break;case"HttpTrigger":{const e={type:"httpTrigger",methods:[]},s=this.httpTriggerRouteRegex.exec(o);s&&(e.route=s[1]);const i=o.toLowerCase();for(const t of this.httpMethods)i.includes(`"${t}"`)&&e.methods.push(t);t.push(e),t.push({type:"http",direction:"out"});break}case"OrchestrationTrigger":case"DurableOrchestrationTrigger":t.push({type:"orchestrationTrigger",direction:"in"});break;case"ActivityTrigger":case"DurableActivityTrigger":t.push({type:"activityTrigger",direction:"in"});break;case"EntityTrigger":case"DurableEntityTrigger":t.push({type:"entityTrigger",direction:"in"});break;default:t.push({type:n,direction:s||c?"out":"in"})}}return t}}t.BindingsParser=n,n.bindingAttributeRegex=new RegExp("(\\[|@)(<)?\\s*(return:)?\\s*(\\w+)","g"),n.singleParamRegex=new RegExp('("|nameof\\s*\\()?([\\w\\.-]+)'),n.eventHubParamsRegex=new RegExp('"([^"]+)"'),n.signalRParamsRegex=new RegExp('"([^"]+)"'),n.rabbitMqParamsRegex=new RegExp('"([^"]+)"'),n.blobParamsRegex=new RegExp('"([^"]+)"'),n.cosmosDbParamsRegex=new RegExp('"([^"]+)"(.|\r|\n)+?"([^"]+)"'),n.signalRConnInfoParamsRegex=new RegExp('"([^"]+)"'),n.eventGridParamsRegex=new RegExp('"([^"]+)"(.|\r|\n)+?"([^"]+)"'),n.isOutRegex=new RegExp("^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()","g"),n.httpMethods=["get","head","post","put","delete","connect","options","trace","patch"],n.httpTriggerRouteRegex=new RegExp('Route\\s*=\\s*"(.*)"'),n.functionAttributeRegex=new RegExp('\\[\\s*Function(Name)?(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]',"g"),n.functionReturnTypeRegex=new RegExp("public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)"),n.javaFunctionAttributeRegex=new RegExp('@\\s*FunctionName\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)',"g"),n.fSharpFunctionAttributeRegex=new RegExp('\\[<\\s*Function(Name)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)',"g")},9496:e=>{e.exports=require("vscode")}},t={};function s(i){var r=t[i];if(void 0!==r)return r.exports;var n=t[i]={exports:{}};return e[i](n,n.exports,s),n.exports}var i={};(()=>{var e=i;Object.defineProperty(e,"__esModule",{value:!0}),e.deactivate=e.activate=void 0;const t=s(9496),r=s(1413),n=s(2083);let a=[];e.activate=async function(e){const s=new r.FileSystemWrapper;if(e.subscriptions.push(t.commands.registerCommand("az-func-as-a-graph.ShowGraph",(async i=>{if(i){const r=i.toString();return void(r.toLowerCase().endsWith("host.json")&&a.push(new n.FunctionGraphView(e,t.Uri.parse(s.dirName(r)))))}if(!t.workspace.workspaceFolders)return;let r=!1;for(const i of t.workspace.workspaceFolders){const o=t.Uri.joinPath(i.uri,"host.json").toString();await s.pathExists(o)&&(a.push(new n.FunctionGraphView(e,i.uri)),r=!0)}!r&&t.workspace.workspaceFolders.length&&a.push(new n.FunctionGraphView(e,t.workspace.workspaceFolders[0].uri))}))),t.workspace.workspaceFolders&&t.workspace.getConfiguration("az-func-as-a-graph").get("showGraphAtStartup",!0))for(const i of t.workspace.workspaceFolders){const r=t.Uri.joinPath(i.uri,"host.json").toString();await s.pathExists(r)&&a.push(new n.FunctionGraphView(e,i.uri))}},e.deactivate=function(){for(const e of a)e.cleanup()}})();var r=exports;for(var n in i)r[n]=i[n];i.__esModule&&Object.defineProperty(r,"__esModule",{value:!0})})();
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ([
+/* 0 */,
+/* 1 */
+/***/ ((module) => {
+
+module.exports = require("vscode");
+
+/***/ }),
+/* 2 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileSystemWrapper = void 0;
+const vscode = __webpack_require__(1);
+const fileSystemWrapperBase_1 = __webpack_require__(3);
+class FileSystemWrapper extends fileSystemWrapperBase_1.FileSystemWrapperBase {
+    joinPath(path1, path2) {
+        return vscode.Uri.joinPath(vscode.Uri.parse(path1), path2).toString();
+    }
+    dirName(path1) {
+        const i = path1.lastIndexOf('/');
+        if (i < 0) {
+            throw new Error(`Failed to extract parent folder name from path ${path1}. The path does not contain a separator.`);
+        }
+        return path1.substring(0, i);
+    }
+    async readFile(path) {
+        const uri = vscode.Uri.parse(path);
+        const bytes = await vscode.workspace.fs.readFile(uri);
+        return new TextDecoder().decode(bytes);
+    }
+    async isDirectory(path) {
+        const uri = vscode.Uri.parse(path);
+        const stat = await vscode.workspace.fs.stat(uri);
+        return stat.type === vscode.FileType.Directory;
+    }
+    async readDir(path) {
+        const uri = vscode.Uri.parse(path);
+        const files = await vscode.workspace.fs.readDirectory(uri);
+        return files.map(f => f[0]);
+    }
+    async pathExists(path) {
+        const uri = vscode.Uri.parse(path);
+        try {
+            const stat = await vscode.workspace.fs.stat(uri);
+            return stat.type === vscode.FileType.File || stat.type === vscode.FileType.Directory;
+        }
+        catch (err) {
+            return false;
+        }
+    }
+}
+exports.FileSystemWrapper = FileSystemWrapper;
+
+
+/***/ }),
+/* 3 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FileSystemWrapperBase = void 0;
+const traverseFunctionProjectUtils_1 = __webpack_require__(4);
+const ExcludedFolders = ['node_modules', 'target', 'bin', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
+class FileSystemWrapperBase {
+    async readFunctionsJson(hostJsonFolder, log) {
+        let functions = {};
+        // Reading function.json files, in parallel
+        const promises = (await this.readDir(hostJsonFolder)).map(async (functionName) => {
+            const fullPath = this.joinPath(hostJsonFolder, functionName);
+            const functionJsonFilePath = this.joinPath(fullPath, 'function.json');
+            const isDirectory = await this.isDirectory(fullPath);
+            const functionJsonExists = await this.pathExists(functionJsonFilePath);
+            if (isDirectory && functionJsonExists) {
+                try {
+                    const functionJsonString = await this.readFile(functionJsonFilePath);
+                    const functionJson = JSON.parse(functionJsonString);
+                    functions[functionName] = { bindings: functionJson.bindings, isCalledBy: [], isSignalledBy: [] };
+                }
+                catch (err) {
+                    log(`>>> Failed to parse ${functionJsonFilePath}: ${err}`);
+                }
+            }
+        });
+        await Promise.all(promises);
+        return functions;
+    }
+    async readProxiesJson(projectFolder, log) {
+        const proxiesJsonPath = this.joinPath(projectFolder, 'proxies.json');
+        if (!(await this.pathExists(proxiesJsonPath))) {
+            return {};
+        }
+        const proxiesJsonString = await this.readFile(proxiesJsonPath);
+        try {
+            const proxies = JSON.parse(proxiesJsonString).proxies;
+            if (!proxies) {
+                return {};
+            }
+            var notAddedToCsProjFile = false;
+            if (await this.isCSharpProjectAsync(projectFolder)) {
+                // Also checking that proxies.json is added to .csproj file
+                const csProjFile = await this.findFileRecursivelyAsync(projectFolder, '.+\\.csproj$', true);
+                const proxiesJsonEntryRegex = new RegExp(`\\s*=\\s*"proxies.json"\\s*>`);
+                if (!!csProjFile && csProjFile.code && (!proxiesJsonEntryRegex.exec(csProjFile.code))) {
+                    notAddedToCsProjFile = true;
+                }
+            }
+            // Also adding filePath and lineNr
+            for (var proxyName in proxies) {
+                const proxy = proxies[proxyName];
+                proxy.filePath = proxiesJsonPath;
+                if (notAddedToCsProjFile) {
+                    proxy.warningNotAddedToCsProjFile = true;
+                }
+                const proxyNameRegex = new RegExp(`"${proxyName}"\\s*:`);
+                const match = proxyNameRegex.exec(proxiesJsonString);
+                if (!!match) {
+                    proxy.pos = match.index;
+                    proxy.lineNr = (0, traverseFunctionProjectUtils_1.posToLineNr)(proxiesJsonString, proxy.pos);
+                }
+            }
+            return proxies;
+        }
+        catch (err) {
+            log(`>>> Failed to parse ${proxiesJsonPath}: ${err}`);
+            return {};
+        }
+    }
+    async isCSharpProjectAsync(projectFolder) {
+        return (await this.readDir(projectFolder)).some(fn => {
+            fn = fn.toLowerCase();
+            return (fn.endsWith('.csproj') && fn !== 'extensions.csproj');
+        });
+    }
+    async isFSharpProjectAsync(projectFolder) {
+        return (await this.readDir(projectFolder)).some(fn => {
+            fn = fn.toLowerCase();
+            return fn.endsWith('.fsproj');
+        });
+    }
+    async isJavaProjectAsync(projectFolder) {
+        const javaFileMatch = await this.findFileRecursivelyAsync(projectFolder, `.+\\.java$`, false);
+        return !!javaFileMatch;
+    }
+    async findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
+        const fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;
+        const subFolders = [];
+        for (const name of await this.readDir(folder)) {
+            const fullPath = this.joinPath(folder, name);
+            const isDirectory = await this.isDirectory(fullPath);
+            if (!!isDirectory) {
+                if (!ExcludedFolders.includes(name.toLowerCase())) {
+                    subFolders.push(fullPath);
+                }
+            }
+            else if (!!fileNameRegex.exec(name)) {
+                if (!pattern) {
+                    return {
+                        filePath: fullPath,
+                        code: returnFileContents ? (await this.readFile(fullPath)) : undefined
+                    };
+                }
+                const code = await this.readFile(fullPath);
+                const match = pattern.exec(code);
+                if (!!match) {
+                    return {
+                        filePath: fullPath,
+                        code: returnFileContents ? code : undefined,
+                        pos: match.index,
+                        length: match[0].length
+                    };
+                }
+            }
+        }
+        // Now recursively trying subfolders. Doing this _after_ checking the current folder.
+        for (const subFolder of subFolders) {
+            const result = await this.findFileRecursivelyAsync(subFolder, fileNameRegex, returnFileContents, pattern);
+            if (!!result) {
+                return result;
+            }
+        }
+        return undefined;
+    }
+    async *findFilesRecursivelyAsync(folder, fileNameRegex) {
+        for (const name of await this.readDir(folder)) {
+            var fullPath = this.joinPath(folder, name);
+            const isDirectory = await this.isDirectory(fullPath);
+            if (!!isDirectory) {
+                if (ExcludedFolders.includes(name.toLowerCase())) {
+                    continue;
+                }
+                for await (const path of this.findFilesRecursivelyAsync(fullPath, fileNameRegex)) {
+                    yield path;
+                }
+            }
+            else if (!!fileNameRegex.exec(name)) {
+                yield fullPath;
+            }
+        }
+    }
+    async *findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeRegex, functionNamePosInRegex) {
+        for await (const fullPath of this.findFilesRecursivelyAsync(folder, fileNameRegex)) {
+            const code = await this.readFile(fullPath);
+            var match;
+            while (!!(match = functionAttributeRegex.exec(code))) {
+                let functionName = (0, traverseFunctionProjectUtils_1.cleanupFunctionName)(match[functionNamePosInRegex]);
+                const functionAttributeEndPos = match.index + match[0].length;
+                const body = (0, traverseFunctionProjectUtils_1.getCodeInBrackets)(code, functionAttributeEndPos, '{', '}', '\n');
+                if (body.openBracketPos >= 0 && !!body.code) {
+                    yield {
+                        functionName,
+                        filePath: fullPath,
+                        pos: match.index,
+                        lineNr: (0, traverseFunctionProjectUtils_1.posToLineNr)(code, match.index),
+                        declarationCode: body.code.substring(0, body.openBracketPos),
+                        bodyCode: body.code.substring(body.openBracketPos)
+                    };
+                }
+                else {
+                    // Returning the rest of the file
+                    yield {
+                        functionName,
+                        filePath: fullPath,
+                        pos: match.index,
+                        lineNr: (0, traverseFunctionProjectUtils_1.posToLineNr)(code, match.index),
+                        declarationCode: code.substring(functionAttributeEndPos),
+                        bodyCode: code.substring(functionAttributeEndPos)
+                    };
+                    break;
+                }
+            }
+        }
+    }
+}
+exports.FileSystemWrapperBase = FileSystemWrapperBase;
+
+
+/***/ }),
+/* 4 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BindingsParser = exports.TraversalRegexes = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.posToLineNr = exports.mapActivitiesToOrchestrator = exports.getEventNames = exports.removeNamespace = exports.cleanupFunctionName = void 0;
+function cleanupFunctionName(name) {
+    if (!name) {
+        return name;
+    }
+    const nameofMatch = new RegExp(`nameof\\s*\\(\\s*([\\w\\.]+)\\s*\\)`).exec(name);
+    if (!!nameofMatch) {
+        return removeNamespace(nameofMatch[1]);
+    }
+    name = name.trim();
+    if (name.startsWith('"')) {
+        return name.replace(/^"/, '').replace(/"$/, '');
+    }
+    return removeNamespace(name);
+}
+exports.cleanupFunctionName = cleanupFunctionName;
+function removeNamespace(name) {
+    if (!name) {
+        return name;
+    }
+    const dotPos = name.lastIndexOf('.');
+    if (dotPos >= 0) {
+        name = name.substring(dotPos + 1);
+    }
+    return name.trim();
+}
+exports.removeNamespace = removeNamespace;
+// Tries to extract event names that this orchestrator is awaiting
+function getEventNames(orchestratorCode) {
+    const result = [];
+    const regex = TraversalRegexes.waitForExternalEventRegex;
+    var match;
+    while (!!(match = regex.exec(orchestratorCode))) {
+        result.push(match[4]);
+    }
+    return result;
+}
+exports.getEventNames = getEventNames;
+// Tries to match orchestrator with its activities
+function mapActivitiesToOrchestrator(functions, orch, activityNames) {
+    for (const activityName of activityNames) {
+        // If this orchestrator seems to be calling this activity
+        const regex = TraversalRegexes.getCallActivityRegex(activityName);
+        if (!!regex.exec(orch.code)) {
+            // Then mapping this activity to this orchestrator
+            functions[activityName].isCalledBy = functions[activityName].isCalledBy ?? [];
+            functions[activityName].isCalledBy.push(orch.name);
+        }
+    }
+}
+exports.mapActivitiesToOrchestrator = mapActivitiesToOrchestrator;
+// Primitive way of getting a line number out of symbol position
+function posToLineNr(code, pos) {
+    if (!code) {
+        return 0;
+    }
+    const lineBreaks = code.substr(0, pos).match(/(\r\n|\r|\n)/g);
+    return !lineBreaks ? 1 : lineBreaks.length + 1;
+}
+exports.posToLineNr = posToLineNr;
+// Complements regex's inability to keep up with nested brackets
+function getCodeInBrackets(str, startFrom, openingBracket, closingBracket, mustHaveSymbols = '') {
+    var bracketCount = 0, openBracketPos = -1, mustHaveSymbolFound = !mustHaveSymbols;
+    for (var i = startFrom; i < str.length; i++) {
+        switch (str[i]) {
+            case openingBracket:
+                if (bracketCount <= 0) {
+                    openBracketPos = i;
+                }
+                bracketCount++;
+                break;
+            case closingBracket:
+                bracketCount--;
+                if (bracketCount <= 0 && mustHaveSymbolFound) {
+                    return { code: str.substring(startFrom, i + 1), openBracketPos: openBracketPos - startFrom };
+                }
+                break;
+        }
+        if (bracketCount > 0 && mustHaveSymbols.includes(str[i])) {
+            mustHaveSymbolFound = true;
+        }
+    }
+    return { code: '', openBracketPos: -1 };
+}
+exports.getCodeInBrackets = getCodeInBrackets;
+// Complements regex's inability to keep up with nested brackets
+function getCodeInBracketsReverse(str, openingBracket, closingBracket) {
+    var bracketCount = 0, closingBracketPos = 0;
+    for (var i = str.length - 1; i >= 0; i--) {
+        switch (str[i]) {
+            case closingBracket:
+                if (bracketCount <= 0) {
+                    closingBracketPos = i;
+                }
+                bracketCount++;
+                break;
+            case openingBracket:
+                bracketCount--;
+                if (bracketCount <= 0) {
+                    return { code: str.substring(0, closingBracketPos + 1), openBracketPos: i };
+                }
+                break;
+        }
+    }
+    return { code: '', openBracketPos: -1 };
+}
+exports.getCodeInBracketsReverse = getCodeInBracketsReverse;
+// General-purpose regexes
+class TraversalRegexes {
+    static getStartNewOrchestrationRegex(orchName) {
+        return new RegExp(`(StartNew|StartNewAsync|start_new|scheduleNewOrchestrationInstance)(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${orchName}\\s*["'\\),]{1}`, 'i');
+    }
+    static getCallSubOrchestratorRegex(subOrchName) {
+        return new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${subOrchName}\\s*["'\\),]{1}`, 'i');
+    }
+    static getRaiseEventRegex(eventName) {
+        return new RegExp(`(RaiseEvent|raise_event)(Async)?(.|\r|\n)*${eventName}`, 'i');
+    }
+    static getSignalEntityRegex(entityName) {
+        return new RegExp(`${entityName}\\s*["'>]{1}`);
+    }
+    static getDotNetFunctionNameRegex(funcName) {
+        return new RegExp(`FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)${funcName}\\s*["'\`\\)]{1}`);
+    }
+    static getJavaFunctionNameRegex(funcName) {
+        return new RegExp(`@\\s*FunctionName\\s*\\(["\\s\\w\\.-]*${funcName}"?\\)`);
+    }
+    static getCallActivityRegex(activityName) {
+        return new RegExp(`(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*["'\`]?${activityName}\\s*["'\`\\),]{1}`, 'i');
+    }
+    static getClassDefinitionRegex(className) {
+        return new RegExp(`class\\s*${className}`);
+    }
+}
+exports.TraversalRegexes = TraversalRegexes;
+TraversalRegexes.continueAsNewRegex = new RegExp(`ContinueAsNew\\s*\\(`, 'i');
+TraversalRegexes.waitForExternalEventRegex = new RegExp(`(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w,\\.-\\[\\]\\(\\)\\<\\>]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)?([\\s\\w\\.-]+)\\s*["'\`\\),]{1}`, 'gi');
+// In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
+class BindingsParser {
+    // Extracts additional bindings info from C#/F# source code
+    static tryExtractBindings(funcCode) {
+        const result = [];
+        if (!funcCode) {
+            return result;
+        }
+        const regex = this.bindingAttributeRegex;
+        var match;
+        while (!!(match = regex.exec(funcCode))) {
+            const isReturn = !!match[3];
+            let attributeName = match[4];
+            if (attributeName.endsWith(`Attribute`)) {
+                attributeName = attributeName.substring(0, attributeName.length - `Attribute`.length);
+            }
+            const attributeCodeStartIndex = match.index + match[0].length;
+            const attributeCode = getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '').code;
+            this.isOutRegex.lastIndex = attributeCodeStartIndex + attributeCode.length;
+            const isOut = !!this.isOutRegex.exec(funcCode);
+            switch (attributeName) {
+                case 'BlobInput':
+                case 'BlobOutput':
+                case 'Blob': {
+                    const binding = {
+                        type: 'blob',
+                        direction: attributeName === 'Blob' ? (isReturn || isOut ? 'out' : 'in') : (attributeName === 'BlobOutput' ? 'out' : 'in')
+                    };
+                    const paramsMatch = this.blobParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.path = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'BlobTrigger': {
+                    const binding = { type: 'blobTrigger' };
+                    const paramsMatch = this.blobParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.path = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'TableInput':
+                case 'TableOutput':
+                case 'Table': {
+                    const binding = {
+                        type: 'table',
+                        direction: attributeName === 'Table' ? (isReturn || isOut ? 'out' : 'in') : (attributeName === 'TableOutput' ? 'out' : 'in')
+                    };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.tableName = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'CosmosDBInput':
+                case 'CosmosDBOutput':
+                case 'CosmosDB': {
+                    const binding = {
+                        type: 'cosmosDB',
+                        direction: attributeName === 'CosmosDB' ? (isReturn || isOut ? 'out' : 'in') : (attributeName === 'CosmosDBOutput' ? 'out' : 'in')
+                    };
+                    const paramsMatch = this.cosmosDbParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.databaseName = paramsMatch[1];
+                        binding.collectionName = paramsMatch[3];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'CosmosDBTrigger': {
+                    const binding = { type: 'cosmosDBTrigger' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.databaseName = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'EventGrid':
+                case 'EventGridOutput': {
+                    const binding = { type: 'eventGrid', direction: 'out' };
+                    const paramsMatch = this.eventGridParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.topicEndpointUri = paramsMatch[1];
+                        binding.topicKeySetting = paramsMatch[3];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'EventGridTrigger': {
+                    const binding = { type: 'eventGridTrigger' };
+                    const paramsMatch = this.eventGridParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.topicEndpointUri = paramsMatch[1];
+                        binding.topicKeySetting = paramsMatch[3];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'EventHub':
+                case 'EventHubOutput': {
+                    const binding = { type: 'eventHub', direction: 'out' };
+                    const paramsMatch = this.eventHubParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.eventHubName = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'EventHubTrigger': {
+                    const binding = { type: 'eventHubTrigger' };
+                    const paramsMatch = this.eventHubParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.eventHubName = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'Kafka':
+                case 'KafkaOutput': {
+                    const binding = { type: 'kafka', direction: 'out' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.brokerList = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'KafkaTrigger': {
+                    const binding = { type: 'kafkaTrigger' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.brokerList = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'Queue':
+                case 'QueueOutput': {
+                    const binding = { type: 'queue', direction: 'out' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'QueueTrigger': {
+                    const binding = { type: 'queueTrigger' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'ServiceBus':
+                case 'ServiceBusOutput': {
+                    const binding = { type: 'serviceBus', direction: 'out' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'ServiceBusTrigger':
+                case 'ServiceBusQueueTrigger':
+                case 'ServiceBusTopicTrigger': {
+                    const binding = { type: 'serviceBusTrigger' };
+                    const paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SignalRConnectionInfo':
+                case 'SignalRConnectionInfoInput': {
+                    const binding = { type: 'signalRConnectionInfo', direction: 'in' };
+                    const paramsMatch = this.signalRConnInfoParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.hubName = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SignalR':
+                case 'SignalROutput': {
+                    const binding = { type: 'signalR', direction: 'out' };
+                    const paramsMatch = this.signalRParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['hubName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SignalRTrigger': {
+                    const binding = { type: 'signalRTrigger' };
+                    const paramsMatch = this.signalRParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['hubName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'RabbitMQ':
+                case 'RabbitMQOutput': {
+                    const binding = { type: 'rabbitMQ', direction: 'out' };
+                    const paramsMatch = this.rabbitMqParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'RabbitMQTrigger': {
+                    const binding = { type: 'rabbitMQTrigger' };
+                    const paramsMatch = this.rabbitMqParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SendGrid':
+                case 'SendGridOutput': {
+                    result.push({ type: 'sendGrid', direction: 'out' });
+                    break;
+                }
+                case 'TwilioSms': {
+                    result.push({ type: 'twilioSms', direction: 'out' });
+                    break;
+                }
+                case 'HttpTrigger': {
+                    const binding = { type: 'httpTrigger', methods: [] };
+                    const httpTriggerRouteMatch = this.httpTriggerRouteRegex.exec(attributeCode);
+                    if (!!httpTriggerRouteMatch) {
+                        binding.route = httpTriggerRouteMatch[1];
+                    }
+                    const lowerAttributeCode = attributeCode.toLowerCase();
+                    for (const httpMethod of this.httpMethods) {
+                        if (lowerAttributeCode.includes(`"${httpMethod}"`)) {
+                            binding.methods.push(httpMethod);
+                        }
+                    }
+                    result.push(binding);
+                    result.push({ type: 'http', direction: 'out' });
+                    break;
+                }
+                case 'OrchestrationTrigger':
+                case 'DurableOrchestrationTrigger': {
+                    result.push({ type: 'orchestrationTrigger', direction: 'in' });
+                    break;
+                }
+                case 'ActivityTrigger':
+                case 'DurableActivityTrigger': {
+                    result.push({ type: 'activityTrigger', direction: 'in' });
+                    break;
+                }
+                case 'EntityTrigger':
+                case 'DurableEntityTrigger': {
+                    result.push({ type: 'entityTrigger', direction: 'in' });
+                    break;
+                }
+                default: {
+                    result.push({ type: attributeName, direction: isReturn || isOut ? 'out' : 'in' });
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+    static getFunctionAttributeRegex() {
+        return new RegExp(`\\[\\s*Function(Name)?(Attribute)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)\\s*\\]`, 'g');
+    }
+    static getJavaFunctionAttributeRegex() {
+        return new RegExp(`@\\s*FunctionName\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
+    }
+    static getFSharpFunctionAttributeRegex() {
+        return new RegExp(`\\[<\\s*Function(Name)?\\s*\\((["\\w\\s\\.\\(\\)-]+)\\)`, 'g');
+    }
+}
+exports.BindingsParser = BindingsParser;
+BindingsParser.bindingAttributeRegex = new RegExp(`(\\[|@)(<)?\\s*(return:)?\\s*(\\w+)`, 'g');
+BindingsParser.singleParamRegex = new RegExp(`("|nameof\\s*\\()?([\\w\\.-]+)`);
+BindingsParser.eventHubParamsRegex = new RegExp(`"([^"]+)"`);
+BindingsParser.signalRParamsRegex = new RegExp(`"([^"]+)"`);
+BindingsParser.rabbitMqParamsRegex = new RegExp(`"([^"]+)"`);
+BindingsParser.blobParamsRegex = new RegExp(`"([^"]+)"`);
+BindingsParser.cosmosDbParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
+BindingsParser.signalRConnInfoParamsRegex = new RegExp(`"([^"]+)"`);
+BindingsParser.eventGridParamsRegex = new RegExp(`"([^"]+)"(.|\r|\n)+?"([^"]+)"`);
+BindingsParser.isOutRegex = new RegExp(`^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()`, 'g');
+BindingsParser.httpMethods = [`get`, `head`, `post`, `put`, `delete`, `connect`, `options`, `trace`, `patch`];
+BindingsParser.httpTriggerRouteRegex = new RegExp(`Route\\s*=\\s*"(.*)"`);
+BindingsParser.functionReturnTypeRegex = new RegExp(`public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)`);
+
+
+/***/ }),
+/* 5 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FunctionGraphView = void 0;
+const vscode = __webpack_require__(1);
+const functionProjectParser_1 = __webpack_require__(6);
+const FileSystemWrapper_1 = __webpack_require__(2);
+// Represents the function graph view
+class FunctionGraphView {
+    constructor(_context, _functionProjectUri) {
+        this._context = _context;
+        this._functionProjectUri = _functionProjectUri;
+        // Reference to the already opened WebView with the main page
+        this._webViewPanel = null;
+        this._staticsFolder = vscode.Uri.joinPath(this._context.extensionUri, 'HtmlStatics');
+        this._webViewPanel = this.showWebView();
+    }
+    // Closes this web view
+    cleanup() {
+        if (!!this._webViewPanel) {
+            this._webViewPanel.dispose();
+        }
+    }
+    // Opens a WebView with function graph page in it
+    showWebView() {
+        const title = `Functions Graph (${this._functionProjectUri.fsPath})`;
+        const panel = vscode.window.createWebviewPanel(FunctionGraphView.viewType, title, vscode.ViewColumn.One, {
+            retainContextWhenHidden: true,
+            enableScripts: true,
+            localResourceRoots: [this._staticsFolder]
+        });
+        const fileUri = vscode.Uri.joinPath(this._staticsFolder, 'index.html');
+        vscode.workspace.fs.readFile(fileUri).then(htmlBytes => {
+            let html = new TextDecoder().decode(htmlBytes);
+            html = this.fixLinksToStatics(html, this._staticsFolder, panel.webview);
+            html = this.embedTheme(html);
+            panel.webview.html = html;
+        }, err => {
+            vscode.window.showErrorMessage(`az-func-as-a-graph failed. ${err.message ?? err}`);
+        });
+        // handle events from WebView
+        panel.webview.onDidReceiveMessage(request => this.handleMessageFromWebView(panel.webview, request), undefined, this._context.subscriptions);
+        return panel;
+    }
+    // Embeds the current color theme
+    embedTheme(html) {
+        if ([2, 3].includes(vscode.window.activeColorTheme.kind)) {
+            return html.replace('<script>var ClientConfig={}</script>', '<script>var ClientConfig={\'theme\':\'dark\'}</script>');
+        }
+        return html;
+    }
+    // Does communication between code in WebView and this class
+    handleMessageFromWebView(webView, request) {
+        switch (request.kind) {
+            case 'ShowMessage':
+                vscode.window.showInformationMessage(request.data);
+                return;
+            case 'ShowError':
+                vscode.window.showErrorMessage(`az-func-as-a-graph failed. ${request.data}`);
+                return;
+            case 'SaveAs':
+                // Just to be extra sure...
+                if (!this.looksLikeSvg(request.data)) {
+                    vscode.window.showErrorMessage(`Invalid data format. Save failed.`);
+                    return;
+                }
+                // Saving some file to local hard drive
+                vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file('func-map.svg'), filters: { 'SVG Images': ['svg'] } }).then(filePath => {
+                    if (!filePath) {
+                        return;
+                    }
+                    const bytes = new TextEncoder().encode(request.data);
+                    vscode.workspace.fs.writeFile(filePath, bytes).then(() => {
+                        vscode.window.showInformationMessage(`SVG image saved to ${filePath}`);
+                    }, err => {
+                        vscode.window.showErrorMessage(`Failed to save. ${err.message ?? err}`);
+                    });
+                });
+                return;
+            case 'SaveFunctionGraphAsJson':
+                if (!this._traversalResult) {
+                    return;
+                }
+                // Saving some file to local hard drive
+                vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file('func-map.json'), filters: { 'JSON': ['json'] } }).then(filePath => {
+                    if (!filePath) {
+                        return;
+                    }
+                    const bytes = new TextEncoder().encode(JSON.stringify(this._traversalResult, null, 3));
+                    vscode.workspace.fs.writeFile(filePath, bytes).then(() => {
+                        vscode.window.showInformationMessage(`Diagram JSON saved to ${filePath}`);
+                    }, err => {
+                        vscode.window.showErrorMessage(`Failed to save. ${err.message ?? err}`);
+                    });
+                });
+                return;
+            case 'GotoFunctionCode':
+                if (!this._traversalResult) {
+                    return;
+                }
+                const functionName = request.data;
+                var functionOrProxy = null;
+                if (functionName.startsWith('proxy.')) {
+                    functionOrProxy = this._traversalResult.proxies[functionName.substr(6)];
+                }
+                else {
+                    functionOrProxy = this._traversalResult.functions[functionName];
+                }
+                vscode.window.showTextDocument(vscode.Uri.parse(functionOrProxy.filePath)).then(ed => {
+                    const pos = ed.document.positionAt(!!functionOrProxy.pos ? functionOrProxy.pos : 0);
+                    ed.selection = new vscode.Selection(pos, pos);
+                    ed.revealRange(new vscode.Range(pos, pos));
+                });
+                return;
+            case 'Refresh':
+                functionProjectParser_1.FunctionProjectParser.parseFunctions(this._functionProjectUri.toString(), new FileSystemWrapper_1.FileSystemWrapper(), console.log).then(res => {
+                    console.log(`>>>>>> ${this._functionProjectUri}: ${Object.keys(res.functions).length} functions`);
+                    this._traversalResult = res;
+                    webView.postMessage(this._traversalResult);
+                }).catch(err => {
+                    this._traversalResult = undefined;
+                    webView.postMessage(undefined);
+                    vscode.window.showErrorMessage(`az-func-as-a-graph failed. ${err.message ?? err}`);
+                });
+                return;
+        }
+    }
+    fixLinksToStatics(originalHtml, staticsFolder, webView) {
+        var resultHtml = originalHtml;
+        const regex = / (href|src)="\/([0-9a-z.\/]+)"/ig;
+        var match;
+        while (match = regex.exec(originalHtml)) {
+            const relativePath = match[2];
+            const localPath = vscode.Uri.joinPath(staticsFolder, relativePath);
+            const newPath = webView.asWebviewUri(localPath).toString();
+            resultHtml = resultHtml.replace(`/${relativePath}`, newPath);
+        }
+        return resultHtml;
+    }
+    // Validates incoming SVG, just to be extra sure...
+    looksLikeSvg(data) {
+        return data.startsWith('<svg') && data.endsWith('</svg>') && !data.toLowerCase().includes('<script');
+    }
+}
+exports.FunctionGraphView = FunctionGraphView;
+FunctionGraphView.viewType = 'az-func-as-a-graph';
+
+
+/***/ }),
+/* 6 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FunctionProjectParser = void 0;
+const traverseFunctionProjectUtils_1 = __webpack_require__(4);
+class FunctionProjectParser {
+    // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
+    // extracted from code (if the project is .Net or Java). Also parses and organizes orchestrators/activities 
+    // (if the project uses Durable Functions)
+    static async parseFunctions(projectFolder, fileSystemWrapper, log) {
+        const hostJsonMatch = await fileSystemWrapper.findFileRecursivelyAsync(projectFolder, 'host.json', false);
+        if (!hostJsonMatch) {
+            throw new Error('host.json file not found under the provided project path');
+        }
+        log(`>>> Found host.json at ${hostJsonMatch.filePath}`);
+        const hostJsonFolder = fileSystemWrapper.dirName(hostJsonMatch.filePath);
+        let parser;
+        if (await fileSystemWrapper.isCSharpProjectAsync(hostJsonFolder)) {
+            parser = new CSharpFunctionProjectParser(fileSystemWrapper, log);
+        }
+        else if (await fileSystemWrapper.isFSharpProjectAsync(hostJsonFolder)) {
+            parser = new FSharpFunctionProjectParser(fileSystemWrapper, log);
+        }
+        else if (await fileSystemWrapper.isJavaProjectAsync(hostJsonFolder)) {
+            parser = new JavaFunctionProjectParser(fileSystemWrapper, log);
+        }
+        else {
+            parser = new FunctionProjectScriptParser(fileSystemWrapper, log);
+            // For script-based functions use host.json's folder as the root
+            projectFolder = hostJsonFolder;
+        }
+        const functions = await parser.traverseFunctions(projectFolder);
+        // Also reading proxies
+        const proxies = await fileSystemWrapper.readProxiesJson(projectFolder, log);
+        return { functions, proxies, projectFolder };
+    }
+    constructor(_fileSystemWrapper, _log) {
+        this._fileSystemWrapper = _fileSystemWrapper;
+        this._log = _log;
+    }
+    // Tries to match orchestrations and their activities by parsing source code
+    async mapOrchestratorsAndActivitiesAsync(functions, projectFolder) {
+        const functionNames = Object.keys(functions);
+        const orchestratorNames = functionNames.filter(name => functions[name].bindings.some((b) => b.type === 'orchestrationTrigger'));
+        const orchestrators = await this.getFunctionsAndTheirCodesAsync(orchestratorNames, projectFolder);
+        const activityNames = Object.keys(functions).filter(name => functions[name].bindings.some((b) => b.type === 'activityTrigger'));
+        const activities = await this.getFunctionsAndTheirCodesAsync(activityNames, projectFolder);
+        const entityNames = functionNames.filter(name => functions[name].bindings.some((b) => b.type === 'entityTrigger'));
+        const entities = await this.getFunctionsAndTheirCodesAsync(entityNames, projectFolder);
+        const otherFunctionNames = functionNames.filter(name => !functions[name].bindings.some((b) => ['orchestrationTrigger', 'activityTrigger', 'entityTrigger'].includes(b.type)));
+        const otherFunctions = await this.getFunctionsAndTheirCodesAsync(otherFunctionNames, projectFolder);
+        for (const orch of orchestrators) {
+            // Trying to match this orchestrator with its calling function
+            const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getStartNewOrchestrationRegex(orch.name);
+            for (const func of otherFunctions) {
+                // If this function seems to be calling that orchestrator
+                if (!!regex.exec(func.code)) {
+                    functions[orch.name].isCalledBy = functions[orch.name].isCalledBy ?? [];
+                    functions[orch.name].isCalledBy.push(func.name);
+                }
+            }
+            // Matching suborchestrators
+            for (const subOrch of orchestrators) {
+                if (orch.name === subOrch.name) {
+                    continue;
+                }
+                // If this orchestrator seems to be calling that suborchestrator
+                const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getCallSubOrchestratorRegex(subOrch.name);
+                if (!!regex.exec(orch.code)) {
+                    // Mapping that suborchestrator to this orchestrator
+                    functions[subOrch.name].isCalledBy = functions[subOrch.name].isCalledBy ?? [];
+                    functions[subOrch.name].isCalledBy.push(orch.name);
+                }
+            }
+            // Mapping activities to orchestrators
+            (0, traverseFunctionProjectUtils_1.mapActivitiesToOrchestrator)(functions, orch, activityNames);
+            // Checking whether orchestrator calls itself
+            if (!!traverseFunctionProjectUtils_1.TraversalRegexes.continueAsNewRegex.exec(orch.code)) {
+                functions[orch.name].isCalledByItself = true;
+            }
+            // Trying to map event producers with their consumers
+            const eventNames = (0, traverseFunctionProjectUtils_1.getEventNames)(orch.code);
+            for (const eventName of eventNames) {
+                const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getRaiseEventRegex(eventName);
+                for (const func of otherFunctions) {
+                    // If this function seems to be sending that event
+                    if (!!regex.exec(func.code)) {
+                        functions[orch.name].isSignalledBy = functions[orch.name].isSignalledBy ?? [];
+                        functions[orch.name].isSignalledBy.push({ name: func.name, signalName: eventName });
+                    }
+                }
+            }
+        }
+        for (const entity of entities) {
+            // Trying to match this entity with its calling function
+            for (const func of otherFunctions) {
+                // If this function seems to be calling that entity
+                const regex = traverseFunctionProjectUtils_1.TraversalRegexes.getSignalEntityRegex(entity.name);
+                if (!!regex.exec(func.code)) {
+                    functions[entity.name].isCalledBy = functions[entity.name].isCalledBy ?? [];
+                    functions[entity.name].isCalledBy.push(func.name);
+                }
+            }
+        }
+        // Also adding file paths and code positions
+        for (const func of otherFunctions.concat(orchestrators).concat(activities).concat(entities)) {
+            functions[func.name].filePath = func.filePath;
+            functions[func.name].pos = func.pos;
+            functions[func.name].lineNr = func.lineNr;
+        }
+        return functions;
+    }
+}
+exports.FunctionProjectParser = FunctionProjectParser;
+class FunctionProjectScriptParser extends FunctionProjectParser {
+    async traverseFunctions(projectFolder) {
+        let functions;
+        functions = await this._fileSystemWrapper.readFunctionsJson(projectFolder, this._log);
+        // Now enriching it with more info extracted from code
+        functions = await this.mapOrchestratorsAndActivitiesAsync(functions, projectFolder);
+        return functions;
+    }
+    async getFunctionsAndTheirCodesAsync(functionNames, hostJsonFolder) {
+        const promises = functionNames.map(async (name) => {
+            let match = await this._fileSystemWrapper.findFileRecursivelyAsync(this._fileSystemWrapper.joinPath(hostJsonFolder, name), '(index\\.ts|index\\.js|__init__\\.py)$', true);
+            if (!match) {
+                return undefined;
+            }
+            const pos = !match.pos ? 0 : match.pos;
+            const lineNr = (0, traverseFunctionProjectUtils_1.posToLineNr)(match.code, pos);
+            return { name, code: match.code, filePath: match.filePath, pos, lineNr };
+        });
+        return (await Promise.all(promises)).filter(f => !!f);
+    }
+}
+class FunctionProjectCodeParser extends FunctionProjectParser {
+    async traverseFunctions(projectFolder) {
+        let functions;
+        functions = await this.traverseProjectCode(projectFolder);
+        // Now enriching it with more info extracted from code
+        functions = await this.mapOrchestratorsAndActivitiesAsync(functions, projectFolder);
+        return functions;
+    }
+}
+class CSharpFunctionProjectParser extends FunctionProjectCodeParser {
+    async getFunctionsAndTheirCodesAsync(functionNames, hostJsonFolder) {
+        const promises = functionNames.map(async (name) => {
+            const match = await this._fileSystemWrapper.findFileRecursivelyAsync(hostJsonFolder, '.+\\.cs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name));
+            if (!match) {
+                return undefined;
+            }
+            const pos = !match.pos ? 0 : match.pos;
+            const lineNr = (0, traverseFunctionProjectUtils_1.posToLineNr)(match.code, pos);
+            const code = (0, traverseFunctionProjectUtils_1.getCodeInBrackets)(match.code, match.pos + match.length, '{', '}', '\n').code;
+            return { name, code, filePath: match.filePath, pos, lineNr };
+        });
+        return (await Promise.all(promises)).filter(f => !!f);
+    }
+    async traverseProjectCode(projectFolder) {
+        const result = {};
+        const fileNameRegex = new RegExp('.+\\.cs$', 'i');
+        for await (const func of this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, fileNameRegex, traverseFunctionProjectUtils_1.BindingsParser.getFunctionAttributeRegex(), 3)) {
+            const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
+            if (!(bindings.some(b => b.type === 'orchestrationTrigger') ||
+                bindings.some(b => b.type === 'entityTrigger') ||
+                bindings.some(b => b.type === 'activityTrigger'))) {
+                // Also trying to extract multiple output bindings
+                bindings.push(...await this.extractOutputBindings(projectFolder, func.declarationCode, fileNameRegex));
+            }
+            result[func.functionName] = {
+                filePath: func.filePath,
+                pos: func.pos,
+                lineNr: func.lineNr,
+                bindings: [...bindings]
+            };
+        }
+        return result;
+    }
+    async extractOutputBindings(projectFolder, functionCode, fileNameRegex) {
+        const returnTypeMatch = traverseFunctionProjectUtils_1.BindingsParser.functionReturnTypeRegex.exec(functionCode);
+        if (!returnTypeMatch) {
+            return [];
+        }
+        const returnTypeName = (0, traverseFunctionProjectUtils_1.removeNamespace)(returnTypeMatch[3]);
+        if (!returnTypeName) {
+            return [];
+        }
+        const returnTypeDefinition = await this._fileSystemWrapper.findFileRecursivelyAsync(projectFolder, fileNameRegex, true, traverseFunctionProjectUtils_1.TraversalRegexes.getClassDefinitionRegex(returnTypeName));
+        if (!returnTypeDefinition) {
+            return [];
+        }
+        const classBody = (0, traverseFunctionProjectUtils_1.getCodeInBrackets)(returnTypeDefinition.code, (returnTypeDefinition.pos ?? 0) + (returnTypeDefinition.length ?? 0), '{', '}');
+        if (!classBody.code) {
+            return [];
+        }
+        return traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(classBody.code);
+    }
+}
+class FSharpFunctionProjectParser extends FunctionProjectCodeParser {
+    async getFunctionsAndTheirCodesAsync(functionNames, hostJsonFolder) {
+        const promises = functionNames.map(async (name) => {
+            const match = await this._fileSystemWrapper.findFileRecursivelyAsync(hostJsonFolder, '.+\\.fs$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name));
+            if (!match) {
+                return undefined;
+            }
+            const code = (0, traverseFunctionProjectUtils_1.getCodeInBrackets)(match.code, match.pos + match.length, '{', '}', '\n').code;
+            const pos = !match.pos ? 0 : match.pos;
+            const lineNr = (0, traverseFunctionProjectUtils_1.posToLineNr)(match.code, pos);
+            return { name, code, filePath: match.filePath, pos, lineNr };
+        });
+        return (await Promise.all(promises)).filter(f => !!f);
+    }
+    async traverseProjectCode(projectFolder) {
+        const result = {};
+        for await (const func of this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.fs$', 'i'), traverseFunctionProjectUtils_1.BindingsParser.getFSharpFunctionAttributeRegex(), 2)) {
+            const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
+            result[func.functionName] = {
+                filePath: func.filePath,
+                pos: func.pos,
+                lineNr: func.lineNr,
+                bindings: [...bindings]
+            };
+        }
+        return result;
+    }
+}
+class JavaFunctionProjectParser extends FunctionProjectCodeParser {
+    async getFunctionsAndTheirCodesAsync(functionNames, hostJsonFolder) {
+        const promises = functionNames.map(async (name) => {
+            const match = await this._fileSystemWrapper.findFileRecursivelyAsync(hostJsonFolder, '.+\\.java$', true, traverseFunctionProjectUtils_1.TraversalRegexes.getDotNetFunctionNameRegex(name));
+            if (!match) {
+                return undefined;
+            }
+            const code = (0, traverseFunctionProjectUtils_1.getCodeInBrackets)(match.code, match.pos + match.length, '{', '}', '\n').code;
+            const pos = !match.pos ? 0 : match.pos;
+            const lineNr = (0, traverseFunctionProjectUtils_1.posToLineNr)(match.code, pos);
+            return { name, code, filePath: match.filePath, pos, lineNr };
+        });
+        return (await Promise.all(promises)).filter(f => !!f);
+    }
+    async traverseProjectCode(projectFolder) {
+        const result = {};
+        for await (const func of this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.java$', 'i'), traverseFunctionProjectUtils_1.BindingsParser.getJavaFunctionAttributeRegex(), 1)) {
+            const bindings = traverseFunctionProjectUtils_1.BindingsParser.tryExtractBindings(func.declarationCode);
+            result[func.functionName] = {
+                filePath: func.filePath,
+                pos: func.pos,
+                lineNr: func.lineNr,
+                bindings: [...bindings]
+            };
+        }
+        return result;
+    }
+}
+
+
+/***/ })
+/******/ 	]);
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+var __webpack_exports__ = {};
+// This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
+(() => {
+var exports = __webpack_exports__;
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.deactivate = exports.activate = void 0;
+const vscode = __webpack_require__(1);
+const FileSystemWrapper_1 = __webpack_require__(2);
+const FunctionGraphView_1 = __webpack_require__(5);
+let graphViews = [];
+const fsWrapper = new FileSystemWrapper_1.FileSystemWrapper();
+const MaxProjectsToShowAutomatically = 5;
+async function showAllFunctionProjects(context) {
+    if (!vscode.workspace.workspaceFolders) {
+        return;
+    }
+    const hostJsonFolders = [];
+    for (const folder of vscode.workspace.workspaceFolders) {
+        for await (const hostJsonPath of fsWrapper.findFilesRecursivelyAsync(folder.uri.toString(), new RegExp('host.json', 'i'))) {
+            hostJsonFolders.push(fsWrapper.dirName(hostJsonPath));
+        }
+    }
+    if (hostJsonFolders.length > MaxProjectsToShowAutomatically) {
+        const userResponse = await vscode.window.showWarningMessage(`az-func-as-a-graph found ${hostJsonFolders.length} Azure Functions projects in current workspace. Do you want to visualize all of them?`, 'Yes', 'No');
+        if (userResponse !== 'Yes') {
+            return;
+        }
+    }
+    for (const hostJsonFolder of hostJsonFolders) {
+        graphViews.push(new FunctionGraphView_1.FunctionGraphView(context, vscode.Uri.parse(hostJsonFolder)));
+    }
+}
+async function activate(context) {
+    context.subscriptions.push(vscode.commands.registerCommand('az-func-as-a-graph.ShowGraph', async (item) => {
+        if (!!item) {
+            const pathToHostJson = item.toString();
+            if (pathToHostJson.toLowerCase().endsWith('host.json')) {
+                graphViews.push(new FunctionGraphView_1.FunctionGraphView(context, vscode.Uri.parse(fsWrapper.dirName(pathToHostJson))));
+            }
+            return;
+        }
+        await showAllFunctionProjects(context);
+    }));
+    if (!vscode.workspace.workspaceFolders) {
+        return;
+    }
+    const config = vscode.workspace.getConfiguration('az-func-as-a-graph');
+    if (!!config.get('showGraphAtStartup', true)) {
+        // Showing graphs of all Functions in the workspace
+        await showAllFunctionProjects(context);
+    }
+}
+exports.activate = activate;
+// This method is called when your extension is deactivated
+function deactivate() {
+    for (const view of graphViews) {
+        view.cleanup();
+    }
+}
+exports.deactivate = deactivate;
+
+})();
+
+var __webpack_export_target__ = exports;
+for(var i in __webpack_exports__) __webpack_export_target__[i] = __webpack_exports__[i];
+if(__webpack_exports__.__esModule) Object.defineProperty(__webpack_export_target__, "__esModule", { value: true });
+/******/ })()
+;
+//# sourceMappingURL=extension.js.map

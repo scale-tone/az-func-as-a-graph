@@ -114,16 +114,14 @@ test('functionAttributeRegex', () => {
         ['Constants.MyFuncName'],
     ];
 
-    const regex = BindingsParser.functionAttributeRegex;
     for (var i = 0; i < samples.length; i++) {
-
-        // Need to reset the regex, because it's 'global' aka stateful
-        regex.lastIndex = 0;
 
         const sample = samples[i];
         const result = results[i];
 
+        const regex = BindingsParser.getFunctionAttributeRegex();
         const match = regex.exec(sample);
+        
         expect(match).not.toBeNull();
         expect(match[3]).toBe(result[0]);
     }
@@ -152,16 +150,14 @@ test('fSharpFunctionAttributeRegex', () => {
         ['"Execute"'],
     ];
 
-    const regex = BindingsParser.fSharpFunctionAttributeRegex;
     for (var i = 0; i < samples.length; i++) {
-
-        // Need to reset the regex, because it's 'global' aka stateful
-        regex.lastIndex = 0;
 
         const sample = samples[i];
         const result = results[i];
 
+        const regex = BindingsParser.getFSharpFunctionAttributeRegex();
         const match = regex.exec(sample);
+
         expect(match).not.toBeNull();
         expect(match[2]).toBe(result[0]);
     }
