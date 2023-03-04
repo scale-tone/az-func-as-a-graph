@@ -3,12 +3,20 @@
 
 Visualizes your Azure Functions project in form of a graph. Accepts links to git repos (GitHub, Azure DevOps) or local paths.
 
-UPD: is now also a part of [Durable Functions Monitor VsCode extension](https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.durablefunctionsmonitor).
+UPD1: is now also a part of [Durable Functions Monitor VsCode extension](https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.durablefunctionsmonitor).
 **Command Palette -> Visualize Functions as a Graph...**
+
+UPD2: is now also [available as a VsCode web extension](https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.az-func-as-a-graph). Install it in your browser once - and it will then automatically visualize Functions in every GitHub repo you're observing with [VsCode for the Web](https://code.visualstudio.com/docs/editor/vscode-web) (by pressing `.` on a GitHub repo).
+
+## How to run as a VsCode Web Extension
+
+Just [install it from the Marketplace](https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.az-func-as-a-graph). Then every time you open a Functions project (a project with `host.json` file in it) the graph will appear automatically. Alternatively click on a `host.json` file and use the `az-func-as-a-graph: Show...` command.
+
+Because it is a **web** extension, you only need to install it once - then it will live in your browser and work on every Azure Functions project you open. Of course, you can also install it into your normal VsCode instance and/or into a GitHub Codespace.
 
 ## How to run as a GitHub Codespace
 
-This is the quickest way to get this tool operational, but you'll need to have [GitHub Codespaces](https://github.com/features/codespaces) enabled for your org.
+For this to work you'll need to have [GitHub Codespaces](https://github.com/features/codespaces) enabled for your org.
 
 * Click on this button:
 
