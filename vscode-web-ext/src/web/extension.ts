@@ -17,23 +17,30 @@ async function showAllFunctionProjects(context: vscode.ExtensionContext) {
 
 	const hostJsonFolders = [];
 
-	for (const folder of vscode.workspace.workspaceFolders) {
+	try{
 
-		for await (const hostJsonPath of fsWrapper.findFilesRecursivelyAsync(folder.uri.toString(), new RegExp('host.json', 'i'))) {
+		for (const folder of vscode.workspace.workspaceFolders) {
+
+			for await (const hostJsonPath of fsWrapper.findFilesRecursivelyAsync(folder.uri.toString(), new RegExp('host.json', 'i'))) {
+				
+				hostJsonFolders.push(fsWrapper.dirName(hostJsonPath));
+			}
+		}
+
+		if (hostJsonFolders.length > MaxProjectsToShowAutomatically) {
 			
-			hostJsonFolders.push(fsWrapper.dirName(hostJsonPath));
-		}
-	}
+			const userResponse = await vscode.window.showWarningMessage(
+				`az-func-as-a-graph found ${hostJsonFolders.length} Azure Functions projects in current workspace. Do you want to visualize all of them?`,
+				'Yes', 'No');
 
-	if (hostJsonFolders.length > MaxProjectsToShowAutomatically) {
+			if (userResponse !== 'Yes') {
+				return;
+			}
+		}
+
+	} catch (err: any) {
 		
-		const userResponse = await vscode.window.showWarningMessage(
-			`az-func-as-a-graph found ${hostJsonFolders.length} Azure Functions projects in current workspace. Do you want to visualize all of them?`,
-			'Yes', 'No');
-
-		if (userResponse !== 'Yes') {
-			return;
-		}
+		vscode.window.showErrorMessage(`az-func-as-a-graph failed. ${err.message ?? err}`);
 	}
 
 	for (const hostJsonFolder of hostJsonFolders) {
