@@ -1,7 +1,8 @@
 import { observable, computed } from 'mobx';
 import mermaid from 'mermaid';
 
-import { FunctionsMap, ProxiesMap, buildFunctionDiagramCode } from 'az-func-as-a-graph.core';
+import { FunctionsMap, ProxiesMap } from 'az-func-as-a-graph.core/dist/FunctionsMap';
+import { buildFunctionDiagramCode } from 'az-func-as-a-graph.core/dist/buildFunctionDiagramCode';
 
 // ID of an embedded SVG element containing Azure service icons. Should be present in index.html
 const AllAzureIconsSvgElementId = "all-azure-icons-svg";

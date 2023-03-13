@@ -2,7 +2,8 @@ import { observable, computed } from 'mobx';
 import axios from 'axios';
 import mermaid from 'mermaid';
 
-import { FunctionsMap, ProxiesMap, buildFunctionDiagramCode } from 'az-func-as-a-graph.core';
+import { FunctionsMap, ProxiesMap } from 'az-func-as-a-graph.core/dist/FunctionsMap';
+import { buildFunctionDiagramCode } from 'az-func-as-a-graph.core/dist/buildFunctionDiagramCode';
 
 export class AppState {
 
