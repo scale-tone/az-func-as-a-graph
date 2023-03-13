@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { FileSystemWrapper } from './FileSystemWrapper';
 
+import { FileSystemWrapper } from './FileSystemWrapper';
 import { FunctionGraphView } from './FunctionGraphView';
 
 let graphViews: FunctionGraphView[] = [];

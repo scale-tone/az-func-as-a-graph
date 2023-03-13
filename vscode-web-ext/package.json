@@ -61,9 +61,9 @@
     "test": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --extensionTestsPath=dist/web/test/suite/index.js",
     "pretest": "npm run compile-web",
     "vscode:prepublish": "npm run package-web",
-    "compile-web": "webpack",
-    "watch-web": "webpack --watch",
-    "package-web": "webpack --mode production --devtool hidden-source-map",
+    "compile-web": "node copy-core-sources.js && webpack",
+    "watch-web": "node copy-core-sources.js && webpack --watch",
+    "package-web": "node copy-core-sources.js && webpack --mode production --devtool hidden-source-map",
     "lint": "eslint src --ext ts",
     "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
   },
@@ -81,6 +81,7 @@
     "webpack-cli": "^5.0.1",
     "@types/webpack-env": "^1.18.0",
     "assert": "^2.0.0",
-    "process": "^0.11.10"
+    "process": "^0.11.10",
+    "ncp": "^2.0.0"
   }
 }

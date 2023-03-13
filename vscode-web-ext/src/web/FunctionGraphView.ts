@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
-import { FunctionsMap, ProxiesMap } from './func-project-parser/FunctionsMap';
-import { FunctionProjectParser } from './func-project-parser/functionProjectParser';
+import { FunctionsMap, ProxiesMap } from './core/FunctionsMap';
+import { FunctionProjectParser } from './core/functionProjectParser';
 import { FileSystemWrapper } from './FileSystemWrapper';
 
 export type TraversalResult = {

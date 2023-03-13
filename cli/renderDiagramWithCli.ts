@@ -8,11 +8,11 @@ import * as crypto from 'crypto';
 import * as util from 'util';
 const execAsync = util.promisify(cp.exec);
 
-import { buildFunctionDiagramCode, GraphSettings } from '../ui/src/buildFunctionDiagramCode';
-import { TraverseFunctionResult } from '../func-project-parser/FunctionsMap';
-import { cloneFromGitHub, getGitRepoInfo, convertLocalPathsToRemote, GitRepositoryInfo } from './gitUtils';
-import { FunctionProjectParser } from '../func-project-parser/functionProjectParser';
-import { FileSystemWrapper } from './fileSystemWrapper';
+import { GraphSettings, TraverseFunctionResult } from 'az-func-as-a-graph.core/dist/FunctionsMap';
+import { FunctionProjectParser } from 'az-func-as-a-graph.core/dist/functionProjectParser';
+import { FileSystemWrapper } from 'az-func-as-a-graph.core/dist/fileSystemWrapper';
+import { buildFunctionDiagramCode } from 'az-func-as-a-graph.core/dist/buildFunctionDiagramCode';
+import { cloneFromGitHub, getGitRepoInfo, convertLocalPathsToRemote, GitRepositoryInfo } from 'az-func-as-a-graph.core/dist/gitUtils';
 
 export type GraphCliSettings = GraphSettings & {
     templateFile?: string;
@@ -103,8 +103,6 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
 
             console.log(`Diagram was successfully generated and saved to ${outputFile}`);
 
-            console.log(tempFilesAndFolders);
-
             return;
         }
 
@@ -135,7 +133,11 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
         console.log(`Diagram was successfully generated and saved to ${outputFile}`);
 
     } finally {
+
         for (const tempFolder of tempFilesAndFolders) {
+
+            console.log(`Removing ${tempFolder}`);
+
             rimraf.sync(tempFolder)
         }
     }
@@ -160,7 +162,7 @@ async function saveOutputAsSvg(outputFile: string, tempOutputFile: string) {
 // saves resulting Function Graph as HTML
 async function saveOutputAsHtml(projectName: string, outputFile: string, tempOutputFile: string, traverseResult: TraverseFunctionResult, settings: GraphCliSettings) {
     
-    const htmlTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
+    const htmlTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', 'graph-template.htm');
 
     var html = await fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' });
 
@@ -179,7 +181,7 @@ async function saveOutputAsHtml(projectName: string, outputFile: string, tempOut
 // saves resulting Function Graph as .md file
 async function saveOutputAsMarkdown(projectName: string, outputFile: string, diagramCode: string, settings: GraphCliSettings) {
     
-    const markdownTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', '..', 'graph-template.md');
+    const markdownTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', 'graph-template.md');
 
     var markdown = await fs.promises.readFile(markdownTemplateFile, { encoding: 'utf8' });
 
@@ -192,7 +194,7 @@ async function saveOutputAsMarkdown(projectName: string, outputFile: string, dia
 // executes mermaid CLI from command line
 async function runMermaidCli(inputFile: string, outputFile: string): Promise<void> {
 
-    const packageJsonPath = path.resolve(__dirname, '..', '..');
+    const packageJsonPath = path.resolve(__dirname, '..');
 
     // Explicitly installing mermaid-cli. Don't want to add it to package.json, because it is quite heavy.
     const mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'index.bundle.js');
@@ -204,7 +206,7 @@ async function runMermaidCli(inputFile: string, outputFile: string): Promise<voi
         console.log('mermaid-cli installed')
     }
 
-    const mermaidConfigPath = path.resolve(__dirname, '..', '..', 'mermaid.config.json');
+    const mermaidConfigPath = path.resolve(__dirname, '..', 'mermaid.config.json');
 
     await new Promise<void>((resolve, reject) => {
 
@@ -224,7 +226,7 @@ async function runMermaidCli(inputFile: string, outputFile: string): Promise<voi
 // injects icons SVG into the resulting SVG
 async function applyIcons(svg: string): Promise<string> {
 
-    const iconsSvg = await fs.promises.readFile(path.resolve(__dirname, '..', 'all-azure-icons.svg'), { encoding: 'utf8' });
+    const iconsSvg = await fs.promises.readFile(path.resolve(__dirname, 'all-azure-icons.svg'), { encoding: 'utf8' });
 
     // Placing icons code into a <defs> block at the top
     svg = svg.replace(`><style>`, `>\n<defs>\n${iconsSvg}</defs>\n<style>`);

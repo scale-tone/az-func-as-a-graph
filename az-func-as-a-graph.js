@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const { renderDiagramWithCli } = require('./cli/dist/cli/renderDiagramWithCli');
+const { renderDiagramWithCli } = require('./cli/dist/renderDiagramWithCli');
 
 const projectFolder = process.argv[2];
 const outputFile = process.argv[3];

@@ -2,9 +2,7 @@ import { observable, computed } from 'mobx';
 import axios from 'axios';
 import mermaid from 'mermaid';
 
-// Referencing this code from package doesn't work - results in weird compilation errors.
-import { buildFunctionDiagramCode } from './buildFunctionDiagramCode';
-import { FunctionsMap, ProxiesMap } from 'func-project-parser/FunctionsMap';
+import { FunctionsMap, ProxiesMap, buildFunctionDiagramCode } from 'az-func-as-a-graph.core';
 
 export class AppState {
 

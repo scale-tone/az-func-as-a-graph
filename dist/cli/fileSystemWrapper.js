@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileSystemWrapper = void 0;
 const fileSystem = require("fs");
 const path = require("path");
-const fileSystemWrapperBase_1 = require("../func-project-parser/fileSystemWrapperBase");
+const fileSystemWrapperBase_1 = require("az-func-as-a-graph.core/dist/fileSystemWrapperBase");
 class FileSystemWrapper extends fileSystemWrapperBase_1.FileSystemWrapperBase {
     joinPath(path1, path2) {
         return path.join(path1, path2);

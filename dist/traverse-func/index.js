@@ -10,9 +10,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const rimraf = require("rimraf");
-const gitUtils_1 = require("../cli/gitUtils");
-const functionProjectParser_1 = require("../func-project-parser/functionProjectParser");
-const fileSystemWrapper_1 = require("../cli/fileSystemWrapper");
+const functionProjectParser_1 = require("az-func-as-a-graph.core/dist/functionProjectParser");
+const fileSystemWrapper_1 = require("az-func-as-a-graph.core/dist/fileSystemWrapper");
+const gitUtils_1 = require("az-func-as-a-graph.core/dist/gitUtils");
 // Main function
 function default_1(context, req) {
     return __awaiter(this, void 0, void 0, function* () {

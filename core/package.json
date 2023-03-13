@@ -1,0 +1,19 @@
+{
+  "name": "az-func-as-a-graph.core",
+  "version": "1.0.0",
+  "description": "Utilities for visualizing your Azure Functions project in form of a graph",
+  "keywords": [
+    "azure functions",
+    "serverless",
+    "azure"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scale-tone/az-func-as-a-graph.git"
+  },
+  "homepage": "https://marketplace.visualstudio.com/items?itemName=DurableFunctionsMonitor.az-func-as-a-graph",
+  "devDependencies": {
+    "typescript": "^4.9.5"
+  }
+}

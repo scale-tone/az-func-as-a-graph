@@ -1,7 +1,7 @@
 import * as tl from 'azure-pipelines-task-lib/task';
 
 import { renderDiagramWithCli } from './renderDiagramWithCli';
-import { GitRepositoryInfo } from './gitUtils';
+import { GitRepositoryInfo } from 'az-func-as-a-graph.core/dist/gitUtils';
 
 async function run() {
     try {

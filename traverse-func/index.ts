@@ -1,9 +1,9 @@
 import { Context, HttpRequest } from "@azure/functions"
 import * as rimraf from 'rimraf';
 
-import { cloneFromGitHub, getGitRepoInfo, convertLocalPathsToRemote } from "../cli/gitUtils";
-import { FunctionProjectParser } from "../func-project-parser/functionProjectParser";
-import { FileSystemWrapper } from "../cli/fileSystemWrapper";
+import { FunctionProjectParser } from "az-func-as-a-graph.core/dist/functionProjectParser";
+import { FileSystemWrapper } from "az-func-as-a-graph.core/dist/fileSystemWrapper";
+import { cloneFromGitHub, getGitRepoInfo, convertLocalPathsToRemote } from "az-func-as-a-graph.core/dist/gitUtils";
 
 // Main function
 export default async function (context: Context, req: HttpRequest): Promise<void> {

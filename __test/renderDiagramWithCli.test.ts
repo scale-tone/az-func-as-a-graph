@@ -15,7 +15,7 @@ import * as util from 'util';
     }
 });
 
-import { getGitRepoInfo } from '../cli/gitUtils';
+import { getGitRepoInfo } from '../core/gitUtils';
 
 test('getGitRepoInfo', async () => {
 

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { FileSystemWrapperBase } from './func-project-parser/fileSystemWrapperBase';
+import { FileSystemWrapperBase } from './core/fileSystemWrapperBase';
 
 export class FileSystemWrapper extends FileSystemWrapperBase {
 

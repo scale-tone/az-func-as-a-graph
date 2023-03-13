@@ -18,10 +18,10 @@ const cp = require("child_process");
 const crypto = require("crypto");
 const util = require("util");
 const execAsync = util.promisify(cp.exec);
-const buildFunctionDiagramCode_1 = require("../ui/src/buildFunctionDiagramCode");
-const gitUtils_1 = require("./gitUtils");
-const functionProjectParser_1 = require("../func-project-parser/functionProjectParser");
-const fileSystemWrapper_1 = require("./fileSystemWrapper");
+const functionProjectParser_1 = require("az-func-as-a-graph.core/dist/functionProjectParser");
+const fileSystemWrapper_1 = require("az-func-as-a-graph.core/dist/fileSystemWrapper");
+const buildFunctionDiagramCode_1 = require("az-func-as-a-graph.core/dist/buildFunctionDiagramCode");
+const gitUtils_1 = require("az-func-as-a-graph.core/dist/gitUtils");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -79,7 +79,6 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
                 // just saving the diagram as a Markdown file and quitting
                 yield saveOutputAsMarkdown(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, diagramCode, settings);
                 console.log(`Diagram was successfully generated and saved to ${outputFile}`);
-                console.log(tempFilesAndFolders);
                 return;
             }
             const tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
@@ -102,6 +101,7 @@ function renderDiagramWithCli(projectFolder, outputFile, settings = {}) {
         }
         finally {
             for (const tempFolder of tempFilesAndFolders) {
+                console.log(`Removing ${tempFolder}`);
                 rimraf.sync(tempFolder);
             }
         }
@@ -122,7 +122,7 @@ function saveOutputAsSvg(outputFile, tempOutputFile) {
 // saves resulting Function Graph as HTML
 function saveOutputAsHtml(projectName, outputFile, tempOutputFile, traverseResult, settings) {
     return __awaiter(this, void 0, void 0, function* () {
-        const htmlTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', '..', 'graph-template.htm');
+        const htmlTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', 'graph-template.htm');
         var html = yield fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' });
         var svg = yield fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
         svg = yield applyIcons(svg);
@@ -136,7 +136,7 @@ function saveOutputAsHtml(projectName, outputFile, tempOutputFile, traverseResul
 // saves resulting Function Graph as .md file
 function saveOutputAsMarkdown(projectName, outputFile, diagramCode, settings) {
     return __awaiter(this, void 0, void 0, function* () {
-        const markdownTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', '..', 'graph-template.md');
+        const markdownTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', 'graph-template.md');
         var markdown = yield fs.promises.readFile(markdownTemplateFile, { encoding: 'utf8' });
         markdown = markdown.replace(/{{GRAPH_CODE}}/g, diagramCode);
         markdown = markdown.replace(/{{PROJECT_NAME}}/g, projectName);
@@ -146,7 +146,7 @@ function saveOutputAsMarkdown(projectName, outputFile, diagramCode, settings) {
 // executes mermaid CLI from command line
 function runMermaidCli(inputFile, outputFile) {
     return __awaiter(this, void 0, void 0, function* () {
-        const packageJsonPath = path.resolve(__dirname, '..', '..');
+        const packageJsonPath = path.resolve(__dirname, '..');
         // Explicitly installing mermaid-cli. Don't want to add it to package.json, because it is quite heavy.
         const mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'index.bundle.js');
         if (!fs.existsSync(mermaidCliPath)) {
@@ -155,7 +155,7 @@ function runMermaidCli(inputFile, outputFile) {
             yield execAsync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath });
             console.log('mermaid-cli installed');
         }
-        const mermaidConfigPath = path.resolve(__dirname, '..', '..', 'mermaid.config.json');
+        const mermaidConfigPath = path.resolve(__dirname, '..', 'mermaid.config.json');
         yield new Promise((resolve, reject) => {
             const proc = cp.fork(mermaidCliPath, ['-i', inputFile, '-o', outputFile, '-c', mermaidConfigPath]);
             proc.on('exit', (exitCode) => {
@@ -172,7 +172,7 @@ function runMermaidCli(inputFile, outputFile) {
 // injects icons SVG into the resulting SVG
 function applyIcons(svg) {
     return __awaiter(this, void 0, void 0, function* () {
-        const iconsSvg = yield fs.promises.readFile(path.resolve(__dirname, '..', 'all-azure-icons.svg'), { encoding: 'utf8' });
+        const iconsSvg = yield fs.promises.readFile(path.resolve(__dirname, 'all-azure-icons.svg'), { encoding: 'utf8' });
         // Placing icons code into a <defs> block at the top
         svg = svg.replace(`><style>`, `>\n<defs>\n${iconsSvg}</defs>\n<style>`);
         // Adding <use> blocks referencing relevant icons

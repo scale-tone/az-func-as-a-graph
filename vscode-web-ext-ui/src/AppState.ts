@@ -1,9 +1,7 @@
 import { observable, computed } from 'mobx';
 import mermaid from 'mermaid';
 
-// Referencing this code from package doesn't work - results in weird compilation errors.
-import { buildFunctionDiagramCode } from './buildFunctionDiagramCode';
-import { FunctionsMap, ProxiesMap } from 'func-project-parser/FunctionsMap';
+import { FunctionsMap, ProxiesMap, buildFunctionDiagramCode } from 'az-func-as-a-graph.core';
 
 // ID of an embedded SVG element containing Azure service icons. Should be present in index.html
 const AllAzureIconsSvgElementId = "all-azure-icons-svg";

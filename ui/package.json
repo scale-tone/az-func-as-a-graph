@@ -33,8 +33,7 @@
     "@types/node": "^18.7.3",
     "@types/react": "^18.0.17",
     "@types/react-dom": "^18.0.6",
-    "typescript": "^3.6.4",
-    "func-project-parser": "file:../func-project-parser"
+    "typescript": "^3.6.4"
   },
   "browserslist": {
     "production": [
