@@ -12,7 +12,8 @@
 			// Add the IDs of extensions you want installed when the container is created.
 			"extensions": [
 				"ms-azuretools.vscode-azurefunctions",
-				"ms-dotnettools.csharp"
+				"ms-dotnettools.csharp",
+				"DurableFunctionsMonitor.az-func-as-a-graph"
 			]
 		}
 	},
