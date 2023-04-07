@@ -9,8 +9,8 @@
     "author": "DurableFunctionsMonitor",
     "version": {
         "Major": 1,
-        "Minor": 1,
-        "Patch": 0
+        "Minor": 2,
+        "Patch": 1
     },
     "instanceNameFormat": "az-func-as-a-graph",
     "inputs": [
@@ -81,7 +81,7 @@
     ],
     "execution": {
         "Node10": {
-            "target": "dist/cli/index.js"
+            "target": "dist/index.js"
         }
     }
 }
