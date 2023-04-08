@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BindingsParser = exports.TraversalRegexes = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.posToLineNr = exports.mapActivitiesToOrchestrator = exports.getEventNames = exports.removeNamespace = exports.cleanupFunctionName = void 0;
+exports.BindingsParser = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.posToLineNr = exports.removeNamespace = exports.cleanupFunctionName = void 0;
 function cleanupFunctionName(name) {
     if (!name) {
         return name;
@@ -27,31 +27,6 @@ function removeNamespace(name) {
     return name.trim();
 }
 exports.removeNamespace = removeNamespace;
-// Tries to extract event names that this orchestrator is awaiting
-function getEventNames(orchestratorCode) {
-    const result = [];
-    const regex = TraversalRegexes.waitForExternalEventRegex;
-    var match;
-    while (!!(match = regex.exec(orchestratorCode))) {
-        result.push(match[4]);
-    }
-    return result;
-}
-exports.getEventNames = getEventNames;
-// Tries to match orchestrator with its activities
-function mapActivitiesToOrchestrator(functions, orch, activityNames) {
-    var _a;
-    for (const activityName of activityNames) {
-        // If this orchestrator seems to be calling this activity
-        const regex = TraversalRegexes.getCallActivityRegex(activityName);
-        if (!!regex.exec(orch.code)) {
-            // Then mapping this activity to this orchestrator
-            functions[activityName].isCalledBy = (_a = functions[activityName].isCalledBy) !== null && _a !== void 0 ? _a : [];
-            functions[activityName].isCalledBy.push(orch.name);
-        }
-    }
-}
-exports.mapActivitiesToOrchestrator = mapActivitiesToOrchestrator;
 // Primitive way of getting a line number out of symbol position
 function posToLineNr(code, pos) {
     if (!code) {
@@ -108,36 +83,6 @@ function getCodeInBracketsReverse(str, openingBracket, closingBracket) {
     return { code: '', openBracketPos: -1 };
 }
 exports.getCodeInBracketsReverse = getCodeInBracketsReverse;
-// General-purpose regexes
-class TraversalRegexes {
-    static getStartNewOrchestrationRegex(orchName) {
-        return new RegExp(`(StartNew|StartNewAsync|start_new|scheduleNewOrchestrationInstance)(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${orchName}\\s*["'\\),]{1}`, 'i');
-    }
-    static getCallSubOrchestratorRegex(subOrchName) {
-        return new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${subOrchName}\\s*["'\\),]{1}`, 'i');
-    }
-    static getRaiseEventRegex(eventName) {
-        return new RegExp(`(RaiseEvent|raise_event)(Async)?(.|\r|\n)*${eventName}`, 'i');
-    }
-    static getSignalEntityRegex(entityName) {
-        return new RegExp(`${entityName}\\s*["'>]{1}`);
-    }
-    static getDotNetFunctionNameRegex(funcName) {
-        return new RegExp(`FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)${funcName}\\s*["'\`\\)]{1}`);
-    }
-    static getJavaFunctionNameRegex(funcName) {
-        return new RegExp(`@\\s*FunctionName\\s*\\(["\\s\\w\\.-]*${funcName}"?\\)`);
-    }
-    static getCallActivityRegex(activityName) {
-        return new RegExp(`(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*["'\`]?${activityName}\\s*["'\`\\),]{1}`, 'i');
-    }
-    static getClassDefinitionRegex(className) {
-        return new RegExp(`class\\s*${className}`);
-    }
-}
-exports.TraversalRegexes = TraversalRegexes;
-TraversalRegexes.continueAsNewRegex = new RegExp(`ContinueAsNew\\s*\\(`, 'i');
-TraversalRegexes.waitForExternalEventRegex = new RegExp(`(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w,\\.-\\[\\]\\(\\)\\<\\>]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)?([\\s\\w\\.-]+)\\s*["'\`\\),]{1}`, 'gi');
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
 class BindingsParser {
     // Extracts additional bindings info from C#/F# source code

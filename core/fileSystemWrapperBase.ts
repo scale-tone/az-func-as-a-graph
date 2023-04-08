@@ -125,6 +125,19 @@ export abstract class FileSystemWrapperBase {
         return !!javaFileMatch;
     }
 
+    async isPowershellProjectAsync(projectFolder: string): Promise<boolean> {
+
+        const firstFunctionJsonFile = await this.findFileRecursivelyAsync(projectFolder, `function.json`, false);
+
+        if (!firstFunctionJsonFile || !firstFunctionJsonFile.filePath) {
+            return false;
+        }
+
+        const psFileMatch = await this.findFileRecursivelyAsync(this.dirName(firstFunctionJsonFile.filePath), `.+\\.ps1$`, false);
+
+        return !!psFileMatch;
+    }
+
     async findFileRecursivelyAsync(folder: string, fileName: string | RegExp, returnFileContents: boolean, pattern?: RegExp)
         : Promise<{ filePath: string, code?: string, pos?: number, length?: number } | undefined> {
 

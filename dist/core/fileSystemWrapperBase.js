@@ -122,6 +122,16 @@ class FileSystemWrapperBase {
             return !!javaFileMatch;
         });
     }
+    isPowershellProjectAsync(projectFolder) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const firstFunctionJsonFile = yield this.findFileRecursivelyAsync(projectFolder, `function.json`, false);
+            if (!firstFunctionJsonFile || !firstFunctionJsonFile.filePath) {
+                return false;
+            }
+            const psFileMatch = yield this.findFileRecursivelyAsync(this.dirName(firstFunctionJsonFile.filePath), `.+\\.ps1$`, false);
+            return !!psFileMatch;
+        });
+    }
     findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
         return __awaiter(this, void 0, void 0, function* () {
             const fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;

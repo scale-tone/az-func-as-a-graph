@@ -1,11 +1,5 @@
-import { FunctionsMap } from "./FunctionsMap";
 export declare function cleanupFunctionName(name: string): string;
 export declare function removeNamespace(name: string): string;
-export declare function getEventNames(orchestratorCode: string): string[];
-export declare function mapActivitiesToOrchestrator(functions: FunctionsMap, orch: {
-    name: string;
-    code: string;
-}, activityNames: string[]): void;
 export declare function posToLineNr(code: string | undefined, pos: number): number;
 export declare function getCodeInBrackets(str: string, startFrom: number, openingBracket: string, closingBracket: string, mustHaveSymbols?: string): {
     code: string;
@@ -15,18 +9,6 @@ export declare function getCodeInBracketsReverse(str: string, openingBracket: st
     code: string;
     openBracketPos: number;
 };
-export declare class TraversalRegexes {
-    static getStartNewOrchestrationRegex(orchName: string): RegExp;
-    static getCallSubOrchestratorRegex(subOrchName: string): RegExp;
-    static readonly continueAsNewRegex: RegExp;
-    static getRaiseEventRegex(eventName: string): RegExp;
-    static getSignalEntityRegex(entityName: string): RegExp;
-    static readonly waitForExternalEventRegex: RegExp;
-    static getDotNetFunctionNameRegex(funcName: string): RegExp;
-    static getJavaFunctionNameRegex(funcName: string): RegExp;
-    static getCallActivityRegex(activityName: string): RegExp;
-    static getClassDefinitionRegex(className: string): RegExp;
-}
 export declare class BindingsParser {
     static tryExtractBindings(funcCode: string): {
         type: string;

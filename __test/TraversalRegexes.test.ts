@@ -1,5 +1,22 @@
 
-import { TraversalRegexes } from '../core/traverseFunctionProjectUtils';
+import { FunctionProjectParserBase } from '../core/FunctionProjectParserBase';
+import { FunctionsMap } from '../core/FunctionsMap';
+
+class FunctionProjectParserAccessor extends FunctionProjectParserBase {
+
+    constructor() {
+        super(undefined as any, undefined as any);
+    }
+
+    public traverseFunctions(projectFolder: string): Promise<FunctionsMap> {
+        throw new Error('Method not implemented.');
+    }
+    protected getFunctionsAndTheirCodesAsync(functionNames: string[], hostJsonFolder: string): Promise<{ name: string; code: string; filePath: string; pos: number; lineNr: number; }[]> {
+        throw new Error('Method not implemented.');
+    }
+}
+
+const TraversalRegexes = new FunctionProjectParserAccessor() as any;
 
 test('getStartNewOrchestrationRegex', () => {
 
@@ -68,7 +85,7 @@ test('continueAsNewRegex', () => {
           ( input );`,
     ];
 
-    const regex = TraversalRegexes.continueAsNewRegex;
+    const regex = TraversalRegexes.getContinueAsNewRegex();
     for (const sample of samples) {
         expect(regex.exec(sample)).not.toBeNull();
     }
@@ -133,12 +150,12 @@ test('waitForExternalEventRegex', () => {
         c.WaitForExternalEvent< DateTime?  >( "${eventName}" )
     `;
 
-    const regex = TraversalRegexes.waitForExternalEventRegex;
+    const regex = TraversalRegexes.getWaitForExternalEventRegex();
 
     var count = 0;
     var match: RegExpExecArray | null;
-    while (!!(match = regex.exec(sample))) {
-        expect(match[4]).toBe(eventName);
+    while (!!(match = regex.regex.exec(sample))) {
+        expect(match[regex.pos]).toBe(eventName);
         count++;
     }
 

@@ -209,6 +209,25 @@ var FileSystemWrapperBase = /** @class */ (function () {
             });
         });
     };
+    FileSystemWrapperBase.prototype.isPowershellProjectAsync = function (projectFolder) {
+        return __awaiter(this, void 0, void 0, function () {
+            var firstFunctionJsonFile, psFileMatch;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.findFileRecursivelyAsync(projectFolder, "function.json", false)];
+                    case 1:
+                        firstFunctionJsonFile = _a.sent();
+                        if (!firstFunctionJsonFile || !firstFunctionJsonFile.filePath) {
+                            return [2 /*return*/, false];
+                        }
+                        return [4 /*yield*/, this.findFileRecursivelyAsync(this.dirName(firstFunctionJsonFile.filePath), ".+\\.ps1$", false)];
+                    case 2:
+                        psFileMatch = _a.sent();
+                        return [2 /*return*/, !!psFileMatch];
+                }
+            });
+        });
+    };
     FileSystemWrapperBase.prototype.findFileRecursivelyAsync = function (folder, fileName, returnFileContents, pattern) {
         return __awaiter(this, void 0, void 0, function () {
             var fileNameRegex, subFolders, _i, _a, name_1, fullPath, isDirectory, _b, code, match, _c, subFolders_1, subFolder, result;

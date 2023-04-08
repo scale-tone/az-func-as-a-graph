@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BindingsParser = exports.TraversalRegexes = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.posToLineNr = exports.mapActivitiesToOrchestrator = exports.getEventNames = exports.removeNamespace = exports.cleanupFunctionName = void 0;
+exports.BindingsParser = exports.getCodeInBracketsReverse = exports.getCodeInBrackets = exports.posToLineNr = exports.removeNamespace = exports.cleanupFunctionName = void 0;
 function cleanupFunctionName(name) {
     if (!name) {
         return name;
@@ -27,32 +27,6 @@ function removeNamespace(name) {
     return name.trim();
 }
 exports.removeNamespace = removeNamespace;
-// Tries to extract event names that this orchestrator is awaiting
-function getEventNames(orchestratorCode) {
-    var result = [];
-    var regex = TraversalRegexes.waitForExternalEventRegex;
-    var match;
-    while (!!(match = regex.exec(orchestratorCode))) {
-        result.push(match[4]);
-    }
-    return result;
-}
-exports.getEventNames = getEventNames;
-// Tries to match orchestrator with its activities
-function mapActivitiesToOrchestrator(functions, orch, activityNames) {
-    var _a;
-    for (var _i = 0, activityNames_1 = activityNames; _i < activityNames_1.length; _i++) {
-        var activityName = activityNames_1[_i];
-        // If this orchestrator seems to be calling this activity
-        var regex = TraversalRegexes.getCallActivityRegex(activityName);
-        if (!!regex.exec(orch.code)) {
-            // Then mapping this activity to this orchestrator
-            functions[activityName].isCalledBy = (_a = functions[activityName].isCalledBy) !== null && _a !== void 0 ? _a : [];
-            functions[activityName].isCalledBy.push(orch.name);
-        }
-    }
-}
-exports.mapActivitiesToOrchestrator = mapActivitiesToOrchestrator;
 // Primitive way of getting a line number out of symbol position
 function posToLineNr(code, pos) {
     if (!code) {
@@ -110,39 +84,6 @@ function getCodeInBracketsReverse(str, openingBracket, closingBracket) {
     return { code: '', openBracketPos: -1 };
 }
 exports.getCodeInBracketsReverse = getCodeInBracketsReverse;
-// General-purpose regexes
-var TraversalRegexes = /** @class */ (function () {
-    function TraversalRegexes() {
-    }
-    TraversalRegexes.getStartNewOrchestrationRegex = function (orchName) {
-        return new RegExp("(StartNew|StartNewAsync|start_new|scheduleNewOrchestrationInstance)(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*([\"'`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)" + orchName + "\\s*[\"'\\),]{1}", 'i');
-    };
-    TraversalRegexes.getCallSubOrchestratorRegex = function (subOrchName) {
-        return new RegExp("(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*([\"'`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)" + subOrchName + "\\s*[\"'\\),]{1}", 'i');
-    };
-    TraversalRegexes.getRaiseEventRegex = function (eventName) {
-        return new RegExp("(RaiseEvent|raise_event)(Async)?(.|\r|\n)*" + eventName, 'i');
-    };
-    TraversalRegexes.getSignalEntityRegex = function (entityName) {
-        return new RegExp(entityName + "\\s*[\"'>]{1}");
-    };
-    TraversalRegexes.getDotNetFunctionNameRegex = function (funcName) {
-        return new RegExp("FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)" + funcName + "\\s*[\"'`\\)]{1}");
-    };
-    TraversalRegexes.getJavaFunctionNameRegex = function (funcName) {
-        return new RegExp("@\\s*FunctionName\\s*\\([\"\\s\\w\\.-]*" + funcName + "\"?\\)");
-    };
-    TraversalRegexes.getCallActivityRegex = function (activityName) {
-        return new RegExp("(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*[\"'`]?" + activityName + "\\s*[\"'`\\),]{1}", 'i');
-    };
-    TraversalRegexes.getClassDefinitionRegex = function (className) {
-        return new RegExp("class\\s*" + className);
-    };
-    TraversalRegexes.continueAsNewRegex = new RegExp("ContinueAsNew\\s*\\(", 'i');
-    TraversalRegexes.waitForExternalEventRegex = new RegExp("(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w,\\.-\\[\\]\\(\\)\\<\\>]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)?([\\s\\w\\.-]+)\\s*[\"'`\\),]{1}", 'gi');
-    return TraversalRegexes;
-}());
-exports.TraversalRegexes = TraversalRegexes;
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them
 var BindingsParser = /** @class */ (function () {
     function BindingsParser() {

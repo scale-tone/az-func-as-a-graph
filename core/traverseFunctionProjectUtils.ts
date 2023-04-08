@@ -1,4 +1,3 @@
-import { FunctionsMap } from "./FunctionsMap";
 
 export function cleanupFunctionName(name: string): string {
 
@@ -33,36 +32,6 @@ export function removeNamespace(name: string): string {
     }
 
     return name.trim();
-}
-
-// Tries to extract event names that this orchestrator is awaiting
-export function getEventNames(orchestratorCode: string): string[] {
-
-    const result = [];
-
-    const regex = TraversalRegexes.waitForExternalEventRegex;
-    var match: RegExpExecArray | null;
-    while (!!(match = regex.exec(orchestratorCode))) {
-        result.push(match[4]);
-    }
-
-    return result;
-}
-
-// Tries to match orchestrator with its activities
-export function mapActivitiesToOrchestrator(functions: FunctionsMap, orch: {name: string, code: string}, activityNames: string[]): void {
-
-    for (const activityName of activityNames) {
-
-        // If this orchestrator seems to be calling this activity
-        const regex = TraversalRegexes.getCallActivityRegex(activityName);
-        if (!!regex.exec(orch.code)) {
-
-            // Then mapping this activity to this orchestrator
-            functions[activityName].isCalledBy = functions[activityName].isCalledBy ?? [];
-            functions[activityName].isCalledBy.push(orch.name);
-        }
-    }
 }
 
 // Primitive way of getting a line number out of symbol position
@@ -134,46 +103,6 @@ export function getCodeInBracketsReverse(str: string, openingBracket: string, cl
         }
     }
     return { code: '', openBracketPos: -1 };
-}
-
-// General-purpose regexes
-export class TraversalRegexes {
-
-    static getStartNewOrchestrationRegex(orchName: string): RegExp {
-        return new RegExp(`(StartNew|StartNewAsync|start_new|scheduleNewOrchestrationInstance)(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${orchName}\\s*["'\\),]{1}`, 'i');
-    }
-
-    static getCallSubOrchestratorRegex(subOrchName: string): RegExp {
-        return new RegExp(`(CallSubOrchestrator|CallSubOrchestratorWithRetry|call_sub_orchestrator)(Async)?(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${subOrchName}\\s*["'\\),]{1}`, 'i');
-    }
-
-    static readonly continueAsNewRegex = new RegExp(`ContinueAsNew\\s*\\(`, 'i');
-
-    static getRaiseEventRegex(eventName: string): RegExp {
-        return new RegExp(`(RaiseEvent|raise_event)(Async)?(.|\r|\n)*${eventName}`, 'i');
-    }
-
-    static getSignalEntityRegex(entityName: string): RegExp {
-        return new RegExp(`${entityName}\\s*["'>]{1}`);
-    }
-
-    static readonly waitForExternalEventRegex = new RegExp(`(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w,\\.-\\[\\]\\(\\)\\<\\>]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)?([\\s\\w\\.-]+)\\s*["'\`\\),]{1}`, 'gi');
-
-    static getDotNetFunctionNameRegex(funcName: string): RegExp {
-        return new RegExp(`FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|["'\`]|[\\w\\s\\.]+\\.\\s*)${funcName}\\s*["'\`\\)]{1}`)
-    }
-
-    static getJavaFunctionNameRegex(funcName: string): RegExp {
-        return new RegExp(`@\\s*FunctionName\\s*\\(["\\s\\w\\.-]*${funcName}"?\\)`)
-    }
-
-    static getCallActivityRegex(activityName: string): RegExp {
-        return new RegExp(`(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*["'\`]?${activityName}\\s*["'\`\\),]{1}`, 'i');
-    }
-
-    static getClassDefinitionRegex(className: string): RegExp {
-        return new RegExp(`class\\s*${className}`)
-    }
 }
 
 // In .Net not all bindings are mentioned in function.json, so we need to analyze source code to extract them

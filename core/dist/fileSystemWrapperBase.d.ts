@@ -11,6 +11,7 @@ export declare abstract class FileSystemWrapperBase {
     isCSharpProjectAsync(projectFolder: string): Promise<boolean>;
     isFSharpProjectAsync(projectFolder: string): Promise<boolean>;
     isJavaProjectAsync(projectFolder: string): Promise<boolean>;
+    isPowershellProjectAsync(projectFolder: string): Promise<boolean>;
     findFileRecursivelyAsync(folder: string, fileName: string | RegExp, returnFileContents: boolean, pattern?: RegExp): Promise<{
         filePath: string;
         code?: string;
