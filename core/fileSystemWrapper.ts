@@ -15,22 +15,22 @@ export class FileSystemWrapper extends FileSystemWrapperBase {
         return path.dirname(path1);
 	}
 
-    protected async readFile(path: string): Promise<string> {
+    public async readFile(path: string): Promise<string> {
 
         return await fileSystem.promises.readFile(path, { encoding: 'utf8' });
     }
 
-    protected async isDirectory(path: string): Promise<boolean> {
+    public async isDirectory(path: string): Promise<boolean> {
 
         return (await fileSystem.promises.lstat(path)).isDirectory();
     }
 
-    protected async readDir(path: string): Promise<string[]> {
+    public async readDir(path: string): Promise<string[]> {
 
         return await fileSystem.promises.readdir(path);
     }
 
-    protected async pathExists(path: string): Promise<boolean> {
+    public async pathExists(path: string): Promise<boolean> {
 
         return fileSystem.existsSync(path);
     }

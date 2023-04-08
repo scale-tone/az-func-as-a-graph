@@ -2,6 +2,7 @@ import { FunctionsMap } from "./FunctionsMap";
 import { posToLineNr } from "./traverseFunctionProjectUtils";
 
 import { FunctionProjectParserBase } from './functionProjectParserBase';
+import { RegExAndPos } from "./fileSystemWrapperBase";
 
 export class PowershellFunctionProjectParser extends FunctionProjectParserBase {
 
@@ -21,10 +22,28 @@ export class PowershellFunctionProjectParser extends FunctionProjectParserBase {
 
         const promises = functionNames.map(async name => {
 
-            let match = await this._fileSystemWrapper.findFileRecursivelyAsync(
+            let scriptFile = 'run\\.ps1$';
+
+            const functionJsonMatch = await this._fileSystemWrapper.findFileRecursivelyAsync(
                 this._fileSystemWrapper.joinPath(hostJsonFolder, name),
-                '.+\\.ps1$',
-                true);
+                'function.json$',
+                true
+            );
+
+            if (!!functionJsonMatch) {
+                
+                const functionJson = JSON.parse(functionJsonMatch.code);
+
+                if (!!functionJson.scriptFile) {
+                    scriptFile = functionJson.scriptFile.replace('.', '\\.');
+                }
+            }
+
+            const match = await this._fileSystemWrapper.findFileRecursivelyAsync(
+                this._fileSystemWrapper.joinPath(hostJsonFolder, name),
+                scriptFile,
+                true
+            );
             
             if (!match) {
                 return undefined;
@@ -51,7 +70,7 @@ export class PowershellFunctionProjectParser extends FunctionProjectParserBase {
         return new RegExp(`Send-DurableExternalEvent.*-EventName\\s*["']${eventName}["']`, 'i');
     }
 
-    protected getWaitForExternalEventRegex(): { regex: RegExp, pos: number } {
+    protected getWaitForExternalEventRegex(): RegExAndPos {
         return {
             regex: new RegExp(`Start-DurableExternalEventListener.*-EventName\\s*["']([\\s\\w\\.-]+)["']`, 'gi'),
             pos: 1

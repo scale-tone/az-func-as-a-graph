@@ -25,7 +25,15 @@ class PowershellFunctionProjectParser extends functionProjectParserBase_1.Functi
     getFunctionsAndTheirCodesAsync(functionNames, hostJsonFolder) {
         return __awaiter(this, void 0, void 0, function* () {
             const promises = functionNames.map((name) => __awaiter(this, void 0, void 0, function* () {
-                let match = yield this._fileSystemWrapper.findFileRecursivelyAsync(this._fileSystemWrapper.joinPath(hostJsonFolder, name), '.+\\.ps1$', true);
+                let scriptFile = 'run\\.ps1$';
+                const functionJsonMatch = yield this._fileSystemWrapper.findFileRecursivelyAsync(this._fileSystemWrapper.joinPath(hostJsonFolder, name), 'function.json$', true);
+                if (!!functionJsonMatch) {
+                    const functionJson = JSON.parse(functionJsonMatch.code);
+                    if (!!functionJson.scriptFile) {
+                        scriptFile = functionJson.scriptFile.replace('.', '\\.');
+                    }
+                }
+                const match = yield this._fileSystemWrapper.findFileRecursivelyAsync(this._fileSystemWrapper.joinPath(hostJsonFolder, name), scriptFile, true);
                 if (!match) {
                     return undefined;
                 }

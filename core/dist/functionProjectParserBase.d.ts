@@ -1,5 +1,5 @@
 import { FunctionsMap } from "./FunctionsMap";
-import { FileSystemWrapperBase } from './fileSystemWrapperBase';
+import { FileSystemWrapperBase, RegExAndPos } from './fileSystemWrapperBase';
 export declare abstract class FunctionProjectParserBase {
     protected _fileSystemWrapper: FileSystemWrapperBase;
     protected _log: (s: any) => void;
@@ -18,17 +18,29 @@ export declare abstract class FunctionProjectParserBase {
         name: string;
         code: string;
     }, activityNames: string[]): void;
+    protected tryExtractBindings(funcCode: string): {
+        type: string;
+        direction: string;
+    }[];
+    protected readonly singleParamRegex: RegExp;
+    protected readonly eventHubParamsRegex: RegExp;
+    protected readonly signalRParamsRegex: RegExp;
+    protected readonly rabbitMqParamsRegex: RegExp;
+    protected readonly blobParamsRegex: RegExp;
+    protected readonly cosmosDbParamsRegex: RegExp;
+    protected readonly signalRConnInfoParamsRegex: RegExp;
+    protected readonly eventGridParamsRegex: RegExp;
+    protected readonly isOutRegex: RegExp;
+    protected readonly httpMethods: string[];
+    protected readonly httpTriggerRouteRegex: RegExp;
+    protected readonly functionReturnTypeRegex: RegExp;
+    protected getBindingAttributeRegex(): RegExAndPos;
     protected getStartNewOrchestrationRegex(orchName: string): RegExp;
     protected getCallSubOrchestratorRegex(subOrchName: string): RegExp;
     protected getContinueAsNewRegex(): RegExp;
     protected getRaiseEventRegex(eventName: string): RegExp;
     protected getSignalEntityRegex(entityName: string): RegExp;
-    protected getWaitForExternalEventRegex(): {
-        regex: RegExp;
-        pos: number;
-    };
-    protected getDotNetFunctionNameRegex(funcName: string): RegExp;
-    protected getJavaFunctionNameRegex(funcName: string): RegExp;
+    protected getWaitForExternalEventRegex(): RegExAndPos;
     protected getCallActivityRegex(activityName: string): RegExp;
     protected getClassDefinitionRegex(className: string): RegExp;
 }

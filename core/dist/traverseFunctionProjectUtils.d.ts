@@ -9,25 +9,3 @@ export declare function getCodeInBracketsReverse(str: string, openingBracket: st
     code: string;
     openBracketPos: number;
 };
-export declare class BindingsParser {
-    static tryExtractBindings(funcCode: string): {
-        type: string;
-        direction: string;
-    }[];
-    static readonly bindingAttributeRegex: RegExp;
-    static readonly singleParamRegex: RegExp;
-    static readonly eventHubParamsRegex: RegExp;
-    static readonly signalRParamsRegex: RegExp;
-    static readonly rabbitMqParamsRegex: RegExp;
-    static readonly blobParamsRegex: RegExp;
-    static readonly cosmosDbParamsRegex: RegExp;
-    static readonly signalRConnInfoParamsRegex: RegExp;
-    static readonly eventGridParamsRegex: RegExp;
-    static readonly isOutRegex: RegExp;
-    static readonly httpMethods: string[];
-    static readonly httpTriggerRouteRegex: RegExp;
-    static readonly functionReturnTypeRegex: RegExp;
-    static getFunctionAttributeRegex(): RegExp;
-    static getJavaFunctionAttributeRegex(): RegExp;
-    static getFSharpFunctionAttributeRegex(): RegExp;
-}

@@ -38,8 +38,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FunctionProjectParser = void 0;
 var functionProjectScriptParser_1 = require("./functionProjectScriptParser");
-var functionProjectCodeParser_1 = require("./functionProjectCodeParser");
+var cSharpFunctionProjectParser_1 = require("./cSharpFunctionProjectParser");
+var fSharpFunctionProjectParser_1 = require("./fSharpFunctionProjectParser");
+var javaFunctionProjectParser_1 = require("./javaFunctionProjectParser");
 var powershellFunctionProjectParser_1 = require("./powershellFunctionProjectParser");
+var pythonV2FunctionProjectParser_1 = require("./pythonV2FunctionProjectParser");
 // Parses Azure Functions projects to produce Functions map (list of all Functions, their bindings and connections to other Functions)
 var FunctionProjectParser = /** @class */ (function () {
     function FunctionProjectParser() {
@@ -63,34 +66,39 @@ var FunctionProjectParser = /** @class */ (function () {
                         return [4 /*yield*/, fileSystemWrapper.isCSharpProjectAsync(hostJsonFolder)];
                     case 2:
                         if (!_a.sent()) return [3 /*break*/, 3];
-                        parser = new functionProjectCodeParser_1.CSharpFunctionProjectParser(fileSystemWrapper, log);
-                        return [3 /*break*/, 9];
+                        parser = new cSharpFunctionProjectParser_1.CSharpFunctionProjectParser(fileSystemWrapper, log);
+                        return [3 /*break*/, 11];
                     case 3: return [4 /*yield*/, fileSystemWrapper.isFSharpProjectAsync(hostJsonFolder)];
                     case 4:
                         if (!_a.sent()) return [3 /*break*/, 5];
-                        parser = new functionProjectCodeParser_1.FSharpFunctionProjectParser(fileSystemWrapper, log);
-                        return [3 /*break*/, 9];
+                        parser = new fSharpFunctionProjectParser_1.FSharpFunctionProjectParser(fileSystemWrapper, log);
+                        return [3 /*break*/, 11];
                     case 5: return [4 /*yield*/, fileSystemWrapper.isJavaProjectAsync(hostJsonFolder)];
                     case 6:
                         if (!_a.sent()) return [3 /*break*/, 7];
-                        parser = new functionProjectCodeParser_1.JavaFunctionProjectParser(fileSystemWrapper, log);
-                        return [3 /*break*/, 9];
+                        parser = new javaFunctionProjectParser_1.JavaFunctionProjectParser(fileSystemWrapper, log);
+                        return [3 /*break*/, 11];
                     case 7: return [4 /*yield*/, fileSystemWrapper.isPowershellProjectAsync(hostJsonFolder)];
                     case 8:
+                        if (!_a.sent()) return [3 /*break*/, 9];
+                        parser = new powershellFunctionProjectParser_1.PowershellFunctionProjectParser(fileSystemWrapper, log);
+                        return [3 /*break*/, 11];
+                    case 9: return [4 /*yield*/, fileSystemWrapper.isPythonV2ProjectAsync(hostJsonFolder)];
+                    case 10:
                         if (_a.sent()) {
-                            parser = new powershellFunctionProjectParser_1.PowershellFunctionProjectParser(fileSystemWrapper, log);
+                            parser = new pythonV2FunctionProjectParser_1.PythonV2FunctionProjectParser(fileSystemWrapper, log);
                         }
                         else {
                             parser = new functionProjectScriptParser_1.FunctionProjectScriptParser(fileSystemWrapper, log);
                             // For script-based functions use host.json's folder as the root
                             projectFolder = hostJsonFolder;
                         }
-                        _a.label = 9;
-                    case 9: return [4 /*yield*/, parser.traverseFunctions(projectFolder)];
-                    case 10:
+                        _a.label = 11;
+                    case 11: return [4 /*yield*/, parser.traverseFunctions(projectFolder)];
+                    case 12:
                         functions = _a.sent();
                         return [4 /*yield*/, fileSystemWrapper.readProxiesJson(projectFolder, log)];
-                    case 11:
+                    case 13:
                         proxies = _a.sent();
                         return [2 /*return*/, { functions: functions, proxies: proxies, projectFolder: projectFolder }];
                 }

@@ -228,6 +228,22 @@ var FileSystemWrapperBase = /** @class */ (function () {
             });
         });
     };
+    FileSystemWrapperBase.prototype.isPythonV2ProjectAsync = function (projectFolder) {
+        return __awaiter(this, void 0, void 0, function () {
+            var pyFileMatch, functionJsonFileMatch;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.findFileRecursivelyAsync(projectFolder, ".+\\.py$", false)];
+                    case 1:
+                        pyFileMatch = _a.sent();
+                        return [4 /*yield*/, this.findFileRecursivelyAsync(projectFolder, "function.json", false)];
+                    case 2:
+                        functionJsonFileMatch = _a.sent();
+                        return [2 /*return*/, !!pyFileMatch && !functionJsonFileMatch];
+                }
+            });
+        });
+    };
     FileSystemWrapperBase.prototype.findFileRecursivelyAsync = function (folder, fileName, returnFileContents, pattern) {
         return __awaiter(this, void 0, void 0, function () {
             var fileNameRegex, subFolders, _i, _a, name_1, fullPath, isDirectory, _b, code, match, _c, subFolders_1, subFolder, result;
@@ -378,7 +394,7 @@ var FileSystemWrapperBase = /** @class */ (function () {
             });
         });
     };
-    FileSystemWrapperBase.prototype.findFunctionsRecursivelyAsync = function (folder, fileNameRegex, functionAttributeRegex, functionNamePosInRegex) {
+    FileSystemWrapperBase.prototype.findFunctionsRecursivelyAsync = function (folder, fileNameRegex, functionAttributeRegex) {
         return __asyncGenerator(this, arguments, function findFunctionsRecursivelyAsync_1() {
             var _a, _b, fullPath, code, match, functionName, functionAttributeEndPos, body, e_2_1;
             var e_2, _c;
@@ -397,8 +413,8 @@ var FileSystemWrapperBase = /** @class */ (function () {
                         code = _d.sent();
                         _d.label = 4;
                     case 4:
-                        if (!!!(match = functionAttributeRegex.exec(code))) return [3 /*break*/, 11];
-                        functionName = traverseFunctionProjectUtils_1.cleanupFunctionName(match[functionNamePosInRegex]);
+                        if (!!!(match = functionAttributeRegex.regex.exec(code))) return [3 /*break*/, 11];
+                        functionName = traverseFunctionProjectUtils_1.cleanupFunctionName(match[functionAttributeRegex.pos]);
                         functionAttributeEndPos = match.index + match[0].length;
                         body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, functionAttributeEndPos, '{', '}', '\n');
                         if (!(body.openBracketPos >= 0 && !!body.code)) return [3 /*break*/, 7];

@@ -37,11 +37,24 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FunctionProjectParserBase = void 0;
+var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
 // Parses Azure Functions projects to produce Functions map (list of all Functions, their bindings and connections to other Functions)
 var FunctionProjectParserBase = /** @class */ (function () {
     function FunctionProjectParserBase(_fileSystemWrapper, _log) {
         this._fileSystemWrapper = _fileSystemWrapper;
         this._log = _log;
+        this.singleParamRegex = new RegExp("(\"|nameof\\s*\\()?([\\w\\.-]+)");
+        this.eventHubParamsRegex = new RegExp("\"([^\"]+)\"");
+        this.signalRParamsRegex = new RegExp("\"([^\"]+)\"");
+        this.rabbitMqParamsRegex = new RegExp("\"([^\"]+)\"");
+        this.blobParamsRegex = new RegExp("\"([^\"]+)\"");
+        this.cosmosDbParamsRegex = new RegExp("\"([^\"]+)\"(.|\r|\n)+?\"([^\"]+)\"");
+        this.signalRConnInfoParamsRegex = new RegExp("\"([^\"]+)\"");
+        this.eventGridParamsRegex = new RegExp("\"([^\"]+)\"(.|\r|\n)+?\"([^\"]+)\"");
+        this.isOutRegex = new RegExp("^\\s*\\]\\s*(out |ICollector|IAsyncCollector).*?(,|\\()", 'g');
+        this.httpMethods = ["get", "head", "post", "put", "delete", "connect", "options", "trace", "patch"];
+        this.httpTriggerRouteRegex = new RegExp("Route\\s*=\\s*\"(.*)\"");
+        this.functionReturnTypeRegex = new RegExp("public\\s*(static\\s*|async\\s*)*(Task\\s*<\\s*)?([\\w\\.]+)");
     }
     // Tries to match orchestrations and their activities by parsing source code
     FunctionProjectParserBase.prototype.mapOrchestratorsAndActivitiesAsync = function (functions, projectFolder) {
@@ -160,6 +173,317 @@ var FunctionProjectParserBase = /** @class */ (function () {
             }
         }
     };
+    // Extracts additional bindings info from C#/F# source code
+    FunctionProjectParserBase.prototype.tryExtractBindings = function (funcCode) {
+        var result = [];
+        if (!funcCode) {
+            return result;
+        }
+        var regex = this.getBindingAttributeRegex();
+        var match;
+        while (!!(match = regex.regex.exec(funcCode))) {
+            var isReturn = match[regex.pos - 1] === 'return:';
+            var attributeName = match[regex.pos];
+            if (attributeName.endsWith("Attribute")) {
+                attributeName = attributeName.substring(0, attributeName.length - "Attribute".length);
+            }
+            var attributeCodeStartIndex = match.index + match[0].length;
+            var attributeCode = traverseFunctionProjectUtils_1.getCodeInBrackets(funcCode, attributeCodeStartIndex, '(', ')', '').code;
+            this.isOutRegex.lastIndex = attributeCodeStartIndex + attributeCode.length;
+            var isOut = !!this.isOutRegex.exec(funcCode);
+            switch (attributeName) {
+                case 'read_blob':
+                case 'blob_input':
+                case 'blob_output':
+                case 'BlobInput':
+                case 'BlobOutput':
+                case 'Blob': {
+                    var binding = {
+                        type: 'blob',
+                        direction: attributeName === 'Blob' ? (isReturn || isOut ? 'out' : 'in') : (attributeName.toLowerCase().endsWith('output') ? 'out' : 'in')
+                    };
+                    var paramsMatch = this.blobParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.path = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'blob_trigger':
+                case 'BlobTrigger': {
+                    var binding = { type: 'blobTrigger' };
+                    var paramsMatch = this.blobParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.path = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'table_input':
+                case 'table_output':
+                case 'TableInput':
+                case 'TableOutput':
+                case 'Table': {
+                    var binding = {
+                        type: 'table',
+                        direction: attributeName === 'Table' ? (isReturn || isOut ? 'out' : 'in') : (attributeName.toLowerCase().endsWith('output') ? 'out' : 'in')
+                    };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.tableName = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'CosmosDBInput':
+                case 'CosmosDBOutput':
+                case 'CosmosDB': {
+                    var binding = {
+                        type: 'cosmosDB',
+                        direction: attributeName === 'CosmosDB' ? (isReturn || isOut ? 'out' : 'in') : (attributeName.toLowerCase().endsWith('output') ? 'out' : 'in')
+                    };
+                    var paramsMatch = this.cosmosDbParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.databaseName = paramsMatch[1];
+                        binding.collectionName = paramsMatch[3];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'cosmos_db_trigger':
+                case 'CosmosDBTrigger': {
+                    var binding = { type: 'cosmosDBTrigger' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.databaseName = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'event_grid_output':
+                case 'EventGrid':
+                case 'EventGridOutput': {
+                    var binding = { type: 'eventGrid', direction: 'out' };
+                    var paramsMatch = this.eventGridParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.topicEndpointUri = paramsMatch[1];
+                        binding.topicKeySetting = paramsMatch[3];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'EventGridTrigger': {
+                    var binding = { type: 'eventGridTrigger' };
+                    var paramsMatch = this.eventGridParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.topicEndpointUri = paramsMatch[1];
+                        binding.topicKeySetting = paramsMatch[3];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'event_hub_output':
+                case 'EventHub':
+                case 'EventHubOutput': {
+                    var binding = { type: 'eventHub', direction: 'out' };
+                    var paramsMatch = this.eventHubParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.eventHubName = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'event_hub_message_trigger':
+                case 'EventHubTrigger': {
+                    var binding = { type: 'eventHubTrigger' };
+                    var paramsMatch = this.eventHubParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.eventHubName = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'Kafka':
+                case 'KafkaOutput': {
+                    var binding = { type: 'kafka', direction: 'out' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.brokerList = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'KafkaTrigger': {
+                    var binding = { type: 'kafkaTrigger' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.brokerList = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'queue_output':
+                case 'Queue':
+                case 'QueueOutput': {
+                    var binding = { type: 'queue', direction: 'out' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'queue_trigger':
+                case 'QueueTrigger': {
+                    var binding = { type: 'queueTrigger' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'service_bus_queue_output':
+                case 'service_bus_topic_output':
+                case 'ServiceBus':
+                case 'ServiceBusOutput': {
+                    var binding = { type: 'serviceBus', direction: 'out' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'service_bus_queue_trigger':
+                case 'service_bus_topic_trigger':
+                case 'ServiceBusTrigger':
+                case 'ServiceBusQueueTrigger':
+                case 'ServiceBusTopicTrigger': {
+                    var binding = { type: 'serviceBusTrigger' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SignalRConnectionInfo':
+                case 'SignalRConnectionInfoInput': {
+                    var binding = { type: 'signalRConnectionInfo', direction: 'in' };
+                    var paramsMatch = this.signalRConnInfoParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding.hubName = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SignalR':
+                case 'SignalROutput': {
+                    var binding = { type: 'signalR', direction: 'out' };
+                    var paramsMatch = this.signalRParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['hubName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SignalRTrigger': {
+                    var binding = { type: 'signalRTrigger' };
+                    var paramsMatch = this.signalRParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['hubName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'RabbitMQ':
+                case 'RabbitMQOutput': {
+                    var binding = { type: 'rabbitMQ', direction: 'out' };
+                    var paramsMatch = this.rabbitMqParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'RabbitMQTrigger': {
+                    var binding = { type: 'rabbitMQTrigger' };
+                    var paramsMatch = this.rabbitMqParamsRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['queueName'] = paramsMatch[1];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                case 'SendGrid':
+                case 'SendGridOutput': {
+                    result.push({ type: 'sendGrid', direction: 'out' });
+                    break;
+                }
+                case 'TwilioSms': {
+                    result.push({ type: 'twilioSms', direction: 'out' });
+                    break;
+                }
+                case 'route':
+                case 'HttpTrigger': {
+                    var binding = { type: 'httpTrigger', methods: [] };
+                    var httpTriggerRouteMatch = this.httpTriggerRouteRegex.exec(attributeCode);
+                    if (!!httpTriggerRouteMatch) {
+                        binding.route = httpTriggerRouteMatch[1];
+                    }
+                    var lowerAttributeCode = attributeCode.toLowerCase();
+                    for (var _i = 0, _a = this.httpMethods; _i < _a.length; _i++) {
+                        var httpMethod = _a[_i];
+                        if (lowerAttributeCode.includes("\"" + httpMethod + "\"")) {
+                            binding.methods.push(httpMethod);
+                        }
+                    }
+                    result.push(binding);
+                    result.push({ type: 'http', direction: 'out' });
+                    break;
+                }
+                case 'orchestration_trigger':
+                case 'OrchestrationTrigger':
+                case 'DurableOrchestrationTrigger': {
+                    result.push({ type: 'orchestrationTrigger', direction: 'in' });
+                    break;
+                }
+                case 'activity_trigger':
+                case 'ActivityTrigger':
+                case 'DurableActivityTrigger': {
+                    result.push({ type: 'activityTrigger', direction: 'in' });
+                    break;
+                }
+                case 'EntityTrigger':
+                case 'DurableEntityTrigger': {
+                    result.push({ type: 'entityTrigger', direction: 'in' });
+                    break;
+                }
+                case 'schedule':
+                case 'TimerTrigger': {
+                    var binding = { type: 'timerTrigger' };
+                    var paramsMatch = this.singleParamRegex.exec(attributeCode);
+                    if (!!paramsMatch) {
+                        binding['schedule'] = paramsMatch[2];
+                    }
+                    result.push(binding);
+                    break;
+                }
+                default: {
+                    result.push({ type: attributeName, direction: isReturn || isOut ? 'out' : 'in' });
+                    break;
+                }
+            }
+        }
+        return result;
+    };
+    FunctionProjectParserBase.prototype.getBindingAttributeRegex = function () {
+        return {
+            regex: new RegExp("(\\[|@)(<)?\\s*(return:)?\\s*(\\w+)", 'g'),
+            pos: 4
+        };
+    };
     FunctionProjectParserBase.prototype.getStartNewOrchestrationRegex = function (orchName) {
         return new RegExp("(StartNew|StartNewAsync|start_new|scheduleNewOrchestrationInstance)(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*([\"'`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)" + orchName + "\\s*[\"'\\),]{1}", 'i');
     };
@@ -180,12 +504,6 @@ var FunctionProjectParserBase = /** @class */ (function () {
             regex: new RegExp("(WaitForExternalEvent|wait_for_external_event)(<[\\s\\w,\\.-\\[\\]\\(\\)\\<\\>]+>)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)?([\\s\\w\\.-]+)\\s*[\"'`\\),]{1}", 'gi'),
             pos: 4
         };
-    };
-    FunctionProjectParserBase.prototype.getDotNetFunctionNameRegex = function (funcName) {
-        return new RegExp("FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)" + funcName + "\\s*[\"'`\\)]{1}");
-    };
-    FunctionProjectParserBase.prototype.getJavaFunctionNameRegex = function (funcName) {
-        return new RegExp("@\\s*FunctionName\\s*\\([\"\\s\\w\\.-]*" + funcName + "\"?\\)");
     };
     FunctionProjectParserBase.prototype.getCallActivityRegex = function (activityName) {
         return new RegExp("(CallActivity|call_activity)[\\s\\w,\\.-<>\\[\\]\\(\\)\\?]*\\([\\s\\w\\.-]*[\"'`]?" + activityName + "\\s*[\"'`\\),]{1}", 'i');

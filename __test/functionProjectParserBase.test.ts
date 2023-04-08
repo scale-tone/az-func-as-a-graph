@@ -1,13 +1,16 @@
 
-import { FunctionProjectParserBase } from '../core/FunctionProjectParserBase';
+import { FunctionProjectCodeParser } from '../core/functionProjectCodeParser';
 import { FunctionsMap } from '../core/FunctionsMap';
 
-class FunctionProjectParserAccessor extends FunctionProjectParserBase {
+class FunctionProjectParserAccessor extends FunctionProjectCodeParser {
 
     constructor() {
         super(undefined as any, undefined as any);
     }
 
+    protected traverseProjectCode(projectFolder: string): Promise<FunctionsMap> {
+        throw new Error('Method not implemented.');
+    }
     public traverseFunctions(projectFolder: string): Promise<FunctionsMap> {
         throw new Error('Method not implemented.');
     }
@@ -16,7 +19,7 @@ class FunctionProjectParserAccessor extends FunctionProjectParserBase {
     }
 }
 
-const TraversalRegexes = new FunctionProjectParserAccessor() as any;
+const parser = new FunctionProjectParserAccessor() as any;
 
 test('getStartNewOrchestrationRegex', () => {
 
@@ -41,7 +44,7 @@ test('getStartNewOrchestrationRegex', () => {
         `String instanceId = client.scheduleNewOrchestrationInstance("${orchId}"); `
     ];
 
-    const regex = TraversalRegexes.getStartNewOrchestrationRegex(orchId);
+    const regex = parser.getStartNewOrchestrationRegex(orchId);
     for (const sample of samples) {
         expect(regex.exec(sample)).not.toBeNull();
     }
@@ -71,7 +74,7 @@ test('getCallSubOrchestratorRegex', () => {
         `c.CallSubOrchestratorWithRetry(My.Constants.${orchId}, " some , string ", someParam);`,
     ];
 
-    const regex = TraversalRegexes.getCallSubOrchestratorRegex(orchId);
+    const regex = parser.getCallSubOrchestratorRegex(orchId);
     for (const sample of samples) {
         expect(regex.exec(sample)).not.toBeNull();
     }
@@ -85,7 +88,7 @@ test('continueAsNewRegex', () => {
           ( input );`,
     ];
 
-    const regex = TraversalRegexes.getContinueAsNewRegex();
+    const regex = parser.getContinueAsNewRegex();
     for (const sample of samples) {
         expect(regex.exec(sample)).not.toBeNull();
     }
@@ -107,7 +110,7 @@ test('getRaiseEventRegex', () => {
         `c.RaiseEventAsync(p1, "p2", My.Constants.${eventName} );`,
    ];
 
-    const regex = TraversalRegexes.getRaiseEventRegex(eventName);
+    const regex = parser.getRaiseEventRegex(eventName);
     for (const sample of samples) {
         expect(regex.exec(sample)).not.toBeNull();
     }
@@ -123,7 +126,7 @@ test('getSignalEntityRegex', () => {
                 p => p.InitializeParticipantsAsync(new HashSet<string>(nickNames)));`,
     ];
 
-    const regex = TraversalRegexes.getSignalEntityRegex(entityName);
+    const regex = parser.getSignalEntityRegex(entityName);
     for (const sample of samples) {
         expect(regex.exec(sample)).not.toBeNull();
     }
@@ -150,7 +153,7 @@ test('waitForExternalEventRegex', () => {
         c.WaitForExternalEvent< DateTime?  >( "${eventName}" )
     `;
 
-    const regex = TraversalRegexes.getWaitForExternalEventRegex();
+    const regex = parser.getWaitForExternalEventRegex();
 
     var count = 0;
     var match: RegExpExecArray | null;
@@ -181,7 +184,7 @@ test('getDotNetFunctionNameRegex', () => {
       
     ];
 
-    const regex = TraversalRegexes.getDotNetFunctionNameRegex(functionName);
+    const regex = parser.getFunctionStartRegex(functionName);
     for (const sample of samples) {
         expect(regex.exec(sample)).not.toBeNull();
     }
@@ -209,8 +212,128 @@ test('getCallActivityRegex', () => {
         `c.CallActivityWithRetryAsync( My.Constants.${activityName}, param1, param2);`,
     ];
 
-    const regex = TraversalRegexes.getCallActivityRegex(activityName);
+    const regex = parser.getCallActivityRegex(activityName);
     for (const sample of samples) {
         expect(regex.exec(sample)).not.toBeNull();
+    }
+});
+
+test('bindingAttributeRegex', () => {
+
+    const samples = [
+        `[return:Table("MyTable")]`,
+        `[ BlobTrigger ( "claims/{fileFullName}", Connection = "AzureWebJobsStorage")] Stream fileStream`,
+        `([<ServiceBus(TopicName, Connection = ServiceBusConnectionString, EntityType = EntityType.Topic)>] topic: IAsyncCollector<Message>)`,
+        `[QueueOutputAttribute("myQueue")]`,
+        ` @BlobTrigger(name = "content", path = "samples-workitems/{name}", dataType = "binary") byte[] content,`
+    ];
+
+    const results = [
+        ['return:', 'Table'],
+        [undefined, 'BlobTrigger'],
+        [undefined, 'ServiceBus'],
+        [undefined, 'QueueOutputAttribute'],
+        [undefined, 'BlobTrigger'],
+    ];
+
+    const regex = parser.getBindingAttributeRegex();
+    for (var i = 0; i < samples.length; i++) {
+
+        // Need to reset the regex, because it's 'global' aka stateful
+        regex.regex.lastIndex = 0;
+
+        const sample = samples[i];
+        const result = results[i];
+
+        const match = regex.regex.exec(sample);
+        expect(match).not.toBeNull();
+        expect(match[regex.pos-1]).toBe(result[0]);
+        expect(match[regex.pos]).toBe(result[1]);
+    }
+});
+
+test('isOutRegex', () => {
+
+    const samples = [
+        `  ]out string message,`,
+        `] out string[] results (`,
+        ` ] ICollector myCollector,`,
+        `]IAsyncCollector myCollector(`,
+    ];
+
+    const regex = parser.isOutRegex;
+    for (var i = 0; i < samples.length; i++) {
+
+        // Need to reset the regex, because it's 'global' aka stateful
+        regex.lastIndex = 0;
+
+        const sample = samples[i];
+
+        const match = regex.exec(sample);
+        expect(match).not.toBeNull();
+    }
+});
+
+test('singleParamRegex', () => {
+
+    const samples = [
+        `("Users")CloudTable users`,
+        `( nameof (MyDataFile))] string data`,
+        ` ( Constants.MyQueue )  string msg`,
+    ];
+
+    const results = [
+        `Users`,
+        `MyDataFile`,
+        `Constants.MyQueue`,
+    ];
+
+    const regex = parser.singleParamRegex;
+    for (var i = 0; i < samples.length; i++) {
+
+        const sample = samples[i];
+        const result = results[i];
+
+        const match = regex.exec(sample);
+        expect(match).not.toBeNull();
+        expect(match[2]).toBe(result);
+    }
+});
+
+test('functionReturnTypeRegex', () => {
+
+    const samples = [
+
+        ` public  MyNamespace.MyOutputClass_1   Run`,
+
+        `  public  static MyOutputClass_2   Run`,
+        `   public static  Task<MyOutputClass_3>   Run`,
+        `    public async Task<MyOutputClass_4>   Run`,
+
+        `  public  static    async Task<MyOutputClass_5>   Run`,
+        `public  async static Task<MyOutputClass_6>   Run`,
+    ];
+
+    const results = [
+        ['MyNamespace.MyOutputClass_1'],
+        ['MyOutputClass_2'],
+        ['MyOutputClass_3'],
+        ['MyOutputClass_4'],
+        ['MyOutputClass_5'],
+        ['MyOutputClass_6'],
+    ];
+
+    const regex = parser.functionReturnTypeRegex;
+    for (var i = 0; i < samples.length; i++) {
+
+        // Need to reset the regex, because it's 'global' aka stateful
+        regex.lastIndex = 0;
+
+        const sample = samples[i];
+        const result = results[i];
+
+        const match = regex.exec(sample);
+        expect(match).not.toBeNull();
+        expect(match[3]).toBe(result[0]);
     }
 });

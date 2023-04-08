@@ -50,33 +50,28 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __asyncValues = (this && this.__asyncValues) || function (o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+};
+var __spreadArray = (this && this.__spreadArray) || function (to, from) {
+    for (var i = 0, il = from.length, j = to.length; i < il; i++, j++)
+        to[j] = from[i];
+    return to;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PowershellFunctionProjectParser = void 0;
+exports.JavaFunctionProjectParser = void 0;
 var traverseFunctionProjectUtils_1 = require("./traverseFunctionProjectUtils");
-var functionProjectParserBase_1 = require("./functionProjectParserBase");
-var PowershellFunctionProjectParser = /** @class */ (function (_super) {
-    __extends(PowershellFunctionProjectParser, _super);
-    function PowershellFunctionProjectParser() {
+var functionProjectCodeParser_1 = require("./functionProjectCodeParser");
+var JavaFunctionProjectParser = /** @class */ (function (_super) {
+    __extends(JavaFunctionProjectParser, _super);
+    function JavaFunctionProjectParser() {
         return _super !== null && _super.apply(this, arguments) || this;
     }
-    PowershellFunctionProjectParser.prototype.traverseFunctions = function (projectFolder) {
-        return __awaiter(this, void 0, void 0, function () {
-            var functions;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, this._fileSystemWrapper.readFunctionsJson(projectFolder, this._log)];
-                    case 1:
-                        functions = _a.sent();
-                        return [4 /*yield*/, this.mapOrchestratorsAndActivitiesAsync(functions, projectFolder)];
-                    case 2:
-                        // Now enriching it with more info extracted from code
-                        functions = _a.sent();
-                        return [2 /*return*/, functions];
-                }
-            });
-        });
-    };
-    PowershellFunctionProjectParser.prototype.getFunctionsAndTheirCodesAsync = function (functionNames, hostJsonFolder) {
+    JavaFunctionProjectParser.prototype.getFunctionsAndTheirCodesAsync = function (functionNames, hostJsonFolder) {
         return __awaiter(this, void 0, void 0, function () {
             var promises;
             var _this = this;
@@ -84,29 +79,19 @@ var PowershellFunctionProjectParser = /** @class */ (function (_super) {
                 switch (_a.label) {
                     case 0:
                         promises = functionNames.map(function (name) { return __awaiter(_this, void 0, void 0, function () {
-                            var scriptFile, functionJsonMatch, functionJson, match, pos, lineNr;
+                            var match, code, pos, lineNr;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
-                                    case 0:
-                                        scriptFile = 'run\\.ps1$';
-                                        return [4 /*yield*/, this._fileSystemWrapper.findFileRecursivelyAsync(this._fileSystemWrapper.joinPath(hostJsonFolder, name), 'function.json$', true)];
+                                    case 0: return [4 /*yield*/, this._fileSystemWrapper.findFileRecursivelyAsync(hostJsonFolder, '.+\\.java$', true, this.getFunctionStartRegex(name))];
                                     case 1:
-                                        functionJsonMatch = _a.sent();
-                                        if (!!functionJsonMatch) {
-                                            functionJson = JSON.parse(functionJsonMatch.code);
-                                            if (!!functionJson.scriptFile) {
-                                                scriptFile = functionJson.scriptFile.replace('.', '\\.');
-                                            }
-                                        }
-                                        return [4 /*yield*/, this._fileSystemWrapper.findFileRecursivelyAsync(this._fileSystemWrapper.joinPath(hostJsonFolder, name), scriptFile, true)];
-                                    case 2:
                                         match = _a.sent();
                                         if (!match) {
                                             return [2 /*return*/, undefined];
                                         }
+                                        code = traverseFunctionProjectUtils_1.getCodeInBrackets(match.code, match.pos + match.length, '{', '}', '\n').code;
                                         pos = !match.pos ? 0 : match.pos;
                                         lineNr = traverseFunctionProjectUtils_1.posToLineNr(match.code, pos);
-                                        return [2 /*return*/, { name: name, code: match.code, filePath: match.filePath, pos: pos, lineNr: lineNr }];
+                                        return [2 /*return*/, { name: name, code: code, filePath: match.filePath, pos: pos, lineNr: lineNr }];
                                 }
                             });
                         }); });
@@ -116,21 +101,60 @@ var PowershellFunctionProjectParser = /** @class */ (function (_super) {
             });
         });
     };
-    PowershellFunctionProjectParser.prototype.getStartNewOrchestrationRegex = function (orchName) {
-        return new RegExp("(Start-DurableOrchestration|Start-NewOrchestration).*-FunctionName\\s*[\"']" + orchName + "[\"']", 'i');
+    JavaFunctionProjectParser.prototype.traverseProjectCode = function (projectFolder) {
+        var e_1, _a;
+        return __awaiter(this, void 0, void 0, function () {
+            var result, _b, _c, func, bindings, e_1_1;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
+                    case 0:
+                        result = {};
+                        _d.label = 1;
+                    case 1:
+                        _d.trys.push([1, 6, 7, 12]);
+                        _b = __asyncValues(this._fileSystemWrapper.findFunctionsRecursivelyAsync(projectFolder, new RegExp('.+\\.java$', 'i'), this.getFunctionAttributeRegex()));
+                        _d.label = 2;
+                    case 2: return [4 /*yield*/, _b.next()];
+                    case 3:
+                        if (!(_c = _d.sent(), !_c.done)) return [3 /*break*/, 5];
+                        func = _c.value;
+                        bindings = this.tryExtractBindings(func.declarationCode);
+                        result[func.functionName] = {
+                            filePath: func.filePath,
+                            pos: func.pos,
+                            lineNr: func.lineNr,
+                            bindings: __spreadArray([], bindings)
+                        };
+                        _d.label = 4;
+                    case 4: return [3 /*break*/, 2];
+                    case 5: return [3 /*break*/, 12];
+                    case 6:
+                        e_1_1 = _d.sent();
+                        e_1 = { error: e_1_1 };
+                        return [3 /*break*/, 12];
+                    case 7:
+                        _d.trys.push([7, , 10, 11]);
+                        if (!(_c && !_c.done && (_a = _b.return))) return [3 /*break*/, 9];
+                        return [4 /*yield*/, _a.call(_b)];
+                    case 8:
+                        _d.sent();
+                        _d.label = 9;
+                    case 9: return [3 /*break*/, 11];
+                    case 10:
+                        if (e_1) throw e_1.error;
+                        return [7 /*endfinally*/];
+                    case 11: return [7 /*endfinally*/];
+                    case 12: return [2 /*return*/, result];
+                }
+            });
+        });
     };
-    PowershellFunctionProjectParser.prototype.getCallActivityRegex = function (activityName) {
-        return new RegExp("(Invoke-DurableActivity|Invoke-ActivityFunction).*-FunctionName\\s*[\"']" + activityName + "[\"']", 'i');
-    };
-    PowershellFunctionProjectParser.prototype.getRaiseEventRegex = function (eventName) {
-        return new RegExp("Send-DurableExternalEvent.*-EventName\\s*[\"']" + eventName + "[\"']", 'i');
-    };
-    PowershellFunctionProjectParser.prototype.getWaitForExternalEventRegex = function () {
+    JavaFunctionProjectParser.prototype.getFunctionAttributeRegex = function () {
         return {
-            regex: new RegExp("Start-DurableExternalEventListener.*-EventName\\s*[\"']([\\s\\w\\.-]+)[\"']", 'gi'),
+            regex: new RegExp("@\\s*FunctionName\\s*\\(([\"\\w\\s\\.\\(\\)-]+)\\)", 'g'),
             pos: 1
         };
     };
-    return PowershellFunctionProjectParser;
-}(functionProjectParserBase_1.FunctionProjectParserBase));
-exports.PowershellFunctionProjectParser = PowershellFunctionProjectParser;
+    return JavaFunctionProjectParser;
+}(functionProjectCodeParser_1.FunctionProjectCodeParser));
+exports.JavaFunctionProjectParser = JavaFunctionProjectParser;

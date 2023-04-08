@@ -11,8 +11,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FunctionProjectParser = void 0;
 const functionProjectScriptParser_1 = require("./functionProjectScriptParser");
-const functionProjectCodeParser_1 = require("./functionProjectCodeParser");
+const cSharpFunctionProjectParser_1 = require("./cSharpFunctionProjectParser");
+const fSharpFunctionProjectParser_1 = require("./fSharpFunctionProjectParser");
+const javaFunctionProjectParser_1 = require("./javaFunctionProjectParser");
 const powershellFunctionProjectParser_1 = require("./powershellFunctionProjectParser");
+const pythonV2FunctionProjectParser_1 = require("./pythonV2FunctionProjectParser");
 // Parses Azure Functions projects to produce Functions map (list of all Functions, their bindings and connections to other Functions)
 class FunctionProjectParser {
     // Collects all function.json files in a Functions project. Also tries to supplement them with bindings
@@ -28,16 +31,19 @@ class FunctionProjectParser {
             const hostJsonFolder = fileSystemWrapper.dirName(hostJsonMatch.filePath);
             let parser;
             if (yield fileSystemWrapper.isCSharpProjectAsync(hostJsonFolder)) {
-                parser = new functionProjectCodeParser_1.CSharpFunctionProjectParser(fileSystemWrapper, log);
+                parser = new cSharpFunctionProjectParser_1.CSharpFunctionProjectParser(fileSystemWrapper, log);
             }
             else if (yield fileSystemWrapper.isFSharpProjectAsync(hostJsonFolder)) {
-                parser = new functionProjectCodeParser_1.FSharpFunctionProjectParser(fileSystemWrapper, log);
+                parser = new fSharpFunctionProjectParser_1.FSharpFunctionProjectParser(fileSystemWrapper, log);
             }
             else if (yield fileSystemWrapper.isJavaProjectAsync(hostJsonFolder)) {
-                parser = new functionProjectCodeParser_1.JavaFunctionProjectParser(fileSystemWrapper, log);
+                parser = new javaFunctionProjectParser_1.JavaFunctionProjectParser(fileSystemWrapper, log);
             }
             else if (yield fileSystemWrapper.isPowershellProjectAsync(hostJsonFolder)) {
                 parser = new powershellFunctionProjectParser_1.PowershellFunctionProjectParser(fileSystemWrapper, log);
+            }
+            else if (yield fileSystemWrapper.isPythonV2ProjectAsync(hostJsonFolder)) {
+                parser = new pythonV2FunctionProjectParser_1.PythonV2FunctionProjectParser(fileSystemWrapper, log);
             }
             else {
                 parser = new functionProjectScriptParser_1.FunctionProjectScriptParser(fileSystemWrapper, log);

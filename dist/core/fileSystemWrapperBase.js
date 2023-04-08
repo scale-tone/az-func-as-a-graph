@@ -132,6 +132,13 @@ class FileSystemWrapperBase {
             return !!psFileMatch;
         });
     }
+    isPythonV2ProjectAsync(projectFolder) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const pyFileMatch = yield this.findFileRecursivelyAsync(projectFolder, `.+\\.py$`, false);
+            const functionJsonFileMatch = yield this.findFileRecursivelyAsync(projectFolder, `function.json`, false);
+            return !!pyFileMatch && !functionJsonFileMatch;
+        });
+    }
     findFileRecursivelyAsync(folder, fileName, returnFileContents, pattern) {
         return __awaiter(this, void 0, void 0, function* () {
             const fileNameRegex = typeof fileName === 'string' ? new RegExp(fileName, 'i') : fileName;
@@ -203,7 +210,7 @@ class FileSystemWrapperBase {
             }
         });
     }
-    findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeRegex, functionNamePosInRegex) {
+    findFunctionsRecursivelyAsync(folder, fileNameRegex, functionAttributeRegex) {
         return __asyncGenerator(this, arguments, function* findFunctionsRecursivelyAsync_1() {
             var e_2, _a;
             try {
@@ -211,8 +218,8 @@ class FileSystemWrapperBase {
                     const fullPath = _c.value;
                     const code = yield __await(this.readFile(fullPath));
                     var match;
-                    while (!!(match = functionAttributeRegex.exec(code))) {
-                        let functionName = traverseFunctionProjectUtils_1.cleanupFunctionName(match[functionNamePosInRegex]);
+                    while (!!(match = functionAttributeRegex.regex.exec(code))) {
+                        let functionName = traverseFunctionProjectUtils_1.cleanupFunctionName(match[functionAttributeRegex.pos]);
                         const functionAttributeEndPos = match.index + match[0].length;
                         const body = traverseFunctionProjectUtils_1.getCodeInBrackets(code, functionAttributeEndPos, '{', '}', '\n');
                         if (body.openBracketPos >= 0 && !!body.code) {

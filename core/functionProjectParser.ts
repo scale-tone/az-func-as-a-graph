@@ -3,8 +3,11 @@ import { FileSystemWrapperBase } from './fileSystemWrapperBase';
 
 import { FunctionProjectParserBase } from './functionProjectParserBase';
 import { FunctionProjectScriptParser } from './functionProjectScriptParser';
-import { CSharpFunctionProjectParser, FSharpFunctionProjectParser, JavaFunctionProjectParser } from './functionProjectCodeParser';
+import { CSharpFunctionProjectParser } from './cSharpFunctionProjectParser';
+import { FSharpFunctionProjectParser } from './fSharpFunctionProjectParser';
+import { JavaFunctionProjectParser } from './javaFunctionProjectParser';
 import { PowershellFunctionProjectParser } from './powershellFunctionProjectParser';
+import { PythonV2FunctionProjectParser } from './pythonV2FunctionProjectParser';
 
 // Parses Azure Functions projects to produce Functions map (list of all Functions, their bindings and connections to other Functions)
 export abstract class FunctionProjectParser {
@@ -34,6 +37,8 @@ export abstract class FunctionProjectParser {
             parser = new JavaFunctionProjectParser(fileSystemWrapper, log);
         } else if (await fileSystemWrapper.isPowershellProjectAsync(hostJsonFolder)) {
             parser = new PowershellFunctionProjectParser(fileSystemWrapper, log);
+        } else if (await fileSystemWrapper.isPythonV2ProjectAsync(hostJsonFolder)) {
+            parser = new PythonV2FunctionProjectParser(fileSystemWrapper, log);
         } else {
             parser = new FunctionProjectScriptParser(fileSystemWrapper, log);
 
