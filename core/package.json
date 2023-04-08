@@ -1,6 +1,6 @@
 {
   "name": "az-func-as-a-graph.core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Utilities for visualizing your Azure Functions project in form of a graph",
   "keywords": [
     "azure functions",
