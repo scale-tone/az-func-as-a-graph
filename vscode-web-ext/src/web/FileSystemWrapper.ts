@@ -20,7 +20,7 @@ export class FileSystemWrapper extends FileSystemWrapperBase {
 		return path1.substring(0, i);
 	}
 
-	protected async readFile(path: string): Promise<string> {
+	public async readFile(path: string): Promise<string> {
 
 		const uri = vscode.Uri.parse(path);
 
@@ -29,7 +29,7 @@ export class FileSystemWrapper extends FileSystemWrapperBase {
 		return new TextDecoder().decode(bytes);
 	}
 
-	protected async isDirectory(path: string): Promise<boolean> {
+	public async isDirectory(path: string): Promise<boolean> {
 
 		const uri = vscode.Uri.parse(path);
 
@@ -38,7 +38,7 @@ export class FileSystemWrapper extends FileSystemWrapperBase {
 		return stat.type === vscode.FileType.Directory;
 	}
 
-	protected async readDir(path: string): Promise<string[]> {
+	public async readDir(path: string): Promise<string[]> {
 
 		const uri = vscode.Uri.parse(path);
 

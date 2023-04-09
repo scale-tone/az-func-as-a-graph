@@ -3,6 +3,8 @@ import { FunctionsMap, ProxiesMap } from './FunctionsMap';
 
 const ExcludedFolders = ['node_modules', 'target', 'bin', 'obj', '.vs', '.vscode', '.env', '.python_packages', '.git', '.github'];
 
+export type RegExAndPos = { regex: RegExp, pos: number };
+
 // Base class for implementing filesystem wrappers
 export abstract class FileSystemWrapperBase {
 
@@ -10,13 +12,13 @@ export abstract class FileSystemWrapperBase {
 
     public abstract joinPath(path1: string, path2: string): string;
 
-    protected abstract readFile(path: string): Promise<string>;
+    public abstract readFile(path: string): Promise<string>;
 
-    protected abstract isDirectory(path: string): Promise<boolean>;
+    public abstract isDirectory(path: string): Promise<boolean>;
 
-    protected abstract readDir(path: string): Promise<string[]>;
+    public abstract readDir(path: string): Promise<string[]>;
 
-    protected abstract pathExists(path: string): Promise<boolean>;
+    public abstract pathExists(path: string): Promise<boolean>;
 
     async readFunctionsJson(hostJsonFolder: string, log: (s: any) => void): Promise<FunctionsMap> {
 
@@ -125,6 +127,27 @@ export abstract class FileSystemWrapperBase {
         return !!javaFileMatch;
     }
 
+    async isPowershellProjectAsync(projectFolder: string): Promise<boolean> {
+
+        const firstFunctionJsonFile = await this.findFileRecursivelyAsync(projectFolder, `function.json`, false);
+
+        if (!firstFunctionJsonFile || !firstFunctionJsonFile.filePath) {
+            return false;
+        }
+
+        const psFileMatch = await this.findFileRecursivelyAsync(this.dirName(firstFunctionJsonFile.filePath), `.+\\.ps1$`, false);
+
+        return !!psFileMatch;
+    }
+
+    async isPythonV2ProjectAsync(projectFolder: string): Promise<boolean> {
+
+        const pyFileMatch = await this.findFileRecursivelyAsync(projectFolder, `.+\\.py$`, false);
+        const functionJsonFileMatch = await this.findFileRecursivelyAsync(projectFolder, `function.json`, false);
+
+        return !!pyFileMatch && !functionJsonFileMatch;
+    }
+
     async findFileRecursivelyAsync(folder: string, fileName: string | RegExp, returnFileContents: boolean, pattern?: RegExp)
         : Promise<{ filePath: string, code?: string, pos?: number, length?: number } | undefined> {
 
@@ -204,16 +227,16 @@ export abstract class FileSystemWrapperBase {
         }
     }
 
-    async * findFunctionsRecursivelyAsync(folder: string, fileNameRegex: RegExp, functionAttributeRegex: RegExp, functionNamePosInRegex: number): AsyncGenerator<any> {
+    async * findFunctionsRecursivelyAsync(folder: string, fileNameRegex: RegExp, functionAttributeRegex: RegExAndPos): AsyncGenerator<any> {
 
         for await (const fullPath of this.findFilesRecursivelyAsync(folder, fileNameRegex)) {
 
             const code = await this.readFile(fullPath);
 
             var match: RegExpExecArray | null;
-            while (!!(match = functionAttributeRegex.exec(code))) {
+            while (!!(match = functionAttributeRegex.regex.exec(code))) {
 
-                let functionName = cleanupFunctionName(match[functionNamePosInRegex]);
+                let functionName = cleanupFunctionName(match[functionAttributeRegex.pos]);
 
                 const functionAttributeEndPos = match.index + match[0].length;
 

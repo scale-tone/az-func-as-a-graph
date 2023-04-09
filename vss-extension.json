@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "az-func-as-a-graph-do-extension",
     "name": "az-func-as-a-graph",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "publisher": "DurableFunctionsMonitor",
     "public": true,
     "targets": [
