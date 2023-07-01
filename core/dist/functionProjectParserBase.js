@@ -439,6 +439,9 @@ var FunctionProjectParserBase = /** @class */ (function () {
                             binding.methods.push(httpMethod);
                         }
                     }
+                    if (/level.anonymous/i.exec(attributeCode)) {
+                        binding.authLevel = 'anonymous';
+                    }
                     result.push(binding);
                     result.push({ type: 'http', direction: 'out' });
                     break;
@@ -468,6 +471,10 @@ var FunctionProjectParserBase = /** @class */ (function () {
                         binding['schedule'] = paramsMatch[2];
                     }
                     result.push(binding);
+                    break;
+                }
+                case 'DurableClient': {
+                    result.push({ type: 'durableClient', direction: 'in' });
                     break;
                 }
                 default: {

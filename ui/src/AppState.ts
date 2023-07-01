@@ -46,7 +46,7 @@ export class AppState {
             flowchart: {
                 curve: 'Basis',
                 useMaxWidth: true,
-                htmlLabels: false
+                htmlLabels: true
             }
         });
     }
@@ -64,7 +64,7 @@ export class AppState {
         this._inProgress = true;
         try {
 
-            const diagramCode = buildFunctionDiagramCode(this._traversalResult.functions, this._traversalResult.proxies,
+            let diagramCode = buildFunctionDiagramCode(this._traversalResult.functions, this._traversalResult.proxies,
                 {
                     doNotRenderFunctions: !this._renderFunctions,
                     doNotRenderProxies: !this._renderProxies
@@ -74,15 +74,22 @@ export class AppState {
                 this._inProgress = false;
                 return;
             }
+
+            diagramCode = `graph LR\n${diagramCode}`;
+            this._diagramCode = diagramCode;
+
+            // Adding space for icons before rendering
+            const spaces = `#8194;#8194;#8194;`;
+            diagramCode = diagramCode.replace(/#32;/g, spaces);
+            diagramCode = diagramCode.replace(/#127760;/g, `${spaces}🌐`);
+            diagramCode = diagramCode.replace(/#128274;/g, `${spaces}🔒`);
     
-            this._diagramCode = `graph LR\n${diagramCode}`;
+            mermaid.render('mermaidSvgId', diagramCode).then((result) => {
     
-            mermaid.render('mermaidSvgId', this._diagramCode, (svg) => {
-    
-                this._diagramSvg = this.applyIcons(svg);
+                this._diagramSvg = this.applyIcons(result.svg);
     
                 this._inProgress = false;
-            });    
+            });
 
         } catch (err) {
             this._error = `Diagram rendering failed: ${err.message}`;
@@ -104,7 +111,7 @@ export class AppState {
         const projectPath = this.pathText;
         window.history.replaceState(null, null, `?path=${encodeURIComponent(projectPath)}`);
 
-        const traversedFunctionsPromise = axios.post(`a/p/i/traverse-func`, projectPath);
+        const traversedFunctionsPromise = axios.post(`http://localhost:7071/a/p/i/traverse-func`, projectPath);
 
         Promise.all([traversedFunctionsPromise, this._iconsSvgPromise]).then(responses => {
 
@@ -142,16 +149,9 @@ export class AppState {
         // Placing icons code into a <defs> block at the top
         svg = svg.replace(`><style>`, `>\n<defs>\n${this._iconsSvg}</defs>\n<style>`);
 
-        // Adding <use> blocks referencing relevant icons
-        svg = svg.replace(/<g style="opacity: [0-9.]+;" transform="translate\([0-9,.-]+\)" id="[^"]+" class="node (\w+).*?<g transform="translate\([0-9,.-]+\)" class="label"><g transform="translate\([0-9,.-]+\)">/g,
+        svg = svg.replace(/<g transform="translate\([0-9,.-\s]+\)" id="[^"]+" class="node default (\w+).*?<g transform="translate\([0-9,.-\s]+\)" style="" class="label">/g,
             `$&<use href="#az-icon-$1" width="20px" height="20px"/>`);
-
-        // Adding some indent to node labels, so that icons fit in
-        svg = svg.replace('</style>',
-            '.label > g > text { transform: translateX(25px); }' +
-            '</style>'
-        );
-        
+                
         return svg;
     }
 
@@ -171,5 +171,5 @@ export class AppState {
     private _traversalResult: { functions: FunctionsMap, proxies: ProxiesMap };
     private _iconsSvg: string;
 
-    private _iconsSvgPromise = axios.get('static/icons/all-azure-icons.svg');
+    private _iconsSvgPromise = axios.get('http://localhost:7071/static/icons/all-azure-icons.svg');
 }

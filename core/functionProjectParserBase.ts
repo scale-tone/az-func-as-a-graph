@@ -457,6 +457,11 @@ export abstract class FunctionProjectParserBase {
                         }
                     }
 
+                    if (/level.anonymous/i.exec(attributeCode)) {
+                        
+                        binding.authLevel = 'anonymous';
+                    }
+
                     result.push(binding);
 
                     result.push({ type: 'http', direction: 'out' });
@@ -492,6 +497,10 @@ export abstract class FunctionProjectParserBase {
 
                     break;
                 }
+                case 'DurableClient': {
+                    result.push({ type: 'durableClient', direction: 'in' });
+                    break;
+                }                    
                 default: {
                     result.push({ type: attributeName, direction: isReturn || isOut ? 'out' : 'in' });
                     break;
