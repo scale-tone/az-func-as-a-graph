@@ -90,8 +90,19 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
             return;
         }
 
-        var diagramCode = await buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings);
-        diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');
+        let diagramCode = await buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings);
+        diagramCode = diagramCode ?? 'empty["(empty)"]';
+
+        if (outputFileExt !== '.md') {
+
+            // Adding space for icons before rendering
+            const spaces = `#8194;#8194;#8194;`;
+            diagramCode = diagramCode.replace(/#32;/g, spaces);
+            diagramCode = diagramCode.replace(/#127760;/g, `${spaces}🌐`);
+            diagramCode = diagramCode.replace(/#128274;/g, `${spaces}🔒`);
+        }
+
+        diagramCode = 'graph LR\n' + diagramCode;
 
         console.log('Diagram code:');
         console.log(diagramCode);
@@ -146,15 +157,9 @@ export async function renderDiagramWithCli(projectFolder: string, outputFile: st
 // saves resulting Function Graph as SVG
 async function saveOutputAsSvg(outputFile: string, tempOutputFile: string) {
     
-    var svg = await fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
+    let svg = await fs.promises.readFile(tempOutputFile, { encoding: 'utf8' });
 
     svg = await applyIcons(svg);
-
-    // Adding some indent to node labels, so that icons fit in
-    svg = svg.replace('</style>',
-        '.label > g > text { transform: translateX(25px); }' +
-        '</style>'
-    );
     
     await fs.promises.writeFile(outputFile, svg);
 }
@@ -197,12 +202,12 @@ async function runMermaidCli(inputFile: string, outputFile: string): Promise<voi
     const packageJsonPath = path.resolve(__dirname, '..');
 
     // Explicitly installing mermaid-cli. Don't want to add it to package.json, because it is quite heavy.
-    const mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'index.bundle.js');
+    const mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'src', 'cli.js');
 
     if (!fs.existsSync(mermaidCliPath)) {
         console.log(`installing mermaid-cli in ${packageJsonPath}...`)
         // Something got broken in the latest mermaid-cli, so need to lock down the version here
-        await execAsync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath });
+        await execAsync('npm i --no-save @mermaid-js/mermaid-cli@10.2.2', { cwd: packageJsonPath });
         console.log('mermaid-cli installed')
     }
 
@@ -232,7 +237,7 @@ async function applyIcons(svg: string): Promise<string> {
     svg = svg.replace(`><style>`, `>\n<defs>\n${iconsSvg}</defs>\n<style>`);
 
     // Adding <use> blocks referencing relevant icons
-    svg = svg.replace(/<g style="opacity: [0-9.]+;" transform="translate\([0-9,.-]+\)" id="[^"]+" class="node (\w+).*?<g transform="translate\([0-9,.-]+\)" class="label"><g transform="translate\([0-9,.-]+\)">/g,
+    svg = svg.replace(/<g transform="translate\([0-9,.-\s]+\)" id="[^"]+" class="node default (\w+).*?<g transform="translate\([0-9,.-\s]+\)" style="" class="label">/g,
         `$&<use href="#az-icon-$1" width="20px" height="20px"/>`);
 
     return svg;

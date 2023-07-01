@@ -111,7 +111,7 @@ export class AppState {
         const projectPath = this.pathText;
         window.history.replaceState(null, null, `?path=${encodeURIComponent(projectPath)}`);
 
-        const traversedFunctionsPromise = axios.post(`http://localhost:7071/a/p/i/traverse-func`, projectPath);
+        const traversedFunctionsPromise = axios.post(`a/p/i/traverse-func`, projectPath);
 
         Promise.all([traversedFunctionsPromise, this._iconsSvgPromise]).then(responses => {
 
@@ -171,5 +171,5 @@ export class AppState {
     private _traversalResult: { functions: FunctionsMap, proxies: ProxiesMap };
     private _iconsSvg: string;
 
-    private _iconsSvgPromise = axios.get('http://localhost:7071/static/icons/all-azure-icons.svg');
+    private _iconsSvgPromise = axios.get('static/icons/all-azure-icons.svg');
 }
