@@ -1,13 +1,13 @@
 import React from 'react';
 import { observer } from 'mobx-react';
 
-import { AppBar, Box, Button, Checkbox, FormControlLabel, FormGroup, LinearProgress, Link, TextField, Toolbar, Typography } from '@material-ui/core';
+import { AppBar, Box, Button, Checkbox, FormControlLabel, FormGroup, LinearProgress, Link, TextField, Toolbar, Typography } from '@mui/material';
 
-import FileCopyIcon from '@material-ui/icons/FileCopy';
-import SaveIcon from '@material-ui/icons/Save';
+import FileCopyIcon from '@mui/icons-material/FileCopy';
+import SaveIcon from '@mui/icons-material/Save';
 
 import { AppState } from './AppState';
-
+  
 @observer
 export default class App extends React.Component<{ state: AppState }> {
 
@@ -51,6 +51,7 @@ export default class App extends React.Component<{ state: AppState }> {
                     </Typography>
 
                     <TextField
+                        variant="standard"
                         fullWidth
                         className="filter-textfield"
                         margin="dense"
@@ -59,7 +60,7 @@ export default class App extends React.Component<{ state: AppState }> {
                         disabled={state.inProgress}
                         value={state.pathText}
                         onChange={(evt) => state.pathText = evt.target.value as string}
-                        onKeyPress={(evt: React.KeyboardEvent<HTMLInputElement>) => this.handleKeyPress(evt)}
+                        onKeyDown={(evt: React.KeyboardEvent<HTMLInputElement>) => this.handleKeyPress(evt)}
                     />
 
                     <Box width={30} />
@@ -116,8 +117,8 @@ export default class App extends React.Component<{ state: AppState }> {
                 <Toolbar variant="dense" className="bottom-toolbar">
 
                     <Button
+                        color="inherit"
                         variant="outlined"
-                        color="default"
                         disabled={state.inProgress}
                         onClick={() => window.navigator.clipboard.writeText(state.diagramCode)}
                     >
@@ -129,8 +130,8 @@ export default class App extends React.Component<{ state: AppState }> {
                     <Box width={20} />
 
                     <Button
+                        color="inherit"
                         variant="outlined"
-                        color="default"
                         disabled={state.inProgress}
                         href={URL.createObjectURL(new Blob([state.diagramSvg], { type: 'image/svg+xml' }))}
                         download={'functions.svg'}

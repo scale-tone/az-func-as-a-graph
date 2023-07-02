@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@material-ui/core": "^4.12.4",
-    "@material-ui/icons": "^4.11.3",
-    "axios": "^0.27.2",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.11.16",
+    "@mui/material": "^5.13.6",
+    "axios": "^1.4.0",
     "az-func-as-a-graph.core": "^1.3.0",
-    "mermaid": "9.1.3",
+    "mermaid": "10.2.4",
     "mobx": "^5.15.7",
     "mobx-react": "^6.3.1",
     "react": "^18.2.0",
@@ -16,7 +18,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build && node copy-build-artifacts.js",
+    "build": "node disable-webpack-chunking.js && react-scripts build && node copy-build-artifacts.js",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {

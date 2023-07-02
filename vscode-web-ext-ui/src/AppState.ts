@@ -46,18 +46,10 @@ export class AppState {
         mermaid.initialize({
             startOnLoad: true,
 
-            maxTextSize: 500000,
-            
-            sequence: {
-                noteMargin: 0,
-                boxMargin: 5,
-                boxTextMargin: 5
-            },
-
             flowchart: {
                 curve: 'Basis',
                 useMaxWidth: true,
-                htmlLabels: false
+                htmlLabels: true
             }
         });
 
@@ -81,7 +73,7 @@ export class AppState {
         this._inProgress = true;
         try {
 
-            const diagramCode = buildFunctionDiagramCode(this._traversalResult.functions, this._traversalResult.proxies,
+            let diagramCode = buildFunctionDiagramCode(this._traversalResult.functions, this._traversalResult.proxies,
                 {
                     doNotRenderFunctions: !this._renderFunctions,
                     doNotRenderProxies: !this._renderProxies
@@ -92,14 +84,25 @@ export class AppState {
                 return;
             }
     
-            this._diagramCode = `graph LR\n${diagramCode}`;
+            diagramCode = `graph LR\n${diagramCode}`;
+            this._diagramCode = diagramCode;
+          
+            // Adding space for icons before rendering
+            const spaces = `#8194;#8194;#8194;`;
+            diagramCode = diagramCode.replace(/#32;/g, spaces);
+            diagramCode = diagramCode.replace(/#127760;/g, `${spaces}🌐`);
+            diagramCode = diagramCode.replace(/#128274;/g, `${spaces}🔒`);
+            
+            mermaid.render('mermaidSvgId', diagramCode).then((result) => {
     
-            mermaid.render('mermaidSvgId', this._diagramCode, (svg) => {
-    
-                this._diagramSvg = this.getStyledSvg(this.applyIcons(svg));
+                this._diagramSvg = this.applyIcons(result.svg);
     
                 this._inProgress = false;
-            });    
+            }, (err) => {
+
+                this._vsCodeApi.postMessage({ kind: 'ShowError', data: err.message ?? err });
+                this._inProgress = false;
+            });
 
         } catch (err) {
 
@@ -150,22 +153,10 @@ export class AppState {
         // Placing icons code into a <defs> block at the top
         svg = svg.replace(`><style>`, `>\n<defs>\n${iconsSvgElement.innerHTML}</defs>\n<style>`);
 
-        // Adding <use> blocks referencing relevant icons
-        svg = svg.replace(/<g style="opacity: [0-9.]+;" transform="translate\([0-9,.-]+\)" id="[^"]+" class="node (\w+).*?<g transform="translate\([0-9,.-]+\)" class="label"><g transform="translate\([0-9,.-]+\)">/g,
+        svg = svg.replace(/<g transform="translate\([0-9,.-\s]+\)" id="[^"]+" class="node default (\w+).*?<g transform="translate\([0-9,.-\s]+\)" style="" class="label">/g,
             `$&<use href="#az-icon-$1" width="20px" height="20px"/>`);
 
         return svg;
-    }
-
-    // Appends some styling to SVG code, so it can also be saved as file
-    private getStyledSvg(svg: string): string {
-
-        return svg.replace('</style>',
-            '.note { stroke: none !important; fill: none !important; } ' +
-            '.noteText { font-size: 9px !important; } ' +
-            '.label > g > text { transform: translateX(25px); }' +
-            '</style>'
-        );
     }
 
     @observable

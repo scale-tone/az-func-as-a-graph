@@ -1,13 +1,11 @@
 import React from 'react';
 import { observer } from 'mobx-react';
 
-import { AppBar, Box, Button, Checkbox, FormControlLabel, LinearProgress, Menu, MenuItem, Toolbar, Typography } from '@material-ui/core';
+import { AppBar, Box, Button, Checkbox, FormControlLabel, LinearProgress, Menu, MenuItem, Toolbar, Typography } from '@mui/material';
 
-import RefreshIcon from '@material-ui/icons/Refresh';
-import FileCopyIcon from '@material-ui/icons/FileCopy';
-import SaveIcon from '@material-ui/icons/Save';
-import SaveAltIcon from '@material-ui/icons/SaveAlt';
-import ArrowDropDownIcon from '@material-ui/icons/ArrowDropDown';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import SaveIcon from '@mui/icons-material/Save';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 
 import { CustomTabStyle } from './theme';
 import { AppState } from './AppState';
@@ -101,7 +99,7 @@ export default class App extends React.Component<{ state: AppState }> {
                     <Button
                         className="toolbar-button"
                         variant="outlined"
-                        color="default"
+                        color="inherit"
                         size="medium"
                         disabled={state.inProgress}
                         onClick={evt => state.menuAnchorElement = evt.currentTarget}
@@ -115,7 +113,7 @@ export default class App extends React.Component<{ state: AppState }> {
                     <Button
                         className="toolbar-button"
                         variant="outlined"
-                        color="default"
+                        color="inherit"
                         size="medium"
                         disabled={state.inProgress}
                         onClick={() => state.refresh()}
