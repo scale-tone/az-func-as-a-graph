@@ -84,15 +84,19 @@ export class AppState {
             diagramCode = diagramCode.replace(/#127760;/g, `${spaces}🌐`);
             diagramCode = diagramCode.replace(/#128274;/g, `${spaces}🔒`);
     
-            mermaid.render('mermaidSvgId', diagramCode).then((result) => {
+            mermaid.render('mermaidSvgId', diagramCode).then(result => {
     
                 this._diagramSvg = this.applyIcons(result.svg);
-    
+                this._inProgress = false;
+                
+            }, err => {
+
+                this._error = `Diagram rendering failed: ${err.message ?? err}`;
                 this._inProgress = false;
             });
 
         } catch (err) {
-            this._error = `Diagram rendering failed: ${err.message}`;
+            this._error = `Graph generation failed: ${err.message ?? err}`;
             this._inProgress = false;
         }
     }
