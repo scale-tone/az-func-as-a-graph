@@ -1,6 +1,6 @@
 {
   "name": "az-function-as-a-graph-ui",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.11.1",

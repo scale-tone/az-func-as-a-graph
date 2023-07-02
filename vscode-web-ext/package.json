@@ -2,7 +2,7 @@
   "name": "az-func-as-a-graph",
   "displayName": "az-func-as-a-graph",
   "description": "Visualizes your Azure Functions project in form of an interactive graph",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "engines": {
     "vscode": "^1.75.0"
   },

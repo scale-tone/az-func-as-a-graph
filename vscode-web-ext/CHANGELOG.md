@@ -1,5 +1,9 @@
 # Change Log
 
+## Version 1.3
+
+- Mostly technical release: migrated to latest mermaid.js and Material UI.
+
 ## Version 1.2
 
 - Support for [PowerShell](https://learn.microsoft.com/en-us/azure/azure-functions/functions-reference-powershell?tabs=portal) and [Python V2](https://techcommunity.microsoft.com/t5/azure-compute-blog/azure-functions-v2-python-programming-model/ba-p/3665168).
