@@ -14,7 +14,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -72,7 +72,7 @@ var gitUtils_1 = require("az-func-as-a-graph.core/dist/gitUtils");
 function renderDiagramWithCli(projectFolder, outputFile, settings) {
     if (settings === void 0) { settings = {}; }
     return __awaiter(this, void 0, void 0, function () {
-        var outputFolder, tempFilesAndFolders, gitInfo, traverseResult, repoInfo, outputFileExt, diagramCode, spaces, tempInputFile, isHtmlOutput, tempOutputFile, _i, tempFilesAndFolders_1, tempFolder;
+        var outputFolder, tempFilesAndFolders, gitInfo, traverseResult, repoInfo, outputFileExt, diagramCode, tempInputFile, isHtmlOutput, tempOutputFile, _i, tempFilesAndFolders_1, tempFolder;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -133,14 +133,7 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                 case 7: return [4 /*yield*/, buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings)];
                 case 8:
                     diagramCode = _a.sent();
-                    diagramCode = diagramCode !== null && diagramCode !== void 0 ? diagramCode : 'empty["(empty)"]';
-                    if (outputFileExt !== '.md') {
-                        spaces = "#8194;#8194;#8194;";
-                        diagramCode = diagramCode.replace(/#32;/g, spaces);
-                        diagramCode = diagramCode.replace(/#127760;/g, spaces + "\uD83C\uDF10");
-                        diagramCode = diagramCode.replace(/#128274;/g, spaces + "\uD83D\uDD12");
-                    }
-                    diagramCode = 'graph LR\n' + diagramCode;
+                    diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');
                     console.log('Diagram code:');
                     console.log(diagramCode);
                     if (!(outputFileExt === '.md')) return [3 /*break*/, 10];
@@ -206,6 +199,9 @@ function saveOutputAsSvg(outputFile, tempOutputFile) {
                     return [4 /*yield*/, applyIcons(svg)];
                 case 2:
                     svg = _a.sent();
+                    // Adding some indent to node labels, so that icons fit in
+                    svg = svg.replace('</style>', '.label > g > text { transform: translateX(25px); }' +
+                        '</style>');
                     return [4 /*yield*/, fs.promises.writeFile(outputFile, svg)];
                 case 3:
                     _a.sent();
@@ -272,11 +268,11 @@ function runMermaidCli(inputFile, outputFile) {
             switch (_a.label) {
                 case 0:
                     packageJsonPath = path.resolve(__dirname, '..');
-                    mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'src', 'cli.js');
+                    mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'index.bundle.js');
                     if (!!fs.existsSync(mermaidCliPath)) return [3 /*break*/, 2];
                     console.log("installing mermaid-cli in " + packageJsonPath + "...");
                     // Something got broken in the latest mermaid-cli, so need to lock down the version here
-                    return [4 /*yield*/, execAsync('npm i --no-save @mermaid-js/mermaid-cli@10.2.2', { cwd: packageJsonPath })];
+                    return [4 /*yield*/, execAsync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath })];
                 case 1:
                     // Something got broken in the latest mermaid-cli, so need to lock down the version here
                     _a.sent();
@@ -314,7 +310,7 @@ function applyIcons(svg) {
                     // Placing icons code into a <defs> block at the top
                     svg = svg.replace("><style>", ">\n<defs>\n" + iconsSvg + "</defs>\n<style>");
                     // Adding <use> blocks referencing relevant icons
-                    svg = svg.replace(/<g transform="translate\([0-9,.-\s]+\)" id="[^"]+" class="node default (\w+).*?<g transform="translate\([0-9,.-\s]+\)" style="" class="label">/g, "$&<use href=\"#az-icon-$1\" width=\"20px\" height=\"20px\"/>");
+                    svg = svg.replace(/<g style="opacity: [0-9.]+;" transform="translate\([0-9,.-]+\)" id="[^"]+" class="node (\w+).*?<g transform="translate\([0-9,.-]+\)" class="label"><g transform="translate\([0-9,.-]+\)">/g, "$&<use href=\"#az-icon-$1\" width=\"20px\" height=\"20px\"/>");
                     return [2 /*return*/, svg];
             }
         });

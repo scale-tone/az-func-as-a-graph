@@ -2,6 +2,6 @@
     "flowchart": {
         "curve": "Basis",
         "useMaxWidth": true,
-        "htmlLabels": true
+        "htmlLabels": false
     }
 }
