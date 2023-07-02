@@ -9,8 +9,8 @@
     "author": "DurableFunctionsMonitor",
     "version": {
         "Major": 1,
-        "Minor": 2,
-        "Patch": 2
+        "Minor": 3,
+        "Patch": 0
     },
     "instanceNameFormat": "az-func-as-a-graph",
     "inputs": [
