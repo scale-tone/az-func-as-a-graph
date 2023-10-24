@@ -38,35 +38,45 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var core = require("@actions/core");
 var github = require("@actions/github");
-var nameToGreet = core.getInput('who-to-greet');
+var cliUtils_1 = require("az-func-as-a-graph.core/dist/cliUtils");
 function run() {
     var _a;
     return __awaiter(this, void 0, void 0, function () {
-        var projectFolder, outputFile, repoInfo;
+        var projectFolder, outputFile, repoInfo, err_1;
         return __generator(this, function (_b) {
-            try {
-                projectFolder = core.getInput('projectFolder');
-                if (!projectFolder) {
-                    projectFolder = process.env.GITHUB_WORKSPACE;
-                }
-                console.warn("projectFolder: " + projectFolder);
-                outputFile = core.getInput('outputFile');
-                if (!outputFile) {
-                    outputFile = github.context.payload.repository.name + ".diagram.htm";
-                }
-                console.warn("outputFile: " + outputFile);
-                repoInfo = {
-                    originUrl: github.context.payload.repository.html_url,
-                    repoName: github.context.payload.repository.name,
-                    branchName: github.context.ref.startsWith('refs/heads/') ? github.context.ref.substring('refs/heads/'.length) : undefined,
-                    tagName: github.context.ref.startsWith('refs/tags/') ? github.context.ref.substring('refs/tags/'.length) : undefined,
-                };
-                console.warn(JSON.stringify(repoInfo));
+            switch (_b.label) {
+                case 0:
+                    _b.trys.push([0, 2, , 3]);
+                    projectFolder = core.getInput('projectFolder');
+                    if (!projectFolder) {
+                        projectFolder = process.env.GITHUB_WORKSPACE;
+                    }
+                    outputFile = core.getInput('outputFile');
+                    if (!outputFile) {
+                        outputFile = github.context.payload.repository.name + ".diagram.htm";
+                    }
+                    repoInfo = {
+                        originUrl: github.context.payload.repository.html_url,
+                        repoName: github.context.payload.repository.name,
+                        branchName: github.context.ref.startsWith('refs/heads/') ? github.context.ref.substring('refs/heads/'.length) : undefined,
+                        tagName: github.context.ref.startsWith('refs/tags/') ? github.context.ref.substring('refs/tags/'.length) : undefined,
+                    };
+                    return [4 /*yield*/, cliUtils_1.renderDiagram(projectFolder, outputFile, {
+                            repoInfo: repoInfo,
+                            sourcesRootFolder: process.env.GITHUB_WORKSPACE,
+                            templateFile: core.getInput('templateFile'),
+                            doNotRenderFunctions: core.getBooleanInput('doNotRenderFunctions'),
+                            doNotRenderProxies: core.getBooleanInput('doNotRenderProxies')
+                        })];
+                case 1:
+                    _b.sent();
+                    return [3 /*break*/, 3];
+                case 2:
+                    err_1 = _b.sent();
+                    core.setFailed((_a = err_1.message) !== null && _a !== void 0 ? _a : err_1);
+                    return [3 /*break*/, 3];
+                case 3: return [2 /*return*/];
             }
-            catch (err) {
-                core.setFailed((_a = err.message) !== null && _a !== void 0 ? _a : err);
-            }
-            return [2 /*return*/];
         });
     });
 }

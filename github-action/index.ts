@@ -4,8 +4,6 @@ import * as github from '@actions/github';
 import { renderDiagram } from 'az-func-as-a-graph.core/dist/cliUtils';
 import { GitRepositoryInfo } from 'az-func-as-a-graph.core/dist/gitUtils';
 
-const nameToGreet = core.getInput('who-to-greet');
-
 async function run() {
     try {
 
@@ -14,14 +12,10 @@ async function run() {
             projectFolder = process.env.GITHUB_WORKSPACE
         }
 
-        console.warn(`projectFolder: ${projectFolder}`);
-        
         let outputFile = core.getInput('outputFile');
         if (!outputFile) {
             outputFile = `${github.context.payload.repository.name}.diagram.htm`;
         }
-
-        console.warn(`outputFile: ${outputFile}`);
 
         const repoInfo: GitRepositoryInfo = {
             originUrl: github.context.payload.repository.html_url,
@@ -30,7 +24,13 @@ async function run() {
             tagName: github.context.ref.startsWith('refs/tags/') ? github.context.ref.substring('refs/tags/'.length) : undefined,
         }
 
-        console.warn(JSON.stringify(repoInfo));
+        await renderDiagram(projectFolder, outputFile, {
+            repoInfo,
+            sourcesRootFolder: process.env.GITHUB_WORKSPACE,
+            templateFile: core.getInput('templateFile'),
+            doNotRenderFunctions: core.getBooleanInput('doNotRenderFunctions'),
+            doNotRenderProxies: core.getBooleanInput('doNotRenderProxies')
+        });
 
     }
     catch (err) {
