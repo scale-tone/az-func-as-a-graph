@@ -42,21 +42,26 @@ var nameToGreet = core.getInput('who-to-greet');
 function run() {
     var _a;
     return __awaiter(this, void 0, void 0, function () {
-        var projectFolder, outputFile;
+        var projectFolder, outputFile, repoInfo;
         return __generator(this, function (_b) {
             try {
                 projectFolder = core.getInput('projectFolder');
                 if (!projectFolder) {
-                    core.setFailed('projectFolder parameter is required');
-                    return [2 /*return*/];
+                    projectFolder = process.env.GITHUB_WORKSPACE;
                 }
+                console.warn("projectFolder: " + projectFolder);
                 outputFile = core.getInput('outputFile');
                 if (!outputFile) {
-                    core.setFailed('outputFile parameter is required');
-                    return [2 /*return*/];
+                    outputFile = github.context.payload.repository.name + ".diagram.htm";
                 }
-                console.warn("ENV: " + JSON.stringify(process.env));
-                console.warn("github context: " + JSON.stringify(github.context));
+                console.warn("outputFile: " + outputFile);
+                repoInfo = {
+                    originUrl: github.context.payload.repository.html_url,
+                    repoName: github.context.payload.repository.name,
+                    branchName: github.context.ref.startsWith('refs/heads/') ? github.context.ref.substring('refs/heads/'.length) : undefined,
+                    tagName: github.context.ref.startsWith('refs/tags/') ? github.context.ref.substring('refs/tags/'.length) : undefined,
+                };
+                console.warn(JSON.stringify(repoInfo));
             }
             catch (err) {
                 core.setFailed((_a = err.message) !== null && _a !== void 0 ? _a : err);

@@ -9,22 +9,28 @@ const nameToGreet = core.getInput('who-to-greet');
 async function run() {
     try {
 
-        const projectFolder = core.getInput('projectFolder');
+        let projectFolder = core.getInput('projectFolder');
         if (!projectFolder) {
-        
-            core.setFailed('projectFolder parameter is required');
-            return;
+            projectFolder = process.env.GITHUB_WORKSPACE
         }
+
+        console.warn(`projectFolder: ${projectFolder}`);
         
-        const outputFile = core.getInput('outputFile');
+        let outputFile = core.getInput('outputFile');
         if (!outputFile) {
-            core.setFailed('outputFile parameter is required');
-            return;
+            outputFile = `${github.context.payload.repository.name}.diagram.htm`;
         }
 
-        console.warn(`ENV: ${JSON.stringify(process.env)}`)
+        console.warn(`outputFile: ${outputFile}`);
 
-        console.warn(`github context: ${JSON.stringify(github.context)}`);
+        const repoInfo: GitRepositoryInfo = {
+            originUrl: github.context.payload.repository.html_url,
+            repoName: github.context.payload.repository.name,
+            branchName: github.context.ref.startsWith('refs/heads/') ? github.context.ref.substring('refs/heads/'.length) : undefined,
+            tagName: github.context.ref.startsWith('refs/tags/') ? github.context.ref.substring('refs/tags/'.length) : undefined,
+        }
+
+        console.warn(JSON.stringify(repoInfo));
 
     }
     catch (err) {

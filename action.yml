@@ -5,7 +5,7 @@ inputs:
     description: 'Folder where your host.json file resides. If omitted, defaults to repo''s root folder. If your Functions project is not in the root folder, specify the exact path to it here.'
     required: false
   outputFile:
-    description: 'Path to output file. Extension can be either .SVG or .HTM. If it is .HTM, an interactive HTML page is generated - nodes are clickable and lead to source code.'
+    description: 'Path to output file. Extension can be either .SVG or .HTM. If it is .HTM, an interactive HTML page is generated - nodes are clickable and lead to source code. If the path contains folders, those folders must pre-exist. If omitted, defaults to {my-repo-name}.diagram.htm'
     required: false
   templateFile:
     description: 'Full path to a custom template (will only be used, if output file has .HTM or .MD extension). If omitted, the default built-in template will be used.'
