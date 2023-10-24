@@ -1,5 +1,7 @@
 name: 'az-func-as-a-graph'
 description: 'Generates interactive code diagrams for your Azure Functions'
+icon: code
+color: purple
 inputs:
   projectFolder:
     description: 'Folder where your host.json file resides. If omitted, defaults to repo''s root folder. If your Functions project is not in the root folder, specify the exact path to it here.'
