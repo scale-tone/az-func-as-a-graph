@@ -7,9 +7,9 @@ import { GitRepositoryInfo } from 'az-func-as-a-graph.core/dist/gitUtils';
 async function run() {
     try {
 
-        console.log('>>>>>>>>>>>>>>>>');
-        console.log(process.env.GITHUB_WORKSPACE);
-        console.log('>>>>>>>>>>>>>>>>');
+        core.info('>>>>>>>>>>>>>>>>');
+        core.info(process.env.GITHUB_WORKSPACE);
+        core.info('>>>>>>>>>>>>>>>>');
 
         let projectFolder = core.getInput('projectFolder');
         if (!projectFolder) {
