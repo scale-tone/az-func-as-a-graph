@@ -47,6 +47,7 @@ function run() {
             switch (_b.label) {
                 case 0:
                     _b.trys.push([0, 2, , 3]);
+                    console.warn(process.env.GITHUB_WORKSPACE);
                     projectFolder = core.getInput('projectFolder');
                     if (!projectFolder) {
                         projectFolder = process.env.GITHUB_WORKSPACE;
