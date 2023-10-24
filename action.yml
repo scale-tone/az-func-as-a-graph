@@ -13,9 +13,11 @@ inputs:
   doNotRenderFunctions:
     description: 'When set to true, Functions will not be shown on the resulting diagram'
     required: false
+    default: 'false'
   doNotRenderProxies:
     description: 'When set to true, Azure Functions Proxies will not be shown on the resulting diagram'
     required: false
+    default: 'false'
 runs:
   using: 'node20'
   main: 'github-action/dist/index.js'
