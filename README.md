@@ -33,19 +33,24 @@ For this to work you'll need to have [GitHub Codespaces](https://github.com/feat
 
 * Enter a link to any Azure Functions project (e.g. `https://github.com/scale-tone/az-func-as-a-graph`) into there and press 'Visualize'.
 
-## How to run locally
+## How to run as a custom GitHub Action
 
-This tool is itself an Azure Function (written in TypeScript), so to run it you'll need:
-- [Azure Functions Core Tools](https://github.com/Azure/azure-functions-core-tools#installing) package installed **globally** (`npm i -g azure-functions-core-tools`).
+This repo is also a custom GitHub action, so you can run it as part of your workflow like this:
 
-Clone this repo to your devbox, then type the following from the project root folder:
 ```
-npm install
-npm run build
-func start
+    steps:
+
+    - uses: scale-tone/az-func-as-a-graph@github-action-v1.3
+      with:
+        projectFolder: ${{ github.workspace }}/path-to-my-function-project
+        outputFile: my-function-graph.htm
+        templateFile: my-custom-html-template.htm
+        doNotRenderFunctions: false
+        doNotRenderProxies: false
 ```
 
-Then navigate to `http://localhost:7071` with your browser, specify either local path or link to a github repo and press 'Visualize'.
+All parameters are optional.
+
 
 ## How to run as part of Azure DevOps build pipeline
 
@@ -104,3 +109,18 @@ This now became possible thanks to [mermaid-cli](https://github.com/mermaid-js/m
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fscale-tone%2Faz-func-as-a-graph%2Fmain%2Farm-template.json)
 
 The above button will deploy *these sources* into *your newly created Function App instance*. Note that it will be in AppService pricing tier. Keep an eye on the cost of it and don't forget to remove it once not needed anymore. 
+
+
+## How to run locally
+
+This tool is itself an Azure Function (written in TypeScript), so to run it you'll need:
+- [Azure Functions Core Tools](https://github.com/Azure/azure-functions-core-tools#installing) package installed **globally** (`npm i -g azure-functions-core-tools`).
+
+Clone this repo to your devbox, then type the following from the project root folder:
+```
+npm install
+npm run build
+func start
+```
+
+Then navigate to `http://localhost:7071` with your browser, specify either local path or link to a github repo and press 'Visualize'.
