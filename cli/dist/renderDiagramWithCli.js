@@ -14,7 +14,7 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     __setModuleDefault(result, mod);
     return result;
 };
@@ -57,22 +57,13 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderDiagramWithCli = void 0;
 var rimraf = __importStar(require("rimraf"));
-var os = __importStar(require("os"));
-var fs = __importStar(require("fs"));
-var path = __importStar(require("path"));
-var cp = __importStar(require("child_process"));
-var crypto = __importStar(require("crypto"));
-var util = __importStar(require("util"));
-var execAsync = util.promisify(cp.exec);
-var functionProjectParser_1 = require("az-func-as-a-graph.core/dist/functionProjectParser");
-var fileSystemWrapper_1 = require("az-func-as-a-graph.core/dist/fileSystemWrapper");
-var buildFunctionDiagramCode_1 = require("az-func-as-a-graph.core/dist/buildFunctionDiagramCode");
+var cliUtils_1 = require("az-func-as-a-graph.core/dist/cliUtils");
 var gitUtils_1 = require("az-func-as-a-graph.core/dist/gitUtils");
 // Does the main job
 function renderDiagramWithCli(projectFolder, outputFile, settings) {
     if (settings === void 0) { settings = {}; }
     return __awaiter(this, void 0, void 0, function () {
-        var outputFolder, tempFilesAndFolders, gitInfo, traverseResult, repoInfo, outputFileExt, diagramCode, tempInputFile, isHtmlOutput, tempOutputFile, _i, tempFilesAndFolders_1, tempFolder;
+        var tempFolder, gitInfo;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -80,239 +71,32 @@ function renderDiagramWithCli(projectFolder, outputFile, settings) {
                         console.error('Path to an Azure Functions project not specified');
                         return [2 /*return*/];
                     }
-                    // To support both old and new property names
-                    if (!!settings.htmlTemplateFile && !settings.templateFile) {
-                        settings.templateFile = settings.htmlTemplateFile;
-                    }
-                    if (!outputFile) {
-                        outputFile = 'function-graph.svg';
-                    }
-                    outputFolder = path.dirname(outputFile);
-                    if (!fs.existsSync(outputFolder)) {
-                        console.log("Creating output folder " + outputFolder);
-                        fs.promises.mkdir(outputFolder, { recursive: true });
-                    }
-                    tempFilesAndFolders = [];
+                    tempFolder = '';
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, , 19, 20]);
+                    _a.trys.push([1, , 5, 6]);
                     if (!projectFolder.toLowerCase().startsWith('http')) return [3 /*break*/, 3];
                     console.log("Cloning " + projectFolder);
                     return [4 /*yield*/, gitUtils_1.cloneFromGitHub(projectFolder)];
                 case 2:
                     gitInfo = _a.sent();
                     console.log("Successfully cloned to " + gitInfo.gitTempFolder);
-                    tempFilesAndFolders.push(gitInfo.gitTempFolder);
+                    tempFolder = gitInfo.gitTempFolder;
                     projectFolder = gitInfo.projectFolder;
                     _a.label = 3;
-                case 3: return [4 /*yield*/, functionProjectParser_1.FunctionProjectParser.parseFunctions(projectFolder, new fileSystemWrapper_1.FileSystemWrapper(), console.log)];
+                case 3: return [4 /*yield*/, cliUtils_1.renderDiagram(projectFolder, outputFile, settings)];
                 case 4:
-                    traverseResult = _a.sent();
-                    projectFolder = traverseResult.projectFolder;
-                    return [4 /*yield*/, gitUtils_1.getGitRepoInfo(projectFolder, settings.repoInfo)];
+                    _a.sent();
+                    return [3 /*break*/, 6];
                 case 5:
-                    repoInfo = _a.sent();
-                    if (!!repoInfo) {
-                        console.log("Using repo URI: " + repoInfo.originUrl + ", repo name: " + repoInfo.repoName + ", branch: " + repoInfo.branchName + ", tag: " + repoInfo.tagName);
-                        // changing local paths to remote repo URLs
-                        gitUtils_1.convertLocalPathsToRemote(traverseResult.functions, settings.sourcesRootFolder, repoInfo);
-                        gitUtils_1.convertLocalPathsToRemote(traverseResult.proxies, settings.sourcesRootFolder, repoInfo);
-                    }
-                    outputFileExt = path.extname(outputFile).toLowerCase();
-                    if (!(outputFileExt === '.json')) return [3 /*break*/, 7];
-                    // just saving the Function Graph as JSON and quitting
-                    return [4 /*yield*/, fs.promises.writeFile(outputFile, JSON.stringify({
-                            functions: traverseResult.functions,
-                            proxies: traverseResult.proxies
-                        }, null, 4))];
-                case 6:
-                    // just saving the Function Graph as JSON and quitting
-                    _a.sent();
-                    console.log("Functions Map saved to " + outputFile);
-                    return [2 /*return*/];
-                case 7: return [4 /*yield*/, buildFunctionDiagramCode_1.buildFunctionDiagramCode(traverseResult.functions, traverseResult.proxies, settings)];
-                case 8:
-                    diagramCode = _a.sent();
-                    diagramCode = 'graph LR\n' + (!!diagramCode ? diagramCode : 'empty["#32;(empty)"]');
-                    console.log('Diagram code:');
-                    console.log(diagramCode);
-                    if (!(outputFileExt === '.md')) return [3 /*break*/, 10];
-                    // just saving the diagram as a Markdown file and quitting
-                    return [4 /*yield*/, saveOutputAsMarkdown(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, diagramCode, settings)];
-                case 9:
-                    // just saving the diagram as a Markdown file and quitting
-                    _a.sent();
-                    console.log("Diagram was successfully generated and saved to " + outputFile);
-                    return [2 /*return*/];
-                case 10:
-                    tempInputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + '.mmd');
-                    return [4 /*yield*/, fs.promises.writeFile(tempInputFile, diagramCode)];
-                case 11:
-                    _a.sent();
-                    tempFilesAndFolders.push(tempInputFile);
-                    isHtmlOutput = ['.htm', '.html'].includes(outputFileExt);
-                    tempOutputFile = path.join(os.tmpdir(), crypto.randomBytes(20).toString('hex') + (isHtmlOutput ? '.svg' : outputFileExt));
-                    tempFilesAndFolders.push(tempOutputFile);
-                    return [4 /*yield*/, runMermaidCli(tempInputFile, tempOutputFile)];
-                case 12:
-                    _a.sent();
-                    if (!isHtmlOutput) return [3 /*break*/, 14];
-                    return [4 /*yield*/, saveOutputAsHtml(!!repoInfo ? repoInfo.repoName : path.basename(projectFolder), outputFile, tempOutputFile, traverseResult, settings)];
-                case 13:
-                    _a.sent();
-                    return [3 /*break*/, 18];
-                case 14:
-                    if (!(outputFileExt === '.svg')) return [3 /*break*/, 16];
-                    return [4 /*yield*/, saveOutputAsSvg(outputFile, tempOutputFile)];
-                case 15:
-                    _a.sent();
-                    return [3 /*break*/, 18];
-                case 16: return [4 /*yield*/, fs.promises.copyFile(tempOutputFile, outputFile)];
-                case 17:
-                    _a.sent();
-                    _a.label = 18;
-                case 18:
-                    console.log("Diagram was successfully generated and saved to " + outputFile);
-                    return [3 /*break*/, 20];
-                case 19:
-                    for (_i = 0, tempFilesAndFolders_1 = tempFilesAndFolders; _i < tempFilesAndFolders_1.length; _i++) {
-                        tempFolder = tempFilesAndFolders_1[_i];
+                    if (!!tempFolder) {
                         console.log("Removing " + tempFolder);
                         rimraf.sync(tempFolder);
                     }
                     return [7 /*endfinally*/];
-                case 20: return [2 /*return*/];
+                case 6: return [2 /*return*/];
             }
         });
     });
 }
 exports.renderDiagramWithCli = renderDiagramWithCli;
-// saves resulting Function Graph as SVG
-function saveOutputAsSvg(outputFile, tempOutputFile) {
-    return __awaiter(this, void 0, void 0, function () {
-        var svg;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, fs.promises.readFile(tempOutputFile, { encoding: 'utf8' })];
-                case 1:
-                    svg = _a.sent();
-                    return [4 /*yield*/, applyIcons(svg)];
-                case 2:
-                    svg = _a.sent();
-                    // Adding some indent to node labels, so that icons fit in
-                    svg = svg.replace('</style>', '.label > g > text { transform: translateX(25px); }' +
-                        '</style>');
-                    return [4 /*yield*/, fs.promises.writeFile(outputFile, svg)];
-                case 3:
-                    _a.sent();
-                    return [2 /*return*/];
-            }
-        });
-    });
-}
-// saves resulting Function Graph as HTML
-function saveOutputAsHtml(projectName, outputFile, tempOutputFile, traverseResult, settings) {
-    return __awaiter(this, void 0, void 0, function () {
-        var htmlTemplateFile, html, svg;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    htmlTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', 'graph-template.htm');
-                    return [4 /*yield*/, fs.promises.readFile(htmlTemplateFile, { encoding: 'utf8' })];
-                case 1:
-                    html = _a.sent();
-                    return [4 /*yield*/, fs.promises.readFile(tempOutputFile, { encoding: 'utf8' })];
-                case 2:
-                    svg = _a.sent();
-                    return [4 /*yield*/, applyIcons(svg)];
-                case 3:
-                    svg = _a.sent();
-                    html = html.replace(/{{GRAPH_SVG}}/g, svg);
-                    html = html.replace(/{{PROJECT_NAME}}/g, projectName);
-                    html = html.replace(/const functionsMap = {}/g, "const functionsMap = " + JSON.stringify(traverseResult.functions));
-                    html = html.replace(/const proxiesMap = {}/g, "const proxiesMap = " + JSON.stringify(traverseResult.proxies));
-                    return [4 /*yield*/, fs.promises.writeFile(outputFile, html)];
-                case 4:
-                    _a.sent();
-                    return [2 /*return*/];
-            }
-        });
-    });
-}
-// saves resulting Function Graph as .md file
-function saveOutputAsMarkdown(projectName, outputFile, diagramCode, settings) {
-    return __awaiter(this, void 0, void 0, function () {
-        var markdownTemplateFile, markdown;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    markdownTemplateFile = !!settings.templateFile ? settings.templateFile : path.resolve(__dirname, '..', 'graph-template.md');
-                    return [4 /*yield*/, fs.promises.readFile(markdownTemplateFile, { encoding: 'utf8' })];
-                case 1:
-                    markdown = _a.sent();
-                    markdown = markdown.replace(/{{GRAPH_CODE}}/g, diagramCode);
-                    markdown = markdown.replace(/{{PROJECT_NAME}}/g, projectName);
-                    return [4 /*yield*/, fs.promises.writeFile(outputFile, markdown)];
-                case 2:
-                    _a.sent();
-                    return [2 /*return*/];
-            }
-        });
-    });
-}
-// executes mermaid CLI from command line
-function runMermaidCli(inputFile, outputFile) {
-    return __awaiter(this, void 0, void 0, function () {
-        var packageJsonPath, mermaidCliPath, mermaidConfigPath;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    packageJsonPath = path.resolve(__dirname, '..');
-                    mermaidCliPath = path.resolve(packageJsonPath, 'node_modules', '@mermaid-js', 'mermaid-cli', 'index.bundle.js');
-                    if (!!fs.existsSync(mermaidCliPath)) return [3 /*break*/, 2];
-                    console.log("installing mermaid-cli in " + packageJsonPath + "...");
-                    // Something got broken in the latest mermaid-cli, so need to lock down the version here
-                    return [4 /*yield*/, execAsync('npm i --no-save @mermaid-js/mermaid-cli@9.1.4', { cwd: packageJsonPath })];
-                case 1:
-                    // Something got broken in the latest mermaid-cli, so need to lock down the version here
-                    _a.sent();
-                    console.log('mermaid-cli installed');
-                    _a.label = 2;
-                case 2:
-                    mermaidConfigPath = path.resolve(__dirname, '..', 'mermaid.config.json');
-                    return [4 /*yield*/, new Promise(function (resolve, reject) {
-                            var proc = cp.fork(mermaidCliPath, ['-i', inputFile, '-o', outputFile, '-c', mermaidConfigPath]);
-                            proc.on('exit', function (exitCode) {
-                                if (exitCode === 0) {
-                                    resolve();
-                                }
-                                else {
-                                    reject(new Error("Mermaid failed with status code " + exitCode));
-                                }
-                            });
-                        })];
-                case 3:
-                    _a.sent();
-                    return [2 /*return*/];
-            }
-        });
-    });
-}
-// injects icons SVG into the resulting SVG
-function applyIcons(svg) {
-    return __awaiter(this, void 0, void 0, function () {
-        var iconsSvg;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, fs.promises.readFile(path.resolve(__dirname, 'all-azure-icons.svg'), { encoding: 'utf8' })];
-                case 1:
-                    iconsSvg = _a.sent();
-                    // Placing icons code into a <defs> block at the top
-                    svg = svg.replace("><style>", ">\n<defs>\n" + iconsSvg + "</defs>\n<style>");
-                    // Adding <use> blocks referencing relevant icons
-                    svg = svg.replace(/<g style="opacity: [0-9.]+;" transform="translate\([0-9,.-]+\)" id="[^"]+" class="node (\w+).*?<g transform="translate\([0-9,.-]+\)" class="label"><g transform="translate\([0-9,.-]+\)">/g, "$&<use href=\"#az-icon-$1\" width=\"20px\" height=\"20px\"/>");
-                    return [2 /*return*/, svg];
-            }
-        });
-    });
-}

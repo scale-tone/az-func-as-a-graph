@@ -1,0 +1,13 @@
+{
+  "name": "az-func-as-a-graph",
+  "version": "1.3.0",
+  "description": "Generates interactive code diagrams for your Azure Functions",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@actions/github": "^6.0.0",
+    "az-func-as-a-graph.core": "^1.3.1"
+  }
+}
