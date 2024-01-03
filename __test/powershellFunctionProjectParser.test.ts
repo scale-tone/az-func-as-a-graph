@@ -1,5 +1,5 @@
 
-import { PowershellFunctionProjectParser } from '../core/PowershellFunctionProjectParser';
+import { PowershellFunctionProjectParser } from '../core/powershellFunctionProjectParser';
 import { FunctionsMap } from '../core/FunctionsMap';
 
 class PowershellFunctionProjectParserAccessor extends PowershellFunctionProjectParser {
