@@ -76,7 +76,7 @@ var FunctionProjectCodeParser = /** @class */ (function (_super) {
         });
     };
     FunctionProjectCodeParser.prototype.getFunctionStartRegex = function (funcName) {
-        return new RegExp("FunctionName(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)" + funcName + "\\s*[\"'`\\)]{1}");
+        return new RegExp("Function(Name)?(Attribute)?\\s*\\(\\s*(nameof\\s*\\(\\s*|[\"'`]|[\\w\\s\\.]+\\.\\s*)" + funcName + "\\s*[\"'`\\)]{1}");
     };
     FunctionProjectCodeParser.prototype.getFunctionAttributeRegex = function () {
         return {
