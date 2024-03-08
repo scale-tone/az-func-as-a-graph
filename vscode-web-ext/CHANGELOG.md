@@ -1,5 +1,9 @@
 # Change Log
 
+## Version 1.4
+
+- Minor fixes for .NET Isolated
+
 ## Version 1.3
 
 - Mostly technical release: migrated to latest mermaid.js and Material UI.

@@ -537,7 +537,7 @@ export abstract class FunctionProjectParserBase {
     }
 
     protected getStartNewOrchestrationRegex(orchName: string): RegExp {
-        return new RegExp(`(StartNew|StartNewAsync|start_new|scheduleNewOrchestrationInstance)(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${orchName}\\s*["'\\),]{1}`, 'i');
+        return new RegExp(`(StartNew|StartNewAsync|start_new|scheduleNewOrchestrationInstance|scheduleNewOrchestrationInstanceAsync)(\\s*<[\\w\\.-\\[\\]\\<\\>,\\s]+>)?\\s*\\(\\s*(["'\`]|nameof\\s*\\(\\s*[\\w\\.-]*|[\\w\\s\\.]+\\.\\s*)${orchName}\\s*["'\\),]{1}`, 'i');
     }
 
     protected getCallSubOrchestratorRegex(subOrchName: string): RegExp {
