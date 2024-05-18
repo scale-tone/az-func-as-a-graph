@@ -473,12 +473,14 @@ var FunctionProjectParserBase = /** @class */ (function () {
                     result.push(binding);
                     break;
                 }
-                case 'DurableClient': {
+                case 'OrchestrationClient':
+                case 'DurableClient':
+                case 'DurableClientInput': {
                     result.push({ type: 'durableClient', direction: 'in' });
                     break;
                 }
                 default: {
-                    result.push({ type: attributeName, direction: isReturn || isOut ? 'out' : 'in' });
+                    // Doing nothing for now, as there are too many "false positives"
                     break;
                 }
             }
